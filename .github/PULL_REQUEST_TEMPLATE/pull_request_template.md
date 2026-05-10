@@ -1,11 +1,4 @@
----
-name: PR Template
-about: '해당 pr 템플릿을 사용하여 pr을 생성해주세요 '
-title: "[TAG/issue] where / what"
-labels: ''
-assignees: ''
-
----
+<! -- title: "[TAG/issue] where / what" -->
 
 ### 이슈 번호
 > #
