@@ -3,7 +3,7 @@ name: Issue_template
 about: 해당 이슈 템플릿을 사용하여 이슈를 생성해주세요
 title: "[TAG] where / what"
 labels: ''
-assignees: youngseo22
+assignees: ''
 
 ---
 
