@@ -1,5 +1,7 @@
 package com.beat_it.global.error
 
+import com.beat_it.global.response.BasicResponse
+import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.ExceptionHandler
 import org.springframework.web.bind.annotation.RestControllerAdvice
@@ -8,22 +10,20 @@ import org.springframework.web.bind.annotation.RestControllerAdvice
 class GlobalExceptionHandler {
 
     @ExceptionHandler(BusinessException::class)
-    protected fun handleBusinessException(e: BusinessException): ResponseEntity<ErrorResponse> {
+    protected fun handleBusinessException(e: BusinessException): ResponseEntity<BasicResponse<Nothing>> {
         val errorCode = e.errorCode
-        val response = ErrorResponse.of(errorCode)
 
-        return ResponseEntity(response, errorCode.status)
+        return ResponseEntity
+            .status(errorCode.status)
+            .body(BasicResponse.fail(errorCode.message))
     }
 
     @ExceptionHandler(Exception::class)
-    protected fun handleException(e: Exception): ResponseEntity<ErrorResponse> {
+    protected fun handleException(e: Exception): ResponseEntity<BasicResponse<Nothing>> {
         e.printStackTrace()
 
-        val response = ErrorResponse(
-            status = 500,
-            code = "COMMON 001",
-            message = e.message ?: "Internal Server Error"
-        )
-        return ResponseEntity(response, org.springframework.http.HttpStatus.INTERNAL_SERVER_ERROR)
+        return ResponseEntity
+            .status(HttpStatus.INTERNAL_SERVER_ERROR)
+            .body(BasicResponse.fail(e.message ?: "Internal Server Error"))
     }
 }
