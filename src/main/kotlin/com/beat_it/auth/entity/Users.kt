@@ -1,26 +1,28 @@
-package com.beat_it.auth.entity 
+package com.beat_it.auth.entity
 
+import com.beat_it.auth.entity.enum.AccountStatus
 import jakarta.persistence.*
 import java.time.OffsetDateTime
 import java.util.UUID
 
 @Entity
 @Table(name = "users")
-class Users(
+class Users (
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    val id: Long? = null,
+    @Column(name = "user_id")
+    val userId: Long? = null,
 
-    @Column(nullable = false, unique = true)
-    val publicId: UUID = UUID.randomUUID(), // 외부 노출용 ID 
+    @Column(name = "public_id", nullable = false, unique = true)
+    val publicId: UUID = UUID.randomUUID(), // 외부 노출용 ID
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
+    @Column(name = "account_status", nullable = false)
     var accountStatus: AccountStatus = AccountStatus.ACTIVE,
 
-    @Column(nullable = true)
+    @Column(name = "withdrawn_at", nullable = false)
     var withdrawnAt: OffsetDateTime? = null,
 
-    @Column(nullable = false)
+    @Column(name = "created_at", nullable = false, updatable = false)
     val createdAt: OffsetDateTime = OffsetDateTime.now()
 )
