@@ -14,11 +14,11 @@ class UserAuthAccounts(
     @JoinColumn(name = "user_id")
     val users: Users,
 
-    @Column(nullable = false, length = 30)
-    var identifier: String,
+    @Column(length = 30)
+    var identifier: String? = null,
 
-    @Column(nullable = false)
-    var password: String,
+    @Column
+    var password: String? = null,
 
     @Column(nullable = false)
     var email: String,

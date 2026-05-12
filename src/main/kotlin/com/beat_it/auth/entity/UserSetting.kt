@@ -7,7 +7,7 @@ import java.time.ZoneId
 
 @Entity
 @Table(name = "user_setting")
-class UsersSetting (
+class UserSetting (
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     val userSettingId: Long? = null,

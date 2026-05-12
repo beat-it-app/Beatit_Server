@@ -1,4 +1,9 @@
 package com.beat_it.auth.repository
 
-class UserRepository {
+import com.beat_it.auth.entity.Users
+import org.springframework.data.jpa.repository.JpaRepository
+
+interface UserRepository : JpaRepository<Users, Long> {
+//    fun findByUserId(userId: Long): Users?
+    fun findByIdentifier(identifier: String): Users?
 }
