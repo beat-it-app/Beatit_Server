@@ -24,7 +24,6 @@ class ScheduleController(
 
         val responseData = scheduleService.createSchedule(userId, request)
 
-        // 억지로 형식을 만들지 않고, 정의된 BasicResponse 규격 그대로 반환합니다.
         return ResponseEntity
             .status(HttpStatus.CREATED)
             .body(BasicResponse.success(responseData, "일정 생성에 성공했습니다."))

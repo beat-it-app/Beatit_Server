@@ -38,7 +38,6 @@ class Schedule(
     @Column(name = "ends_at", nullable = false)
     var endsAt: LocalDateTime,
 
-    // 3. 선택 정보 (NULL 허용)
     @Column(name = "location_id")
     var locationId: Long? = null,
 
