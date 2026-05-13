@@ -7,8 +7,6 @@ import java.util.UUID
 
 @Getter
 data class SignUpDtoRequest (
-    val userId: Long?,
-    val publicId: UUID,
     val accountStatus: AccountStatus,
     val createdAt: OffsetDateTime,
 
