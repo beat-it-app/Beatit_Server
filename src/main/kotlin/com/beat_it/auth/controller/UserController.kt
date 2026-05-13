@@ -1,8 +1,12 @@
 package com.beat_it.auth.controller
 
-import com.beat_it.auth.dto.SignUpDtoRequest
+import com.beat_it.auth.dto.LoginRequest
+import com.beat_it.auth.dto.SignUpRequest
+import com.beat_it.auth.dto.SignUpResponse
 import com.beat_it.auth.service.UserService
 import com.beat_it.global.response.BasicResponse
+import org.springframework.http.HttpStatus
+import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.*
 
 @RestController
@@ -12,38 +16,47 @@ class UserController (
 ){
     // 1. 회원가입
     @PostMapping("/signup")
-    fun signUp(signUpDtoRequest : SignUpDtoRequest) : BasicResponse<String> {
-        val data = userService.signUp(signUpDtoRequest)
-
-        return BasicResponse.success(data, "회원가입이 성공적으로 처리되었습니다.")
+    fun signUp(signUpRequest : SignUpRequest) : ResponseEntity<BasicResponse<SignUpResponse>> {
+        val data = userService.signUp(signUpRequest)
+        return ResponseEntity
+            .status(HttpStatus.CREATED)
+            .body(BasicResponse.success(data, "회원가입이 성공적으로 처리되었습니다."))
     }
 
     // 2. 로그인
     @PostMapping("/login")
-    fun login(loginDtoRequest : LoginDtoRequest) : BasicResponse<String> {
-        val data = userService.login(loginDtoRequest)
+    fun login(loginRequest : LoginRequest) : ResponseEntity<BasicResponse<Unit>> {
+        val data = userService.login(loginRequest)
 
-        return BasicResponse.success(data, "로그인이 성공적으로 처리되었습니다.")
+        return ResponseEntity
+            .status(HttpStatus.OK)
+            .body(BasicResponse.success(data, "로그인이 성공적으로 처리되었습니다."))
     }
     
     // 4. 아이디 중복 확인
     @GetMapping("/check-identifier")
-    fun checkDuplicateIdentifier(@RequestParam identifier: String): BasicResponse<Boolean> {
+    fun checkDuplicateIdentifier(@RequestParam identifier: String): ResponseEntity<BasicResponse<Boolean>> {
         val data = userService.checkDuplicateIdentifier(identifier)
-        return BasicResponse.success(data, if (data) "이미 사용 중인 아이디입니다." else "사용 가능한 아이디입니다.")
+        return ResponseEntity
+            .status(HttpStatus.OK)
+            .body(BasicResponse.success(data, "사용 가능한 아이디입니다."))
     }
 
     // 5. 이메일 인증번호 발송
     @PostMapping("/email-verification/send")
-    fun sendEmailVerificationCode(@RequestParam email: String): BasicResponse<String> {
+    fun sendEmailVerificationCode(@RequestParam email: String): ResponseEntity<BasicResponse<Boolean>> {
         val data = userService.sendEmailVerificationCode(email)
-        return BasicResponse.success(data, "이메일 인증번호 발송이 성공적으로 처리되었습니다.")
+        return ResponseEntity
+            .status(HttpStatus.OK)
+            .body(BasicResponse.success(data, "이메일 인증번호 발송이 성공적으로 처리되었습니다."))
     }
 
     // 6. 이메일 인증번호 인증하기
     @PostMapping("/email-verification/verify")
-    fun verifyEmailVerificationCode(@RequestParam email: String, @RequestParam code: String): BasicResponse<Boolean> {
+    fun verifyEmailVerificationCode(@RequestParam email: String, @RequestParam code: String): ResponseEntity<BasicResponse<Boolean>> {
         val data = userService.verifyEmailVerificationCode(email, code)
-        return BasicResponse.success(data, if (data) "이메일 인증이 성공적으로 처리되었습니다." else "잘못된 인증번호 입니다.")
+        return ResponseEntity
+            .status(HttpStatus.OK)
+            .body(BasicResponse.success(data, "이메일 인증이 성공적으로 처리되었습니다."))
     }
 }

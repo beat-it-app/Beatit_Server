@@ -6,8 +6,8 @@ import java.time.OffsetDateTime
 import java.time.ZoneId
 
 @Entity
-@Table(name = "user_setting")
-class UserSetting (
+@Table(name = "user_settings")
+class UserSettings (
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     val userSettingId: Long? = null,

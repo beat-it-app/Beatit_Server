@@ -1,10 +1,17 @@
 package com.beat_it.auth.service
 
-import com.beat_it.auth.dto.SignUpDtoRequest
+import com.beat_it.auth.dto.LoginRequest
+import com.beat_it.auth.dto.SignUpRequest
+import com.beat_it.auth.dto.SignUpResponse
 import com.beat_it.auth.entity.UserSetting
 import com.beat_it.auth.entity.Users
+import com.beat_it.auth.entity.enum.AccountStatus
 import com.beat_it.auth.repository.UserRepository
+import com.beat_it.global.error.BusinessException
+import com.beat_it.global.error.ErrorCode
+import jakarta.transaction.Transactional
 import org.springframework.stereotype.Service
+import java.time.OffsetDateTime
 
 @Service
 class UserService (
@@ -13,21 +20,21 @@ class UserService (
 ){
     // 1. 회원가입 
     @Transactional
-    fun signUp(dto : SignUpDtoRequest): SignUpDtoResponse {
-        user = Users(
+    fun signUp(dto : SignUpRequest): SignUpResponse {
+        val user = Users(
             accountStatus = AccountStatus.ACTIVE,
             createdAt = OffsetDateTime.now()
         )
 
         if (dto.socialId == null){ // 일반 회원가입인 경우
-            userAuthAccount = userAuthAccounts(
+            val userAuthAccount = userAuthAccounts(
                 identifier = dto.identifier,
                 password = dto.password,
                 email = dto.email,
                 user = user // 관계 설정
             )
         } else { // 소셜 회원가입인 경우
-            userAuthAccount = userAuthAccounts(
+            val userAuthAccount = userAuthAccounts(
                 email = dto.email,
 
                 kakaoId = if (dto.socialId.startsWith("kakao_")) dto.socialId else null,
@@ -37,13 +44,13 @@ class UserService (
             )
         }
 
-        userSetting = UserSetting(
+        val userSetting = UserSetting(
             timezone = dto.timezone
         )
 
         userRepository.save(user, userSetting, userAuthAccount)
 
-        return SignUpDtoResponse(
+        return SignUpResponse(
             publicId = user.publicId,
             identifier = userAuthAccount.identifier,
             email = userAuthAccount.email,
@@ -51,11 +58,17 @@ class UserService (
         )
     }
 
+    fun login(loginRequest: LoginRequest) {
+
+    }
+
     // 4. 아이디 중복 확인
     fun checkDuplicateIdentifier(identifier: String): Boolean {
-        val existingUserAuthAccount = userRepository.findByIdentifier(identifier)
-        
-        return existingUserAuthAccount != null
+        if (userRepository.findByIdentifier(identifier) != null) {
+            throw BusinessException(ErrorCode.IDENTIFIER_DUPLICATED)
+        } else {
+            return true
+        }
     }
 
     // 5. 이메일 인증번호 발송
@@ -67,6 +80,7 @@ class UserService (
             // 발송 실패 시 ErrorCode 활용
             throw BusinessException(ErrorCode.EMAIL_VERIFICATION_SEND_FAILED)
         }
+        return true
     }
 
     private fun generateVerificationCode(): String = (100000..999999).random().toString()
@@ -83,4 +97,9 @@ class UserService (
             throw BusinessException(ErrorCode.EMAIL_VERIFICATION_FAILED)
         }
     }
+
+    // Todo : 로그인 된 사용자 헤더로 반환할 수 있도록 하는? 함수 global로 설정해서 하기
+//    val getUser(){
+//
+//    }
 }
