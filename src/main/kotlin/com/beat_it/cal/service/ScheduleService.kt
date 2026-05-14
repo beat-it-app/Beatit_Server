@@ -11,7 +11,7 @@ import com.beat_it.global.error.BusinessException
 import com.beat_it.global.error.ErrorCode
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
-import java.time.LocalDateTime
+import java.time.OffsetDateTime
 
 @Service
 class ScheduleService(
@@ -136,7 +136,7 @@ class ScheduleService(
         )
     }
 
-    private fun validateScheduleCommon(title: String?, startsAt: LocalDateTime?, endsAt: LocalDateTime?) {
+    private fun validateScheduleCommon(title: String?, startsAt: OffsetDateTime?, endsAt: OffsetDateTime?) {
         if (title.isNullOrBlank()) {
             throw BusinessException(ErrorCode.CALENDAR_TITLE_REQUIRED)
         }

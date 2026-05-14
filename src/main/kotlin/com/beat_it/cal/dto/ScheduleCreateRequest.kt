@@ -1,7 +1,7 @@
 package com.beat_it.cal.dto
 
 import com.fasterxml.jackson.annotation.JsonProperty
-import java.time.LocalDateTime
+import java.time.OffsetDateTime
 
 data class ScheduleCreateRequest(
     @JsonProperty("location_id")
@@ -12,10 +12,10 @@ data class ScheduleCreateRequest(
     val content: String?,
 
     @JsonProperty("starts_at")
-    val startsAt: LocalDateTime?,
+    val startsAt: OffsetDateTime?,
 
     @JsonProperty("ends_at")
-    val endsAt: LocalDateTime?,
+    val endsAt: OffsetDateTime?,
 
     @JsonProperty("participant_user_ids")
     val participantUserIds: List<Long> = emptyList()

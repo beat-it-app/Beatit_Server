@@ -1,7 +1,7 @@
 package com.beat_it.cal.dto
 
 import com.fasterxml.jackson.annotation.JsonProperty
-import java.time.LocalDateTime
+import java.time.OffsetDateTime
 
 data class ScheduleCreateResponse(
     @JsonProperty("schedule_id")
@@ -10,11 +10,11 @@ data class ScheduleCreateResponse(
     val title: String,
 
     @JsonProperty("starts_at")
-    val startsAt: LocalDateTime,
+    val startsAt: OffsetDateTime,
 
     @JsonProperty("ends_at")
-    val endsAt: LocalDateTime,
+    val endsAt: OffsetDateTime,
 
     @JsonProperty("created_at")
-    val createdAt: LocalDateTime
+    val createdAt: OffsetDateTime
 )

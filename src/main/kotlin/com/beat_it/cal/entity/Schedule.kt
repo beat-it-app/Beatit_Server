@@ -9,7 +9,7 @@ import jakarta.persistence.GenerationType
 import jakarta.persistence.Id
 import jakarta.persistence.OneToMany
 import jakarta.persistence.Table
-import java.time.LocalDateTime
+import java.time.OffsetDateTime
 import java.util.UUID
 
 @Entity
@@ -33,10 +33,10 @@ class Schedule(
     var title: String,
 
     @Column(name = "starts_at", nullable = false)
-    var startsAt: LocalDateTime,
+    var startsAt: OffsetDateTime,
 
     @Column(name = "ends_at", nullable = false)
-    var endsAt: LocalDateTime,
+    var endsAt: OffsetDateTime,
 
     @Column(name = "location_id")
     var locationId: Long? = null,
@@ -63,8 +63,8 @@ class Schedule(
         title: String,
         content: String?,
         locationId: Long?,
-        startsAt: LocalDateTime,
-        endsAt: LocalDateTime
+        startsAt: OffsetDateTime,
+        endsAt: OffsetDateTime
     ) {
         this.title = title
         this.content = content
