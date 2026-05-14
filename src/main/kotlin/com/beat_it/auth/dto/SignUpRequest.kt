@@ -1,7 +1,10 @@
 package com.beat_it.auth.dto
 
 import com.beat_it.auth.entity.enum.AccountStatus
+import com.beat_it.auth.entity.enum.SocialProvider
 import com.fasterxml.jackson.annotation.JsonProperty
+import jakarta.persistence.EnumType
+import jakarta.persistence.Enumerated
 import lombok.Getter
 import java.time.OffsetDateTime
 
@@ -20,9 +23,10 @@ data class SignUpRequest (
 
     val email: String,
 
+
+    @Enumerated(EnumType.STRING)
+    val provider: SocialProvider,
+
     @JsonProperty("social_id")
     val socialId: String?,
-
-
-    val timezone: String?,
 )

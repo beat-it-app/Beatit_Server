@@ -47,7 +47,7 @@ class AuthFiles(
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
-    val createdAt: OffsetDateTime = OffsetDateTime.now(),
+    val createdAt: OffsetDateTime,
 
     @Column(name = "deleted_at")
     var deletedAt: OffsetDateTime? = null

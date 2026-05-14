@@ -3,58 +3,54 @@ package com.beat_it.auth.service
 //import com.beat_it.auth.dto.LoginRequest
 import com.beat_it.auth.dto.SignUpRequest
 import com.beat_it.auth.dto.SignUpResponse
+import com.beat_it.auth.entity.UserAuthAccounts
 import com.beat_it.auth.entity.UserSettings
 import com.beat_it.auth.entity.Users
-import com.beat_it.auth.entity.enum.AccountStatus
 import com.beat_it.auth.repository.UserRepository
 import com.beat_it.global.error.BusinessException
 import com.beat_it.global.error.ErrorCode
 import jakarta.transaction.Transactional
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder
 import org.springframework.stereotype.Service
-import java.time.OffsetDateTime
 
 @Service
 class UserService (
-    private val userRepository : UserRepository,
-
+    private val userRepository: UserRepository,
+    private val bCryptPasswordEncoder: BCryptPasswordEncoder
 ){
-    // 1. 회원가입 
     @Transactional
     fun signUp(dto : SignUpRequest): SignUpResponse {
-        val user = Users(
-            accountStatus = AccountStatus.ACTIVE,
-            createdAt = OffsetDateTime.now()
-        )
 
-        if (dto.socialId == null){ // 일반 회원가입인 경우
-            val userAuthAccount = userAuthAccounts(
-                identifier = dto.identifier,
-                password = dto.password,
-                email = dto.email,
-                user = user // 관계 설정
+        val user = Users.createNewUser()
+        val userSetting = UserSettings.createNewUser(user)
+
+        val userAuthAccount = if (dto.socialId == null) {
+            val encodedPassword = bCryptPasswordEncoder.encode(dto.password)
+            UserAuthAccounts.createNormalUser( // 일반 가입
+                user = user,
+                identifier = dto.identifier!!,
+                password = encodedPassword,
+                email = dto.email
             )
-        } else { // 소셜 회원가입인 경우
-            val userAuthAccount = userAuthAccounts(
+        } else {
+            UserAuthAccounts.createSocialUser( // 소셜 가입
+                user = user,
                 email = dto.email,
-
-                kakaoId = if (dto.socialId.startsWith("kakao_")) dto.socialId else null,
-                naverId = if (dto.socialId.startsWith("naver_")) dto.socialId else null,
-                googleId = if (dto.socialId.startsWith("google_")) dto.socialId else null,
-                user = user // 관계 설정
+                socialId = dto.socialId,
+                provider = dto.provider
             )
         }
 
-        val userSetting = UserSettings(
-            timezone = dto.timezone
-        )
+        user.authAccount = userAuthAccount
+        user.settings = userSetting
+        user.profile = userProfile
 
-        userRepository.save(user, userSetting, userAuthAccount)
+        userRepository.save(user)
 
         return SignUpResponse(
             publicId = user.publicId,
             identifier = userAuthAccount.identifier,
-            email = userAuthAccount.email,
-            timezone = userSetting.timezone
+            email = userAuthAccount.email
         )
     }
 

@@ -18,11 +18,20 @@ class Users (
 
     @Enumerated(EnumType.STRING)
     @Column(name = "account_status", nullable = false)
-    var accountStatus: AccountStatus = AccountStatus.ACTIVE,
+    var accountStatus: AccountStatus,
 
     @Column(name = "withdrawn_at", nullable = false)
     var withdrawnAt: OffsetDateTime? = null,
 
     @Column(name = "created_at", nullable = false, updatable = false)
-    val createdAt: OffsetDateTime = OffsetDateTime.now()
-)
+    val createdAt: OffsetDateTime
+) {
+    companion object {
+        fun createNewUser(): Users {
+            return Users(
+                accountStatus = AccountStatus.ACTIVE,
+                createdAt = OffsetDateTime.now()
+            )
+        }
+    }
+}

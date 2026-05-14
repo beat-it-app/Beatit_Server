@@ -23,5 +23,5 @@ class UserProfiles(
     var name: String,
 
     @Column(name = "updated_at", nullable = false)
-    var updatedAt: OffsetDateTime = OffsetDateTime.now()
+    var updatedAt: OffsetDateTime
 )

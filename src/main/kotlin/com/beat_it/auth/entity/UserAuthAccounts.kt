@@ -1,5 +1,6 @@
 package com.beat_it.auth.entity 
 
+import com.beat_it.auth.entity.enum.SocialProvider
 import jakarta.persistence.*
 
 @Entity
@@ -31,4 +32,37 @@ class UserAuthAccounts(
 
     @Column(name = "google_id")
     var googleId: String? = null,
-    )
+    ) {
+        companion object {
+            fun createNormalUser(
+                user: Users,
+                identifier: String,
+                password: String, // 여기서 암호화된 비밀번호를 받는 것이 좋습니다.
+                email: String
+            ): UserAuthAccounts {
+                return UserAuthAccounts(
+                    users = user,
+                    identifier = identifier,
+                    password = password,
+                    email = email
+                )
+            }
+
+            fun createSocialUser(
+                user: Users,
+                email: String,
+                socialId: String,
+                provider: SocialProvider
+            ): UserAuthAccounts {
+                return UserAuthAccounts(
+                    users = user,
+                    email = email,
+                    kakaoId = if (provider == SocialProvider.KAKAO) socialId else null,
+                    naverId = if (provider == SocialProvider.NAVER) socialId else null,
+                    googleId = if (provider == SocialProvider.GOOGLE) socialId else null
+
+                    // TODO : 셋 중 하나는 꼭 할당되도록 하기.
+                )
+            }
+        }
+    }
