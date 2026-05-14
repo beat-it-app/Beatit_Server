@@ -1,6 +1,6 @@
 package com.beat_it.auth.controller
 
-import com.beat_it.auth.dto.LoginRequest
+//import com.beat_it.auth.dto.LoginRequest
 import com.beat_it.auth.dto.SignUpRequest
 import com.beat_it.auth.dto.SignUpResponse
 import com.beat_it.auth.service.UserService
@@ -24,14 +24,14 @@ class UserController (
     }
 
     // 2. 로그인
-    @PostMapping("/login")
-    fun login(loginRequest : LoginRequest) : ResponseEntity<BasicResponse<Unit>> {
-        val data = userService.login(loginRequest)
-
-        return ResponseEntity
-            .status(HttpStatus.OK)
-            .body(BasicResponse.success(data, "로그인이 성공적으로 처리되었습니다."))
-    }
+//    @PostMapping("/login")
+//    fun login(loginRequest : LoginRequest) : ResponseEntity<BasicResponse<Unit>> {
+//        val data = userService.login(loginRequest)
+//
+//        return ResponseEntity
+//            .status(HttpStatus.OK)
+//            .body(BasicResponse.success(data, "로그인이 성공적으로 처리되었습니다."))
+//    }
     
     // 4. 아이디 중복 확인
     @GetMapping("/check-identifier")
