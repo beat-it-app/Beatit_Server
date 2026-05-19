@@ -1,3 +1,7 @@
 spring:
   application:
     name: beat-it
+
+jwt:
+  secret: vms70m7eb98v3ls703j740mxvms70m7eb98v3ls703j740mx # 32+ characters for HS256
+  expiration: 86400000 # 24 hours
