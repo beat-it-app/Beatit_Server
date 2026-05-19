@@ -8,16 +8,17 @@ import java.time.OffsetDateTime
 class TeamSettings(
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name="team_settings_id")
     val teamSettingId: Long? = null,
 
     //TODO: 팀 ID 연결하기
 
-    @Column(nullable = false)
+    @Column(name="max_storage", nullable = false)
     var maxStorage: Int = 10,
 
-    @Column(nullable = false)
+    @Column(name="used_storage", nullable = false)
     var usedStorage: Int = 0,
 
-    @Column(nullable = false)
+    @Column(name="update_at", nullable = false)
     var updateAt: OffsetDateTime = OffsetDateTime.now(),
 )

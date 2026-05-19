@@ -9,20 +9,21 @@ import java.time.OffsetDateTime
 class TeamMemberships(
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "team_membership_id")
     val teamMembershipId: Long? = null,
 
     //TODO: 팀 ID 연결하기
     //TODO: 사용자 ID 연결하기 >> 모듈 분리
 
-    @Column(nullable = false)
+    @Column(name="team_role", nullable = false)
     var teamRole: TeamRole = TeamRole.MEMBER,
 
-    @Column(nullable = false)
+    @Column(name="update_at", nullable = false)
     var updateAt: OffsetDateTime = OffsetDateTime.now(),
 
-    @Column(nullable = false)
+    @Column(name="create_at", nullable = false)
     val createdAt: OffsetDateTime = OffsetDateTime.now(),
 
-    @Column(nullable = true)
+    @Column(name="left_at", nullable = true)
     var leftAt: OffsetDateTime? = null,
 )

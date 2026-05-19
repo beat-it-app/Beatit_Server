@@ -10,34 +10,35 @@ import java.util.UUID
 class Teams(
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name="team_id", nullable = false)
     val teamId: Long? = null,
 
-    @Column(nullable = false, unique = true)
+    @Column(name="public_at", nullable = false, unique = true)
     val publicId: UUID = UUID.randomUUID(), // 외부 노출용 ID 
 
-    @Column(nullable = false)
-    var name: String = "",
+    @Column(name="name", nullable = false)
+    var teamName: String = "",
 
-    @Column(nullable = true)
+    @Column(name="description", nullable = true)
     var description: String = "",
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
+    @Column(name="team_type", nullable = false)
     val teamType: TeamType = TeamType.TEAM,
 
-    @Column(nullable = false)
+    @Column(name="established_on", nullable = false)
     var establishedOn: OffsetDateTime? = null,
 
-    @Column(nullable = false, unique = true)
+    @Column(name="invite_code", nullable = false, unique = true)
     val inviteCode: String = "",
 
-    @Column(nullable = false)
+    @Column(name="update_at", nullable = false)
     var updateAt: OffsetDateTime = OffsetDateTime.now(),
 
-    @Column(nullable = false)
+    @Column(name="create_at", nullable = false)
     val createdAt: OffsetDateTime = OffsetDateTime.now(),
 
-    @Column(nullable = true)
-    var deleteddAt: OffsetDateTime? = null,
+    @Column(name="deleted_at", nullable = true)
+    var deletedAt: OffsetDateTime? = null,
 
 )
