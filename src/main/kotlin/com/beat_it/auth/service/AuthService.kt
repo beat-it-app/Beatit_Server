@@ -21,7 +21,7 @@ import org.springframework.stereotype.Service
 import java.time.OffsetDateTime
 
 @Service
-class UserService (
+class AuthService (
     private val userRepository: UserRepository,
     private val userAuthAccountRepository: UserAuthAccountRepository,
     private val userSettingsRepository: UserSettingsRepository,

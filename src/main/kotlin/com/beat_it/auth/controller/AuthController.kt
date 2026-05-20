@@ -4,7 +4,7 @@ import com.beat_it.auth.dto.LoginRequest
 import com.beat_it.auth.dto.LoginResponse
 import com.beat_it.auth.dto.SignUpRequest
 import com.beat_it.auth.dto.SignUpResponse
-import com.beat_it.auth.service.UserService
+import com.beat_it.auth.service.AuthService
 import com.beat_it.global.response.BasicResponse
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
@@ -14,8 +14,8 @@ import org.springframework.web.bind.annotation.*
 
 @RestController
 @RequestMapping("/auth")
-class UserController (
-    private val userService : UserService,
+class AuthController (
+    private val userService : AuthService,
 ){
     // 1. 회원가입
     @PostMapping("/signup")
