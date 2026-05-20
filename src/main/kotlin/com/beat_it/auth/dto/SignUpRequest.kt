@@ -1,32 +1,26 @@
 package com.beat_it.auth.dto
 
-import com.beat_it.auth.entity.enum.AccountStatus
 import com.beat_it.auth.entity.enum.SocialProvider
 import com.fasterxml.jackson.annotation.JsonProperty
 import jakarta.persistence.EnumType
 import jakarta.persistence.Enumerated
 import lombok.Getter
-import java.time.OffsetDateTime
 
 @Getter
 data class SignUpRequest (
-    @JsonProperty("access_status")
-    val accountStatus: AccountStatus,
+    // 일반 회원가입 시 필수, 소셜 회원가입 시 null
+    val identifier: String?,
 
-    @JsonProperty("created_at")
-    val createdAt: OffsetDateTime,
-
-
-    val identifier: String,
-
-    val password: String,
+    // 일반 회원가입 시 필수, 소셜 회원가입 시 null
+    val password: String?,
 
     val email: String,
 
-
+    // 소셜 회원가입 시 필수, 일반 회원가입 시 null
     @Enumerated(EnumType.STRING)
-    val provider: SocialProvider,
+    val provider: SocialProvider?,
 
+    // 소셜 회원가입 시 필수, 일반 회원가입 시 null
     @JsonProperty("social_id")
     val socialId: String?,
 )

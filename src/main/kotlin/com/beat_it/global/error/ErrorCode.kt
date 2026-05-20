@@ -19,6 +19,9 @@ enum class ErrorCode(
     EMAIL_VERIFICATION_EXPIRED(HttpStatus.BAD_REQUEST, "SIGNUP 003", "인증 시간이 만료되었습니다."),
     EMAIL_VERIFICATION_CODE_MISMATCH(HttpStatus.BAD_REQUEST, "SIGNUP 004", "잘못된 인증번호입니다."),
     EMAIL_VERIFICATION_NOT_FOUND(HttpStatus.NOT_FOUND, "SIGNUP 005", "진행 중인 인증 요청을 찾을 수 없습니다."),
+    MISSING_IDENTIFIER(HttpStatus.BAD_REQUEST, "SIGNUP 006", "일반 회원가입 시 아이디는 필수입니다."),
+    MISSING_PASSWORD(HttpStatus.BAD_REQUEST, "SIGNUP 007", "일반 회원가입 시 비밀번호는 필수입니다."),
+    MISSING_PROVIDER(HttpStatus.BAD_REQUEST, "SIGNUP 008", "소셜 회원가입 시 제공자 정보는 필수입니다."),
 
     // --- 일정 관련 에러 (CALENDAR) ---
     CALENDAR_NO_CONTENT_TO_UPDATE(HttpStatus.BAD_REQUEST, "CALENDAR-001", "변경할 내용이 없습니다."),

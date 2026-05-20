@@ -1,6 +1,5 @@
 package com.beat_it.auth.entity
 
-import com.beat_it.auth.entity.enum.SocialProvider
 import jakarta.persistence.*
 import org.hibernate.annotations.UpdateTimestamp
 import java.time.OffsetDateTime
@@ -29,11 +28,13 @@ class UserSettings (
     companion object {
         fun createNewUser(
             user: Users,
+            allowAutoLogin: Boolean,
+            updatedAt: OffsetDateTime
         ): UserSettings {
             return UserSettings(
                 users = user,
-                allowAutoLogin = false,
-                updatedAt = OffsetDateTime.now()
+                allowAutoLogin = allowAutoLogin,
+                updatedAt = updatedAt
             )
         }
     }

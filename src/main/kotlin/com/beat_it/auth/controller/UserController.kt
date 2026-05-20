@@ -16,7 +16,7 @@ class UserController (
 ){
     // 1. 회원가입
     @PostMapping("/signup")
-    fun signUp(signUpRequest : SignUpRequest) : ResponseEntity<BasicResponse<SignUpResponse>> {
+    fun signUp(@RequestBody signUpRequest : SignUpRequest) : ResponseEntity<BasicResponse<SignUpResponse>> {
         val data = userService.signUp(signUpRequest)
         return ResponseEntity
             .status(HttpStatus.CREATED)

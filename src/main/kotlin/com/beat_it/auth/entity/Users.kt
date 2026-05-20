@@ -24,18 +24,22 @@ class Users (
     @Column(name = "account_status", nullable = false)
     var accountStatus: AccountStatus,
 
-    @Column(name = "withdrawn_at", nullable = false)
+    @Column(name = "withdrawn_at")
     var withdrawnAt: OffsetDateTime? = null,
 
     @Column(name = "created_at", nullable = false, updatable = false)
     val createdAt: OffsetDateTime
 ) {
     companion object {
-        fun createNewUser(): Users {
+        fun createNewUser(
+            role: Role,
+            accountStatus: AccountStatus,
+            createdAt: OffsetDateTime
+        ): Users {
             return Users(
-                role = Role.USER,
-                accountStatus = AccountStatus.ACTIVE,
-                createdAt = OffsetDateTime.now()
+                role = role,
+                accountStatus = accountStatus,
+                createdAt = createdAt
             )
         }
     }

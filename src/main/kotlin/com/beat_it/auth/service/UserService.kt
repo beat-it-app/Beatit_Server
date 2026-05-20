@@ -6,51 +6,74 @@ import com.beat_it.auth.dto.SignUpResponse
 import com.beat_it.auth.entity.UserAuthAccounts
 import com.beat_it.auth.entity.UserSettings
 import com.beat_it.auth.entity.Users
+import com.beat_it.auth.entity.enum.AccountStatus
+import com.beat_it.auth.entity.enum.Role
+import com.beat_it.auth.repository.UserAuthAccountRepository
 import com.beat_it.auth.repository.UserRepository
+import com.beat_it.auth.repository.UserSettingsRepository
 import com.beat_it.global.error.BusinessException
 import com.beat_it.global.error.ErrorCode
 import jakarta.transaction.Transactional
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder
+import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.stereotype.Service
+import java.time.OffsetDateTime
 
 @Service
 class UserService (
     private val userRepository: UserRepository,
-    private val bCryptPasswordEncoder: BCryptPasswordEncoder
+    private val userAuthAccountRepository: UserAuthAccountRepository,
+    private val userSettingsRepository: UserSettingsRepository,
+    private val passwordEncoder: PasswordEncoder
 ){
     @Transactional
     fun signUp(dto : SignUpRequest): SignUpResponse {
 
-        val user = Users.createNewUser()
-        val userSetting = UserSettings.createNewUser(user)
+        // 1. Users 생성 및 저장
+        var user = Users.createNewUser(
+            role = Role.USER,
+            accountStatus = AccountStatus.ACTIVE,
+            createdAt = OffsetDateTime.now()
+        )
+        user = userRepository.save(user)
 
-        val userAuthAccount = if (dto.socialId == null) {
-            val encodedPassword = bCryptPasswordEncoder.encode(dto.password)
+        // 2. UserSettings 생성 및 저장
+        val userSetting = UserSettings.createNewUser(
+            user,
+            allowAutoLogin = false,
+            updatedAt = OffsetDateTime.now()
+        )
+        userSettingsRepository.save(userSetting)
+
+        // 3. UserAuthAccounts 생성 및 저장
+        val socialId = dto.socialId
+        val userAuthAccount = if (socialId == null) {
+            val identifier = dto.identifier ?: throw BusinessException(ErrorCode.MISSING_IDENTIFIER)
+            val password = dto.password ?: throw BusinessException(ErrorCode.MISSING_PASSWORD)
+            val encodedPassword = passwordEncoder.encode(password)
+
             UserAuthAccounts.createNormalUser( // 일반 가입
                 user = user,
-                identifier = dto.identifier!!,
-                password = encodedPassword,
+                identifier = identifier,
+                password = encodedPassword ?: throw RuntimeException("비밀번호 암호화에 실패했습니다."),
                 email = dto.email
             )
         } else {
+            val provider = dto.provider ?: throw BusinessException(ErrorCode.MISSING_PROVIDER)
+
             UserAuthAccounts.createSocialUser( // 소셜 가입
                 user = user,
                 email = dto.email,
-                socialId = dto.socialId,
-                provider = dto.provider
+                socialId = socialId,
+                provider = provider
             )
         }
-
-        user.authAccount = userAuthAccount
-        user.settings = userSetting
-        user.profile = userProfile
-
-        userRepository.save(user)
+        userAuthAccountRepository.save(userAuthAccount)
 
         return SignUpResponse(
             publicId = user.publicId,
             identifier = userAuthAccount.identifier,
-            email = userAuthAccount.email
+            email = userAuthAccount.email,
+            createdAt = user.createdAt
         )
     }
 
@@ -61,7 +84,7 @@ class UserService (
 
     // 4. 아이디 중복 확인
     fun checkDuplicateIdentifier(identifier: String): Boolean {
-        if (userRepository.findByIdentifier(identifier) != null) {
+        if (userAuthAccountRepository.findByIdentifier(identifier) != null) {
             throw BusinessException(ErrorCode.IDENTIFIER_DUPLICATED)
         } else {
             return true
