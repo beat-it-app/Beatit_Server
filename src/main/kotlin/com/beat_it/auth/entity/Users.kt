@@ -1,6 +1,7 @@
 package com.beat_it.auth.entity
 
 import com.beat_it.auth.entity.enum.AccountStatus
+import com.beat_it.auth.entity.enum.Role
 import jakarta.persistence.*
 import java.time.OffsetDateTime
 import java.util.UUID
@@ -16,6 +17,9 @@ class Users (
     @Column(name = "public_id", nullable = false, unique = true)
     val publicId: UUID = UUID.randomUUID(), // 외부 노출용 ID
 
+    @Column(nullable = false)
+    var role: Role,
+
     @Enumerated(EnumType.STRING)
     @Column(name = "account_status", nullable = false)
     var accountStatus: AccountStatus,
@@ -29,6 +33,7 @@ class Users (
     companion object {
         fun createNewUser(): Users {
             return Users(
+                role = Role.USER,
                 accountStatus = AccountStatus.ACTIVE,
                 createdAt = OffsetDateTime.now()
             )
