@@ -1,12 +1,15 @@
 package com.beat_it.auth.controller
 
-//import com.beat_it.auth.dto.LoginRequest
+import com.beat_it.auth.dto.LoginRequest
+import com.beat_it.auth.dto.LoginResponse
 import com.beat_it.auth.dto.SignUpRequest
 import com.beat_it.auth.dto.SignUpResponse
 import com.beat_it.auth.service.UserService
 import com.beat_it.global.response.BasicResponse
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
+import org.springframework.security.core.annotation.AuthenticationPrincipal
+import org.springframework.security.core.userdetails.UserDetails
 import org.springframework.web.bind.annotation.*
 
 @RestController
@@ -24,14 +27,14 @@ class UserController (
     }
 
     // 2. 로그인
-//    @PostMapping("/login")
-//    fun login(loginRequest : LoginRequest) : ResponseEntity<BasicResponse<LoginResponse>> {
-//        val data = userService.login(loginRequest)
-//
-//        return ResponseEntity
-//            .status(HttpStatus.OK)
-//            .body(BasicResponse.success(data, "로그인이 성공적으로 처리되었습니다."))
-//    }
+    @PostMapping("/login")
+    fun login(@RequestBody loginRequest : LoginRequest) : ResponseEntity<BasicResponse<LoginResponse>> {
+        val data = userService.login(loginRequest)
+
+        return ResponseEntity
+            .status(HttpStatus.OK)
+            .body(BasicResponse.success(data, "로그인이 성공적으로 처리되었습니다."))
+    }
     
     // 4. 아이디 중복 확인
     @GetMapping("/check-identifier")
@@ -58,5 +61,13 @@ class UserController (
         return ResponseEntity
             .status(HttpStatus.OK)
             .body(BasicResponse.success("이메일 인증이 성공적으로 처리되었습니다."))
+    }
+
+    @GetMapping
+    fun getUser(@AuthenticationPrincipal userDetails: UserDetails) : String {
+        val publicId = userDetails.username
+        // TODO : 여기서 사용자 아이디, 팀 아이디 받아야 함
+        // TODO : 이 기능은 다른 모듈에서도 사용할 수 있어야 함
+        return publicId
     }
 }

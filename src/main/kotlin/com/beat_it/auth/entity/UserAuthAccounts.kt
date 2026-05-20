@@ -13,7 +13,7 @@ class UserAuthAccounts(
 
     @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id")
-    val users: Users,
+    val user: Users,
 
     @Column(length = 30)
     var identifier: String? = null,
@@ -37,11 +37,11 @@ class UserAuthAccounts(
             fun createNormalUser(
                 user: Users,
                 identifier: String,
-                password: String, // 여기서 암호화된 비밀번호를 받는 것이 좋습니다.
+                password: String,
                 email: String
             ): UserAuthAccounts {
                 return UserAuthAccounts(
-                    users = user,
+                    user = user,
                     identifier = identifier,
                     password = password,
                     email = email
@@ -55,7 +55,7 @@ class UserAuthAccounts(
                 provider: SocialProvider
             ): UserAuthAccounts {
                 return UserAuthAccounts(
-                    users = user,
+                    user = user,
                     email = email,
                     kakaoId = if (provider == SocialProvider.KAKAO) socialId else null,
                     naverId = if (provider == SocialProvider.NAVER) socialId else null,

@@ -1,6 +1,7 @@
 package com.beat_it.auth.service
 
-//import com.beat_it.auth.dto.LoginRequest
+import com.beat_it.auth.dto.LoginRequest
+import com.beat_it.auth.dto.LoginResponse
 import com.beat_it.auth.dto.SignUpRequest
 import com.beat_it.auth.dto.SignUpResponse
 import com.beat_it.auth.entity.UserAuthAccounts
@@ -86,9 +87,27 @@ class UserService (
     }
 
     // 2. 로그인
-//    fun login(loginRequest: LoginRequest) {
-//
-//    }
+    fun login(loginRequest: LoginRequest) : LoginResponse {
+        val userAuthAccount = userAuthAccountRepository.findByIdentifier(loginRequest.identifier)
+            ?: throw BusinessException(ErrorCode.USER_NOT_FOUND)
+
+        if (!passwordEncoder.matches(loginRequest.password, userAuthAccount.password)) {
+            throw BusinessException(ErrorCode.INVALID_PASSWORD)
+        }
+
+        val user = userAuthAccount.user
+
+        val accessToken = jwtTokenProvider.createAccessToken(
+            publicId = user.publicId.toString(),
+            role = user.role
+        )
+
+        return LoginResponse(
+            publicId = user.publicId,
+            role = user.role,
+            accessToken = accessToken
+        )
+    }
 
     // 4. 아이디 중복 확인
     fun checkDuplicateIdentifier(identifier: String): Boolean {
