@@ -1,6 +1,6 @@
 package com.beat_it.global.config
 
-import com.beat_it.global.security.JwtAuthenticationFilter
+import com.beat_it.global.security.jwt.JwtAuthenticationFilter
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.security.config.annotation.web.builders.HttpSecurity

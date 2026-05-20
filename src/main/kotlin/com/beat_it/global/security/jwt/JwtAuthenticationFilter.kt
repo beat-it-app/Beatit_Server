@@ -1,4 +1,4 @@
-package com.beat_it.global.security
+package com.beat_it.global.security.jwt
 
 import jakarta.servlet.FilterChain
 import jakarta.servlet.http.HttpServletRequest
