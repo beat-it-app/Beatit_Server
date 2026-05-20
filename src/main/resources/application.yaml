@@ -4,4 +4,5 @@ spring:
 
 jwt:
   secret: vms70m7eb98v3ls703j740mxvms70m7eb98v3ls703j740mx # 32+ characters for HS256
-  expiration: 86400000 # 24 hours
+  access-token-expire-time: 86400000 # 24 hours
+  refresh-token-expire-time: 7200 # 2 hours

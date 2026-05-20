@@ -25,7 +25,7 @@ class UserController (
 
     // 2. 로그인
 //    @PostMapping("/login")
-//    fun login(loginRequest : LoginRequest) : ResponseEntity<BasicResponse<Unit>> {
+//    fun login(loginRequest : LoginRequest) : ResponseEntity<BasicResponse<LoginResponse>> {
 //        val data = userService.login(loginRequest)
 //
 //        return ResponseEntity
@@ -35,28 +35,28 @@ class UserController (
     
     // 4. 아이디 중복 확인
     @GetMapping("/check-identifier")
-    fun checkDuplicateIdentifier(@RequestParam identifier: String): ResponseEntity<BasicResponse<Boolean>> {
-        val data = userService.checkDuplicateIdentifier(identifier)
+    fun checkDuplicateIdentifier(@RequestParam identifier: String): ResponseEntity<BasicResponse<Nothing>> {
+        userService.checkDuplicateIdentifier(identifier)
         return ResponseEntity
             .status(HttpStatus.OK)
-            .body(BasicResponse.success(data, "사용 가능한 아이디입니다."))
+            .body(BasicResponse.success("사용 가능한 아이디입니다."))
     }
 
     // 5. 이메일 인증번호 발송
     @PostMapping("/email-verification/send")
-    fun sendEmailVerificationCode(@RequestParam email: String): ResponseEntity<BasicResponse<Boolean>> {
-        val data = userService.sendEmailVerificationCode(email)
+    fun sendEmailVerificationCode(@RequestParam email: String): ResponseEntity<BasicResponse<Nothing>> {
+        userService.sendEmailVerificationCode(email)
         return ResponseEntity
             .status(HttpStatus.OK)
-            .body(BasicResponse.success(data, "이메일 인증번호 발송이 성공적으로 처리되었습니다."))
+            .body(BasicResponse.success("이메일 인증번호 발송이 성공적으로 처리되었습니다."))
     }
 
     // 6. 이메일 인증번호 인증하기
     @PostMapping("/email-verification/verify")
-    fun verifyEmailVerificationCode(@RequestParam email: String, @RequestParam code: String): ResponseEntity<BasicResponse<Boolean>> {
-        val data = userService.verifyEmailVerificationCode(email, code)
+    fun verifyEmailVerificationCode(@RequestParam email: String, @RequestParam code: String): ResponseEntity<BasicResponse<Nothing>> {
+        userService.verifyEmailVerificationCode(email, code)
         return ResponseEntity
             .status(HttpStatus.OK)
-            .body(BasicResponse.success(data, "이메일 인증이 성공적으로 처리되었습니다."))
+            .body(BasicResponse.success("이메일 인증이 성공적으로 처리되었습니다."))
     }
 }

@@ -15,7 +15,7 @@ class Users (
     val userId: Long? = null,
 
     @Column(name = "public_id", nullable = false, unique = true)
-    val publicId: UUID = UUID.randomUUID(), // 외부 노출용 ID
+    val publicId: UUID = UUID.randomUUID(),
 
     @Column(nullable = false)
     var role: Role,
