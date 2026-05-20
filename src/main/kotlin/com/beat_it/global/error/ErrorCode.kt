@@ -12,6 +12,7 @@ enum class ErrorCode(
     AUTH_REQUIRED(HttpStatus.UNAUTHORIZED, "COMMON-002", "로그인이 필요합니다."),
     RESOURCE_NOT_FOUND(HttpStatus.NOT_FOUND, "COMMON-003", "찾을 수 없는 리소스입니다."),
     INTERNAL_SERVER_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "COMMON-004", "서버 내부 오류가 발생했습니다."),
+    USER_NOT_FOUND(HttpStatus.NOT_FOUND, "COMMON-005", "해당 유저를 찾을 수 없습니다."),
 
     // --- AUTH 관련 에러 ---
     IDENTIFIER_DUPLICATED(HttpStatus.BAD_REQUEST, "SIGNUP 001", "이미 사용 중인 아이디입니다."),

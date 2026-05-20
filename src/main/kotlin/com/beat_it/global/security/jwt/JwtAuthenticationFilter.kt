@@ -1,11 +1,10 @@
 package com.beat_it.global.security.jwt
 
+import org.springframework.util.StringUtils
 import jakarta.servlet.FilterChain
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken
 import org.springframework.security.core.context.SecurityContextHolder
-import org.springframework.security.web.authentication.WebAuthenticationDetailsSource
 import org.springframework.stereotype.Component
 import org.springframework.web.filter.OncePerRequestFilter
 
@@ -19,23 +18,22 @@ class JwtAuthenticationFilter(
         response: HttpServletResponse,
         filterChain: FilterChain
     ) {
+        // 1. Request Header에서 토큰 추출
         val token = resolveToken(request)
 
+        // 2. 토큰 유효성 검사 및 SecurityContext에 인증 정보 저장
         if (token != null && jwtTokenProvider.validateToken(token)) {
-            val identifier = jwtTokenProvider.getIdentifier(token)
-            // Simplified: just set the authentication without full UserDetails if roles aren't needed yet
-            // In a real app, you'd load UserDetails from a UserDetailsService
-            val authentication = UsernamePasswordAuthenticationToken(identifier, null, emptyList())
-            authentication.details = WebAuthenticationDetailsSource().buildDetails(request)
+            val authentication = jwtTokenProvider.getAuthentication(token)
             SecurityContextHolder.getContext().authentication = authentication
         }
 
         filterChain.doFilter(request, response)
     }
 
+    // 헤더에서 "Bearer " 접두사를 제거하고 토큰만 추출
     private fun resolveToken(request: HttpServletRequest): String? {
         val bearerToken = request.getHeader("Authorization")
-        return if (bearerToken != null && bearerToken.startsWith("Bearer ")) {
+        return if (StringUtils.hasText(bearerToken) && bearerToken.startsWith("Bearer ")) {
             bearerToken.substring(7)
         } else null
     }

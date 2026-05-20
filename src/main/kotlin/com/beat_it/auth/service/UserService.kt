@@ -13,6 +13,7 @@ import com.beat_it.auth.repository.UserRepository
 import com.beat_it.auth.repository.UserSettingsRepository
 import com.beat_it.global.error.BusinessException
 import com.beat_it.global.error.ErrorCode
+import com.beat_it.global.security.jwt.JwtTokenProvider
 import jakarta.transaction.Transactional
 import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.stereotype.Service
@@ -23,7 +24,8 @@ class UserService (
     private val userRepository: UserRepository,
     private val userAuthAccountRepository: UserAuthAccountRepository,
     private val userSettingsRepository: UserSettingsRepository,
-    private val passwordEncoder: PasswordEncoder
+    private val passwordEncoder: PasswordEncoder,
+    private val jwtTokenProvider: JwtTokenProvider
 ){
     @Transactional
     fun signUp(dto : SignUpRequest): SignUpResponse {
@@ -69,11 +71,17 @@ class UserService (
         }
         userAuthAccountRepository.save(userAuthAccount)
 
+        val accessToken = jwtTokenProvider.createAccessToken(
+            publicId = user.publicId.toString(),
+            role = user.role
+        )
+
         return SignUpResponse(
             publicId = user.publicId,
             identifier = userAuthAccount.identifier,
             email = userAuthAccount.email,
-            createdAt = user.createdAt
+            createdAt = user.createdAt,
+            accessToken = accessToken
         )
     }
 

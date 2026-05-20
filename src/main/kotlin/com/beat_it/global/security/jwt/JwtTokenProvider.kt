@@ -1,9 +1,14 @@
 package com.beat_it.global.security.jwt
 
+import com.beat_it.auth.entity.enum.Role
+import com.beat_it.auth.service.UserDetailsService
 import io.jsonwebtoken.Claims
+import io.jsonwebtoken.ExpiredJwtException
 import io.jsonwebtoken.Jwts
 import io.jsonwebtoken.security.Keys
 import org.springframework.beans.factory.annotation.Value
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken
+import org.springframework.security.core.Authentication
 import org.springframework.stereotype.Component
 import java.util.Date
 import javax.crypto.SecretKey
@@ -11,40 +16,57 @@ import javax.crypto.SecretKey
 @Component
 class JwtTokenProvider(
     @Value("\${jwt.secret}") private val secretKey: String,
-    @Value("\${jwt.expiration}") private val validityInMilliseconds: Long
+    @Value("\${jwt.expiration}") private val accessTokenValidity: Long,
+    private val userDetailsService: UserDetailsService
 ) {
+    // 1. 시크릿 키 객체 생성 (JJWT 최신 버전 방식)
     private val key: SecretKey = Keys.hmacShaKeyFor(secretKey.toByteArray())
 
-    fun createToken(identifier: String): String {
+    // 2. Access Token 발급 (subject에 UUID인 publicId를 넣습니다)
+    fun createAccessToken(publicId: String, role: Role): String {
         val now = Date()
-        val validity = Date(now.time + validityInMilliseconds)
+        val validity = Date(now.time + accessTokenValidity)
 
         return Jwts.builder()
-            .subject(identifier)
+            .subject(publicId)
+            .claim("role", role)
             .issuedAt(now)
             .expiration(validity)
             .signWith(key)
             .compact()
     }
 
-    fun getIdentifier(token: String): String {
-        return getClaims(token).subject
+    // 3. 토큰에서 Authentication 객체 추출 (필터에서 사용)
+    fun getAuthentication(token: String): Authentication {
+        val userDetails = userDetailsService.loadUserByUsername(getPublicId(token))
+        return UsernamePasswordAuthenticationToken(userDetails, "", userDetails.authorities)
     }
 
+    // 4. 토큰에서 publicId(subject) 추출
+    fun getPublicId(token: String): String {
+        return parseClaims(token).subject
+    }
+
+    // 5. 토큰 유효성 검증
     fun validateToken(token: String): Boolean {
         return try {
-            val claims = getClaims(token)
+            val claims = parseClaims(token)
             !claims.expiration.before(Date())
         } catch (e: Exception) {
             false
         }
     }
 
-    private fun getClaims(token: String): Claims {
-        return Jwts.parser()
-            .verifyWith(key)
-            .build()
-            .parseSignedClaims(token)
-            .payload
+    // 토큰 파싱 유틸리티
+    private fun parseClaims(token: String): Claims {
+        return try {
+            Jwts.parser()
+                .verifyWith(key)
+                .build()
+                .parseSignedClaims(token)
+                .payload
+        } catch (e: ExpiredJwtException) {
+            e.claims
+        }
     }
 }

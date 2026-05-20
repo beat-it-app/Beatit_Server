@@ -10,5 +10,8 @@ data class SignUpResponse (
     val email: String,
 
     @JsonProperty("created_at")
-    val createdAt: OffsetDateTime
+    val createdAt: OffsetDateTime,
+
+    @JsonProperty("access_token")
+    val accessToken: String
 ) 
