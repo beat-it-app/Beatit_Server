@@ -2,7 +2,7 @@ package com.beat_it.auth.entity
 
 import jakarta.persistence.*
 import com.beat_it.auth.entity.enum.MediaCategory
-import org.hibernate.annotations.CreationTimestamp
+import com.beat_it.global.entity.BaseCreatedTimeEntity
 import java.time.OffsetDateTime
 
 @Entity
@@ -45,10 +45,7 @@ class AuthFiles(
     @Column(name = "is_public", nullable = false)
     var isPublic: Boolean = false,
 
-    @CreationTimestamp
-    @Column(name = "created_at", nullable = false, updatable = false)
-    val createdAt: OffsetDateTime,
-
     @Column(name = "deleted_at")
     var deletedAt: OffsetDateTime? = null
-)
+
+) : BaseCreatedTimeEntity()

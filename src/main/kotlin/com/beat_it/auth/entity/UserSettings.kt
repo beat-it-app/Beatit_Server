@@ -1,8 +1,7 @@
 package com.beat_it.auth.entity
 
+import com.beat_it.global.entity.BaseUpdatedTimeEntity
 import jakarta.persistence.*
-import org.hibernate.annotations.UpdateTimestamp
-import java.time.OffsetDateTime
 
 @Entity
 @Table(name = "user_settings")
@@ -19,22 +18,17 @@ class UserSettings (
     var lastTeamId: Long? = null,
 
     @Column(nullable = false)
-    var allowAutoLogin: Boolean,
+    var allowAutoLogin: Boolean
 
-    @UpdateTimestamp
-    @Column(nullable = false)
-    var updatedAt: OffsetDateTime,
-) {
+) : BaseUpdatedTimeEntity() {
     companion object {
         fun createNewUser(
             user: Users,
-            allowAutoLogin: Boolean,
-            updatedAt: OffsetDateTime
+            allowAutoLogin: Boolean
         ): UserSettings {
             return UserSettings(
                 users = user,
-                allowAutoLogin = allowAutoLogin,
-                updatedAt = updatedAt
+                allowAutoLogin = allowAutoLogin
             )
         }
     }

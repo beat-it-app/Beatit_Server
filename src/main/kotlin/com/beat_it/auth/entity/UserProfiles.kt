@@ -1,7 +1,7 @@
 package com.beat_it.auth.entity 
 
+import com.beat_it.global.entity.BaseUpdatedTimeEntity
 import jakarta.persistence.*
-import java.time.OffsetDateTime
 
 @Entity
 @Table(name = "user_profiles")
@@ -20,8 +20,6 @@ class UserProfiles(
     var authFile: AuthFiles? = null,
 
     @Column(nullable = false)
-    var name: String,
+    var name: String
 
-    @Column(name = "updated_at", nullable = false)
-    var updatedAt: OffsetDateTime
-)
+) : BaseUpdatedTimeEntity()

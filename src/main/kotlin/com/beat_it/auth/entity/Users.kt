@@ -17,6 +17,7 @@ class Users (
     @Column(name = "public_id", nullable = false, unique = true)
     val publicId: UUID = UUID.randomUUID(),
 
+    @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     var role: Role,
 
@@ -25,21 +26,17 @@ class Users (
     var accountStatus: AccountStatus,
 
     @Column(name = "withdrawn_at")
-    var withdrawnAt: OffsetDateTime? = null,
-
-    @Column(name = "created_at", nullable = false, updatable = false)
-    val createdAt: OffsetDateTime
-) {
+    var withdrawnAt: OffsetDateTime? = null
+    
+) : BaseCreatedTimeEntity() {
     companion object {
         fun createNewUser(
             role: Role,
-            accountStatus: AccountStatus,
-            createdAt: OffsetDateTime
+            accountStatus: AccountStatus
         ): Users {
             return Users(
                 role = role,
-                accountStatus = accountStatus,
-                createdAt = createdAt
+                accountStatus = accountStatus
             )
         }
     }
