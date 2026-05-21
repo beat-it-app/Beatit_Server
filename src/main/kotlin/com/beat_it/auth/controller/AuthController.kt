@@ -6,6 +6,7 @@ import com.beat_it.auth.dto.SignUpRequest
 import com.beat_it.auth.dto.SignUpResponse
 import com.beat_it.auth.service.AuthService
 import com.beat_it.global.response.BasicResponse
+import io.swagger.v3.oas.annotations.security.SecurityRequirements
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.security.core.annotation.AuthenticationPrincipal
@@ -14,10 +15,10 @@ import org.springframework.web.bind.annotation.*
 
 @RestController
 @RequestMapping("/auth")
+@SecurityRequirements()
 class AuthController (
     private val userService : AuthService,
 ){
-    // 1. 회원가입
     @PostMapping("/signup")
     fun signUp(@RequestBody signUpRequest : SignUpRequest) : ResponseEntity<BasicResponse<SignUpResponse>> {
         val data = userService.signUp(signUpRequest)
@@ -29,13 +30,14 @@ class AuthController (
     // 2. 로그인
     @PostMapping("/login")
     fun login(@RequestBody loginRequest : LoginRequest) : ResponseEntity<BasicResponse<LoginResponse>> {
-        val data = userService.login(loginRequest)
+        val (accessToken, data) = userService.login(loginRequest)
 
         return ResponseEntity
             .status(HttpStatus.OK)
+            .header("Authorization", "Bearer $accessToken")
             .body(BasicResponse.success(data, HttpStatus.OK, "로그인이 성공적으로 처리되었습니다."))
     }
-    
+
     // 4. 아이디 중복 확인
     @GetMapping("/check-identifier")
     fun checkDuplicateIdentifier(@RequestParam identifier: String): ResponseEntity<BasicResponse<Nothing>> {

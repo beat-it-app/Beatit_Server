@@ -72,7 +72,7 @@ class AuthService (
     }
 
     // 2. 로그인
-    fun login(loginRequest: LoginRequest) : LoginResponse {
+    fun login(loginRequest: LoginRequest) : Pair<String,LoginResponse> {
         val userAuthAccount = userAuthAccountRepository.findByIdentifier(loginRequest.identifier)
             ?: throw BusinessException(ErrorCode.USER_NOT_FOUND)
 
@@ -81,18 +81,20 @@ class AuthService (
         }
 
         val user = userAuthAccount.user
-
         val isCreatedProfile = userProfilesRepository.existsByUser_UserId(user.userId)
 
-        jwtTokenProvider.createAccessToken(
+        val accessToken = jwtTokenProvider.createAccessToken(
             publicId = user.publicId.toString(),
             role = user.role
         )
 
-        return LoginResponse(
-            userId = user.userId,
-            role = user.role,
-            isCreatedProfile = isCreatedProfile
+        return Pair(
+            accessToken,
+            LoginResponse(
+                userId = user.userId,
+                role = user.role,
+                isCreatedProfile = isCreatedProfile
+            )
         )
     }
 
