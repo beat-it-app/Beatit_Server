@@ -15,7 +15,7 @@ class GlobalExceptionHandler {
 
         return ResponseEntity
             .status(errorCode.status)
-            .body(BasicResponse.fail(errorCode.message))
+            .body(BasicResponse.fail(errorCode.code, errorCode.message))
     }
 
     @ExceptionHandler(Exception::class)
@@ -24,6 +24,6 @@ class GlobalExceptionHandler {
 
         return ResponseEntity
             .status(HttpStatus.INTERNAL_SERVER_ERROR)
-            .body(BasicResponse.fail(e.message ?: "Internal Server Error"))
+            .body(BasicResponse.fail(ErrorCode.INTERNAL_SERVER_ERROR.code, e.message ?: "Internal Server Error"))
     }
 }

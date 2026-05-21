@@ -23,7 +23,7 @@ class AuthController (
         val data = userService.signUp(signUpRequest)
         return ResponseEntity
             .status(HttpStatus.CREATED)
-            .body(BasicResponse.success(data, "회원가입이 성공적으로 처리되었습니다."))
+            .body(BasicResponse.success(data, HttpStatus.CREATED, "회원가입이 성공적으로 처리되었습니다."))
     }
 
     // 2. 로그인
@@ -33,7 +33,7 @@ class AuthController (
 
         return ResponseEntity
             .status(HttpStatus.OK)
-            .body(BasicResponse.success(data, "로그인이 성공적으로 처리되었습니다."))
+            .body(BasicResponse.success(data, HttpStatus.OK, "로그인이 성공적으로 처리되었습니다."))
     }
     
     // 4. 아이디 중복 확인
@@ -42,7 +42,7 @@ class AuthController (
         userService.checkDuplicateIdentifier(identifier)
         return ResponseEntity
             .status(HttpStatus.OK)
-            .body(BasicResponse.success("사용 가능한 아이디입니다."))
+            .body(BasicResponse.success(HttpStatus.OK, "사용 가능한 아이디입니다."))
     }
 
     // 5. 이메일 인증번호 발송
@@ -51,7 +51,7 @@ class AuthController (
         userService.sendEmailVerificationCode(email)
         return ResponseEntity
             .status(HttpStatus.OK)
-            .body(BasicResponse.success("이메일 인증번호 발송이 성공적으로 처리되었습니다."))
+            .body(BasicResponse.success(HttpStatus.OK, "이메일 인증번호 발송이 성공적으로 처리되었습니다."))
     }
 
     // 6. 이메일 인증번호 인증하기
@@ -60,7 +60,7 @@ class AuthController (
         userService.verifyEmailVerificationCode(email, code)
         return ResponseEntity
             .status(HttpStatus.OK)
-            .body(BasicResponse.success("이메일 인증이 성공적으로 처리되었습니다."))
+            .body(BasicResponse.success(HttpStatus.OK, "이메일 인증이 성공적으로 처리되었습니다."))
     }
 
     @GetMapping
