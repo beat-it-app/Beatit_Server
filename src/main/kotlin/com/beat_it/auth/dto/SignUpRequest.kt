@@ -1,26 +1,14 @@
 package com.beat_it.auth.dto
 
-import com.beat_it.auth.entity.enum.SocialProvider
-import com.fasterxml.jackson.annotation.JsonProperty
-import jakarta.persistence.EnumType
-import jakarta.persistence.Enumerated
-import lombok.Getter
+import io.swagger.v3.oas.annotations.media.Schema
 
-@Getter
 data class SignUpRequest (
-    // 일반 회원가입 시 필수, 소셜 회원가입 시 null
+    @Schema(description = "유저 아이디", example = "user1")
     val identifier: String?,
 
-    // 일반 회원가입 시 필수, 소셜 회원가입 시 null
+    @Schema(description = "비밀번호", example = "password123!")
     val password: String?,
 
-    val email: String,
-
-    // 소셜 회원가입 시 필수, 일반 회원가입 시 null
-//    @Enumerated(EnumType.STRING)
-//    val provider: SocialProvider?,
-//
-//    // 소셜 회원가입 시 필수, 일반 회원가입 시 null
-//    @JsonProperty("social_id")
-//    val socialId: String?,
+    @Schema(description = "사용자 이메일", example = "user@example.com")
+    val email: String
 )

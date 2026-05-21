@@ -4,7 +4,8 @@ import com.beat_it.auth.entity.enum.Role
 import java.util.UUID
 
 data class LoginResponse(
-    val publicId: UUID,
+    val userId: Long?,
     val role: Role,
-    val accessToken: String
+
+    val isCreatedProfile: Boolean
 )

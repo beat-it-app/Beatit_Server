@@ -10,6 +10,7 @@ import com.beat_it.auth.entity.Users
 import com.beat_it.auth.entity.enum.AccountStatus
 import com.beat_it.auth.entity.enum.Role
 import com.beat_it.auth.repository.UserAuthAccountRepository
+import com.beat_it.auth.repository.UserProfilesRepository
 import com.beat_it.auth.repository.UserRepository
 import com.beat_it.auth.repository.UserSettingsRepository
 import com.beat_it.global.error.BusinessException
@@ -26,7 +27,8 @@ class AuthService (
     private val userAuthAccountRepository: UserAuthAccountRepository,
     private val userSettingsRepository: UserSettingsRepository,
     private val passwordEncoder: PasswordEncoder,
-    private val jwtTokenProvider: JwtTokenProvider
+    private val jwtTokenProvider: JwtTokenProvider,
+    private val userProfilesRepository: UserProfilesRepository
 ){
     @Transactional
     fun signUp(dto : SignUpRequest): SignUpResponse {
@@ -48,41 +50,24 @@ class AuthService (
         userSettingsRepository.save(userSetting)
 
         // 3. UserAuthAccounts 생성 및 저장
-        val socialId = dto.socialId
-        val userAuthAccount = if (socialId == null) {
-            val identifier = dto.identifier ?: throw BusinessException(ErrorCode.MISSING_IDENTIFIER)
-            val password = dto.password ?: throw BusinessException(ErrorCode.MISSING_PASSWORD)
-            val encodedPassword = passwordEncoder.encode(password)
+        val identifier = dto.identifier ?: throw BusinessException(ErrorCode.MISSING_IDENTIFIER)
+        val password = dto.password ?: throw BusinessException(ErrorCode.MISSING_PASSWORD)
+        val encodedPassword = passwordEncoder.encode(password)
 
-            UserAuthAccounts.createNormalUser( // 일반 가입
-                user = user,
-                identifier = identifier,
-                password = encodedPassword ?: throw RuntimeException("비밀번호 암호화에 실패했습니다."),
-                email = dto.email
-            )
-        } else {
-            val provider = dto.provider ?: throw BusinessException(ErrorCode.MISSING_PROVIDER)
-
-            UserAuthAccounts.createSocialUser( // 소셜 가입
-                user = user,
-                email = dto.email,
-                socialId = socialId,
-                provider = provider
-            )
-        }
-        userAuthAccountRepository.save(userAuthAccount)
-
-        val accessToken = jwtTokenProvider.createAccessToken(
-            publicId = user.publicId.toString(),
-            role = user.role
+        val userAuthAccount = UserAuthAccounts.createNormalUser(
+            user = user,
+            identifier = identifier,
+            password = encodedPassword ?: throw RuntimeException("비밀번호 암호화에 실패했습니다."),
+            email = dto.email
         )
 
+        userAuthAccountRepository.save(userAuthAccount)
+
         return SignUpResponse(
-            publicId = user.publicId,
+            userId = user.userId,
             identifier = userAuthAccount.identifier,
             email = userAuthAccount.email,
-            createdAt = user.createdAt,
-            accessToken = accessToken
+            createdAt = user.createdAt
         )
     }
 
@@ -97,15 +82,17 @@ class AuthService (
 
         val user = userAuthAccount.user
 
-        val accessToken = jwtTokenProvider.createAccessToken(
+        val isCreatedProfile = userProfilesRepository.existsByUser_UserId(user.userId)
+
+        jwtTokenProvider.createAccessToken(
             publicId = user.publicId.toString(),
             role = user.role
         )
 
         return LoginResponse(
-            publicId = user.publicId,
+            userId = user.userId,
             role = user.role,
-            accessToken = accessToken
+            isCreatedProfile = isCreatedProfile
         )
     }
 
