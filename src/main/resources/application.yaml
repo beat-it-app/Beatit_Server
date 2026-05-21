@@ -3,5 +3,5 @@ spring:
     name: beat-it
 
 jwt:
-  secret: ${JWT_SECRET}
+  secret: ${JWT_SECRET:v3rys3cr3tk3yf0rjwtm4k31tL0ng3n0ugh1234567890}
   expiration: 86400000 # 24 hours
