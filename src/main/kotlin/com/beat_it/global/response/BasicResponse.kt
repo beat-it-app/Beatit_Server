@@ -9,6 +9,9 @@ data class BasicResponse<T>(
         fun <T> success(data: T, message: String? = "Request Successful"): BasicResponse<T> =
             BasicResponse("success", message, data)
 
+        fun success(message: String?): BasicResponse<Nothing> =
+            BasicResponse("success", message, null)
+
         fun fail(message: String?): BasicResponse<Nothing> =
             BasicResponse("fail", message, null)
     }
