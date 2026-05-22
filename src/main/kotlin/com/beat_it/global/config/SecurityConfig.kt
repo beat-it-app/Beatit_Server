@@ -27,6 +27,8 @@ class SecurityConfig(
     fun filterChain(http: HttpSecurity): SecurityFilterChain {
         http
             .csrf { it.disable() }
+            // H2 콘솔 사용을 위해 X-Frame-Options 비활성화
+            .headers { headers -> headers.frameOptions { it.disable() } }
             .sessionManagement { it.sessionCreationPolicy(SessionCreationPolicy.STATELESS) }
             .exceptionHandling { exception ->
                 exception.authenticationEntryPoint { request, response, authException ->
@@ -42,6 +44,7 @@ class SecurityConfig(
             }
             .authorizeHttpRequests { auth ->
                 auth
+                    .requestMatchers("/h2-console/**").permitAll()
                     .requestMatchers("/auth/**").permitAll()
                     .requestMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()
                     .anyRequest().authenticated()
