@@ -5,8 +5,6 @@ import java.util.UUID
 
 data class LoginResponse(
     val userId: Long?,
-    val userPublicId: String?,
-    // val teamPublicId: String?,
     val role: Role,
     val isCreatedProfile: Boolean
 )
