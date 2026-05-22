@@ -1,6 +1,6 @@
 package com.beat_it.cal.entity
 
-import com.beat_it.global.entity.BaseTimeEntity
+import com.beat_it.global.entity.BaseUpdatedTimeEntity
 import jakarta.persistence.CascadeType
 import jakarta.persistence.Column
 import jakarta.persistence.Entity
@@ -44,7 +44,7 @@ class Schedule(
     @Column(length = 500)
     var content: String? = null
 
-) : BaseTimeEntity() {
+) : BaseUpdatedTimeEntity() {
 
     @OneToMany(mappedBy = "schedule", cascade = [CascadeType.ALL], orphanRemoval = true)
     val participants: MutableList<ScheduleParticipant> = mutableListOf()
