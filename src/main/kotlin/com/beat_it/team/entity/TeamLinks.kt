@@ -11,7 +11,7 @@ class TeamLinks(
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name="team_link_id", nullable = false)
-    val teamLinkId: Long? = null,
+    val teamLinkId: Long,
 
     //TODO: 팀 ID 연결하기
     @ManyToOne(fetch = FetchType.LAZY)

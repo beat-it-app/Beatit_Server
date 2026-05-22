@@ -10,7 +10,7 @@ class TeamParts(
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name="team_part_id", nullable = false)
-    val teamPartId: Long? = null,
+    val teamPartId: Long,
 
     //TODO: 팀 ID 연결하기
     @ManyToOne(fetch = FetchType.LAZY)

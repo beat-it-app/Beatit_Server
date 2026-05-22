@@ -10,7 +10,7 @@ class TeamMemberships(
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "team_membership_id")
-    val teamMembershipId: Long? = null,
+    val teamMembershipId: Long,
 
     //TODO: 팀 ID 연결하기
     //TODO: 사용자 ID 연결하기 >> 모듈 분리

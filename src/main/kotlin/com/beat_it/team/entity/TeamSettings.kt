@@ -9,7 +9,7 @@ class TeamSettings(
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name="team_settings_id")
-    val teamSettingId: Long? = null,
+    val teamSettingId: Long,
 
     //TODO: 팀 ID 연결하기
     @ManyToOne(fetch = FetchType.LAZY)
