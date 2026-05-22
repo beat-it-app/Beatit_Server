@@ -90,6 +90,7 @@ class AuthService (
             accessToken,
             LoginResponse(
                 userId = user.userId,
+                userPublicId = user.publicId.toString(),
                 role = user.role,
                 isCreatedProfile = isCreatedProfile
             )
