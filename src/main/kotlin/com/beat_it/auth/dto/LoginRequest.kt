@@ -7,5 +7,8 @@ data class LoginRequest(
     val identifier: String,
 
     @Schema(description = "비밀번호", example = "password123!")
-    val password: String
+    val password: String,
+
+    @Schema(description = "자동 로그인 여부", example = false.toString())
+    val rememberMe: Boolean
 )

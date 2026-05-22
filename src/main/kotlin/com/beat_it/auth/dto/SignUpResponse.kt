@@ -7,7 +7,5 @@ data class SignUpResponse (
     val userId: Long?,
     val identifier: String?,
     val email: String,
-
-    @JsonProperty("created_at")
     val createdAt: OffsetDateTime
 ) 
