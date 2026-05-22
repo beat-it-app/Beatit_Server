@@ -12,6 +12,9 @@ class TeamSettings(
     val teamSettingId: Long? = null,
 
     //TODO: 팀 ID 연결하기
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "team_id", nullable = false)
+    val team: Teams,
 
     @Column(name="max_storage", nullable = false)
     var maxStorage: Int = 10,

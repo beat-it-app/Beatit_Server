@@ -15,8 +15,8 @@ class TeamLinks(
 
     //TODO: 팀 ID 연결하기
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name="team_id", nullable = false)
-    val teams: Teams = Teams(),
+    @JoinColumn(name = "team_id", nullable = false)
+    val team: Teams,
 
     @Column(name="part_name",nullable = false)
     var partName: String = "",

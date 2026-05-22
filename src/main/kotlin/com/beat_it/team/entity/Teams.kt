@@ -32,11 +32,11 @@ class Teams(
     @Column(name="invite_code", nullable = false, unique = true)
     val inviteCode: String = "",
 
-    @Column(name="update_at", nullable = false)
-    var updateAt: OffsetDateTime = OffsetDateTime.now(),
-
-    @Column(name="create_at", nullable = false)
-    val createdAt: OffsetDateTime = OffsetDateTime.now(),
+//    @Column(name="update_at", nullable = false)
+//    var updateAt: OffsetDateTime = OffsetDateTime.now(),
+//
+//    @Column(name="create_at", nullable = false)
+//    val createdAt: OffsetDateTime = OffsetDateTime.now(),
 
     @Column(name="deleted_at", nullable = true)
     var deletedAt: OffsetDateTime? = null,

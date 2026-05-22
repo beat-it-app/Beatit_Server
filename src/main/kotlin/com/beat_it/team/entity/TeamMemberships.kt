@@ -14,6 +14,9 @@ class TeamMemberships(
 
     //TODO: 팀 ID 연결하기
     //TODO: 사용자 ID 연결하기 >> 모듈 분리
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "team_id", nullable = false)
+    val team: Teams,
 
     @Column(name="team_role", nullable = false)
     var teamRole: TeamRole = TeamRole.MEMBER,
