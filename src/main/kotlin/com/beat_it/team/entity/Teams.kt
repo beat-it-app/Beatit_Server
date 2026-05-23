@@ -1,6 +1,5 @@
 package com.beat_it.team.entity
-
-import com.beat_it.global.entity.BaseTimeEntity
+import com.beat_it.global.entity.BaseUpdatedTimeEntity
 import com.beat_it.team.entity.enum.TeamType
 import jakarta.persistence.*
 import java.time.LocalDate
@@ -40,7 +39,7 @@ class Teams(
     @Column(name = "deleted_at", nullable = true)
     var deletedAt: OffsetDateTime? = null,
 
-) : BaseTimeEntity() {
+) : BaseUpdatedTimeEntity() {
 
     fun updateTeamDetail (
         teamName: String,
