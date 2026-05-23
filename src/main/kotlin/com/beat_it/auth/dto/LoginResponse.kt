@@ -6,6 +6,6 @@ import java.util.UUID
 data class LoginResponse(
     val userId: Long?,
     val role: Role,
-
     val isCreatedProfile: Boolean
 )
+
