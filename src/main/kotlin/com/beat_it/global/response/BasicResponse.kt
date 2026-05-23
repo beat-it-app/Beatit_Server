@@ -1,18 +1,21 @@
 package com.beat_it.global.response
 
+import org.springframework.http.HttpStatus
+
 data class BasicResponse<T>(
+    val success: Boolean,
     val status: String,
     val message: String?,
     val data: T?
 ) {
     companion object {
-        fun <T> success(data: T, message: String? = "Request Successful"): BasicResponse<T> =
-            BasicResponse("success", message, data)
+        fun <T> success(data: T, httpStatus: HttpStatus, message: String? = "Request Successful"): BasicResponse<T> =
+            BasicResponse(true, httpStatus.value().toString(), message, data)
 
-        fun success(message: String?): BasicResponse<Nothing> =
-            BasicResponse("success", message, null)
+        fun success(httpStatus: HttpStatus, message: String?): BasicResponse<Nothing> =
+            BasicResponse(true, httpStatus.value().toString(), message, null)
 
-        fun fail(message: String?): BasicResponse<Nothing> =
-            BasicResponse("fail", message, null)
+        fun fail(code: String, message: String): BasicResponse<Nothing> =
+            BasicResponse(false, code, message, null)
     }
 }

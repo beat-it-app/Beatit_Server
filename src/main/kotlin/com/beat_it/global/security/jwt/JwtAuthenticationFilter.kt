@@ -1,0 +1,57 @@
+package com.beat_it.global.security.jwt
+
+import org.springframework.util.StringUtils
+import jakarta.servlet.FilterChain
+import jakarta.servlet.http.HttpServletRequest
+import jakarta.servlet.http.HttpServletResponse
+import org.springframework.security.core.context.SecurityContextHolder
+import org.springframework.stereotype.Component
+import org.springframework.web.filter.OncePerRequestFilter
+
+@Component
+class JwtAuthenticationFilter(
+    private val jwtTokenProvider: JwtTokenProvider
+) : OncePerRequestFilter() {
+
+    override fun doFilterInternal(
+        request: HttpServletRequest,
+        response: HttpServletResponse,
+        filterChain: FilterChain
+    ) {
+        // 1. Request Header에서 토큰 추출
+        val token = resolveToken(request)
+
+        // 2. 토큰 유효성 검사 및 SecurityContext에 인증 정보 저장
+        if (token != null && jwtTokenProvider.validateToken(token)) {
+            val tokenPublicId = jwtTokenProvider.getPublicId(token)
+            val headerUserPublicId = request.getHeader("X-User-Public-Id")?.trim()
+
+            // 인가: 헤더에 X-User-Public-Id가 비어있지 않게 전달되었다면, 토큰의 주체와 일치하는지 검증
+            if (!headerUserPublicId.isNullOrBlank() && headerUserPublicId != tokenPublicId) {
+                response.contentType = "application/json;charset=UTF-8"
+                response.status = HttpServletResponse.SC_FORBIDDEN
+                response.writer.write("""{"success":false,"status":"COMMON-006","message":"헤더의 X-User-Public-Id가 토큰의 정보와 일치하지 않습니다.","data":null}""")
+                return
+            }
+
+            val authentication = jwtTokenProvider.getAuthentication(token)
+            SecurityContextHolder.getContext().authentication = authentication
+        }
+
+        filterChain.doFilter(request, response)
+    }
+
+    // 헤더에서 "Bearer " 접두사를 제거하고 토큰만 추출
+    private fun resolveToken(request: HttpServletRequest): String? {
+        val bearerToken = request.getHeader("Authorization")
+        if (!StringUtils.hasText(bearerToken)) return null
+
+        if (bearerToken.startsWith("Bearer ")) {
+            val token = bearerToken.substring(7).trim()
+            // 스웨거 등에서 Bearer를 중복해서 넣었을 경우를 대비
+            return if (token.startsWith("Bearer ")) token.substring(7).trim() else token
+        }
+        
+        return null
+    }
+}

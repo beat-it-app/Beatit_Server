@@ -1,26 +1,44 @@
-package com.beat_it.auth.entity 
+package com.beat_it.auth.entity
 
+import com.beat_it.global.entity.BaseCreatedTimeEntity
+import com.beat_it.auth.entity.enum.AccountStatus
+import com.beat_it.auth.entity.enum.Role
 import jakarta.persistence.*
 import java.time.OffsetDateTime
 import java.util.UUID
 
 @Entity
 @Table(name = "users")
-class Users(
+class Users (
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    val id: Long? = null,
+    @Column(name = "user_id")
+    val userId: Long? = null,
 
-    @Column(nullable = false, unique = true)
-    val publicId: UUID = UUID.randomUUID(), // 외부 노출용 ID 
+    @Column(name = "public_id", nullable = false, unique = true)
+    val publicId: UUID = UUID.randomUUID(),
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    var accountStatus: AccountStatus = AccountStatus.ACTIVE,
+    var role: Role,
 
-    @Column(nullable = true)
-    var withdrawnAt: OffsetDateTime? = null,
+    @Enumerated(EnumType.STRING)
+    @Column(name = "account_status", nullable = false)
+    var accountStatus: AccountStatus,
 
-    @Column(nullable = false)
-    val createdAt: OffsetDateTime = OffsetDateTime.now()
-)
+    @Column(name = "withdrawn_at")
+    var withdrawnAt: OffsetDateTime? = null
+    
+) : BaseCreatedTimeEntity() {
+    companion object {
+        fun createNewUser(
+            role: Role,
+            accountStatus: AccountStatus
+        ): Users {
+            return Users(
+                role = role,
+                accountStatus = accountStatus
+            )
+        }
+    }
+}

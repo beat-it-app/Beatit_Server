@@ -26,7 +26,7 @@ class ScheduleController(
 
         return ResponseEntity
             .status(HttpStatus.CREATED)
-            .body(BasicResponse.success(responseData, "일정 생성에 성공했습니다."))
+            .body(BasicResponse.success(responseData, HttpStatus.CREATED, "일정 생성에 성공했습니다."))
     }
 
     @PatchMapping("/{scheduleId}")
@@ -36,7 +36,9 @@ class ScheduleController(
         @RequestBody request: ScheduleUpdateRequest
     ): ResponseEntity<BasicResponse<ScheduleCreateResponse>> {
         val responseData = scheduleService.updateSchedule(scheduleId, userId, request)
-        return ResponseEntity.ok(BasicResponse.success(responseData, "일정이 수정되었습니다."))
+        return ResponseEntity
+            .status(HttpStatus.OK)
+            .body(BasicResponse.success(responseData, HttpStatus.OK, "일정이 수정되었습니다."))
     }
 
     @DeleteMapping("/{scheduleId}")
@@ -45,8 +47,9 @@ class ScheduleController(
         @PathVariable scheduleId: Long
     ): ResponseEntity<BasicResponse<Nothing>> {
         scheduleService.deleteSchedule(scheduleId, userId)
-        return ResponseEntity.ok(
-            BasicResponse.success("일정이 성공적으로 삭제되었습니다.")
+        return ResponseEntity
+            .status(HttpStatus.OK)
+            .body(BasicResponse.success(HttpStatus.OK, "일정이 성공적으로 삭제되었습니다.")
         )
     }
 
@@ -55,8 +58,9 @@ class ScheduleController(
         @PathVariable scheduleId: Long
     ): ResponseEntity<BasicResponse<ScheduleDetailResponse>> {
         val responseData = scheduleService.getScheduleDetail(scheduleId)
-        return ResponseEntity.ok(
-            BasicResponse.success(responseData, "일정 상세 조회에 성공했습니다.")
-        )
+        return ResponseEntity
+            .status(HttpStatus.OK)
+            .body(BasicResponse.success(responseData, HttpStatus.OK, "일정 상세 조회에 성공했습니다.")
+            )
     }
 }
