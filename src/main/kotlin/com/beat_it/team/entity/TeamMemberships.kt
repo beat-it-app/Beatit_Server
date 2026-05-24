@@ -18,15 +18,18 @@ class TeamMemberships(
     @JoinColumn(name = "team_id", nullable = false)
     val team: Teams,
 
-    //TODO: 사용자 ID 연결하기 >> 모듈 분리
+    //TODO: 사용자 ID 임시 연결 - User 모듈과 연결 시 지우거나 수정 필요
+    @Column(name = "user_id", nullable = false)
+    val userId: Long? = null,
 
-    @Column(name="team_role", nullable = false)
+    @Column(name = "team_role", nullable = false)
     var teamRole: TeamRole = TeamRole.MEMBER,
 
-    @Column(name="left_at", nullable = true)
+    @Column(name = "left_at", nullable = true)
     var leftAt: OffsetDateTime? = null,
+    userid: Long,
 
-) : BaseUpdatedTimeEntity() {
+    ) : BaseUpdatedTimeEntity() {
     // TODO: 팀 권한 설정 함수 만들기
     fun updateTeamRole(teamRole: TeamRole) {
         this.teamRole = teamRole

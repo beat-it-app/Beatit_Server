@@ -23,7 +23,7 @@ class TeamController(
         @RequestBody request: TeamCreateRequest
     ): ResponseEntity<BasicResponse<TeamCreateResponse>> {
 
-        val responseData = teamService.createTeam(request)
+        val responseData = teamService.createTeam(userId, request)
 
         return ResponseEntity
             .status(HttpStatus.CREATED)
