@@ -1,5 +1,6 @@
 package com.beat_it.team.entity
 
+import com.beat_it.global.entity.BaseUpdatedTimeEntity
 import com.beat_it.team.entity.enum.PlatformCode
 import com.beat_it.team.entity.enum.TeamRole
 import jakarta.persistence.*
@@ -28,11 +29,10 @@ class TeamLinks(
     @Column(name="link_url",nullable = false)
     var linkUrl: String = "",
 
-    @Column(name="update_at",nullable = false)
-    var updateAt: OffsetDateTime = OffsetDateTime.now(),
+//    @Column(name="update_at",nullable = false)
+//    var updateAt: OffsetDateTime = OffsetDateTime.now(),
+//
+//    @Column(name="create_at",nullable = false)
+//    val createdAt: OffsetDateTime = OffsetDateTime.now(),
 
-    @Column(name="create_at",nullable = false)
-    val createdAt: OffsetDateTime = OffsetDateTime.now(),
-
-    )
-//    ) : BaseTime
+) : BaseUpdatedTimeEntity()

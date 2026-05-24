@@ -120,7 +120,7 @@ class TeamService(
     }
 
     private fun validateCreateRequest(request: TeamCreateRequest) {
-        if (request.teamName.isNullOrBlank()) {
+        if (request.teamName.isBlank()) {
             throw BusinessException(ErrorCode.TEAM_NAME_REQUIRED)
         }
 
@@ -146,10 +146,11 @@ class TeamService(
 
     private fun isNotChanged(team: Teams, request: TeamDetailUpdateRequest): Boolean {
         val isAnyFieldChanged =
-                    (request.teamName != null && request.teamName != team.teamName) ||
+                    (request.teamName != team.teamName) ||
                     (request.description != null && request.description != team.description) ||
                     (request.establishedOn != null && request.establishedOn != team.establishedOn)
-                    (request.establishedOn != null && request.establishedOn != team.establishedOn)
+                    (request.profileImageUrl != null && request.profileImageUrl != team.profileImageUrl)
+                    // (request.links != null && request.links != team.links)
 
         return !(isAnyFieldChanged)
     }
@@ -174,6 +175,7 @@ class TeamService(
 
     private fun generateInviteCode(): String {
         // TODO: 팀 초대코드 생성법 고안 필요
+        // TODO: Redis로 초대코드를 구성하는 블로그 참고하기
         return "BEATIT-" + UUID.randomUUID()
             .toString()
             .replace("-", "")
