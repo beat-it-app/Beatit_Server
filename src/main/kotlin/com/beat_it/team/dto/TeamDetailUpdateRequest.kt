@@ -5,7 +5,7 @@ import java.time.LocalDate
 import java.time.OffsetDateTime
 
 data class TeamDetailUpdateRequest(
-    @JsonProperty("team_name")
+    @JsonProperty("name")
     val teamName: String,
 
     val description: String?,

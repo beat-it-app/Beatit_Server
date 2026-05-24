@@ -19,6 +19,7 @@ class TeamController(
 
     @PostMapping
     fun createTeam(
+        @RequestHeader("X-USER-ID") userId: Long,
         @RequestBody request: TeamCreateRequest
     ): ResponseEntity<BasicResponse<TeamCreateResponse>> {
 

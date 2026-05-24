@@ -7,7 +7,7 @@ import java.time.OffsetDateTime
 data class TeamDetailResponse(
     @JsonProperty("team_id") val teamId: Long? = null,
     @JsonProperty("profile_image_url") val profileImageUrl: String?,
-    @JsonProperty("team_name") val teamName: String,
+    @JsonProperty("name") val teamName: String,
     val description: String?,
     @JsonProperty("established_on") val establishedOn: LocalDate?,
     @JsonProperty("invite_code") val inviteCode: String,

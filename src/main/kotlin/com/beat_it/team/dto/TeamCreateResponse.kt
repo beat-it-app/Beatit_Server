@@ -8,7 +8,7 @@ data class TeamCreateResponse(
     @JsonProperty("team_id")
     val teamId: Long,
 
-    @JsonProperty("team_name")
+    @JsonProperty("name")
     val teamName: String,
 
     val description: String?,

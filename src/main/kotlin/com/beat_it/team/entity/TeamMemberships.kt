@@ -1,5 +1,6 @@
 package com.beat_it.team.entity
 
+import com.beat_it.global.entity.BaseUpdatedTimeEntity
 import com.beat_it.team.entity.enum.TeamRole
 import jakarta.persistence.*
 import java.time.OffsetDateTime
@@ -13,20 +14,17 @@ class TeamMemberships(
     val teamMembershipId: Long,
 
     //TODO: 팀 ID 연결하기
-    //TODO: 사용자 ID 연결하기 >> 모듈 분리
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "team_id", nullable = false)
     val team: Teams,
 
+    //TODO: 사용자 ID 연결하기 >> 모듈 분리
+
     @Column(name="team_role", nullable = false)
     var teamRole: TeamRole = TeamRole.MEMBER,
 
-    @Column(name="update_at", nullable = false)
-    var updateAt: OffsetDateTime = OffsetDateTime.now(),
-
-    @Column(name="create_at", nullable = false)
-    val createdAt: OffsetDateTime = OffsetDateTime.now(),
-
     @Column(name="left_at", nullable = true)
     var leftAt: OffsetDateTime? = null,
-)
+) : BaseUpdatedTimeEntity() {
+    // TODO: 팀 권한 설정 함수 만들기
+}
