@@ -2,6 +2,8 @@ package com.beat_it.team.service
 
 import com.beat_it.global.error.BusinessException
 import com.beat_it.global.error.ErrorCode
+import com.beat_it.team.dto.LinksResponse
+import com.beat_it.team.dto.PartsResponse
 import com.beat_it.team.dto.TeamCreateRequest
 import com.beat_it.team.dto.TeamCreateResponse
 import com.beat_it.team.dto.TeamDetailResponse
@@ -115,6 +117,28 @@ class TeamService(
     fun getTeamDetail(teamId: Long): TeamDetailResponse {
         val team = findTeamOrThrow(teamId)
 
+        val memberCount = teamMembershipRepository.countByTeamIdAndLeftAtIsNull(teamId)
+
+        val links = teamLinksRepository
+            .findAllByTeamId(teamId)
+            .map {
+                LinksResponse(
+                    teamLinkId = it.teamLinkId!!,
+                    platFormCode = it.platformCode,
+                    linkUrl = it.linkUrl,
+                )
+            }
+
+        val parts = teamPartsRepository
+            .findAllByTeamId(teamId)
+            .map {
+                PartsResponse(
+                    teamPartId = it.teamPartId!!,
+                    partName = it.partName,
+                    displayOrder = it.displayOrder,
+                )
+            }
+
         return TeamDetailResponse(
             teamId = team.teamId,
             profileImageUrl = team.profileImageUrl,
@@ -122,11 +146,11 @@ class TeamService(
             description = team.description,
             establishedOn = team.establishedOn,
             inviteCode = team.inviteCode,
-            memberCount = 0,
+            memberCount = memberCount,
             createdAt = team.createdAt,
             updatedAt = team.updatedAt,
-            links = emptyList(),
-            parts = emptyList(),
+            links = links,
+            parts = parts,
             archiveCount = 0,
             cloudItemCount = 0
         )

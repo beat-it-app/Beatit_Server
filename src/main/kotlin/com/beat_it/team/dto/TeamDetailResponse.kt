@@ -1,5 +1,6 @@
 package com.beat_it.team.dto
 
+import com.beat_it.team.entity.enum.PlatformCode
 import com.fasterxml.jackson.annotation.JsonProperty
 import java.time.LocalDate
 import java.time.OffsetDateTime
@@ -23,7 +24,7 @@ data class TeamDetailResponse(
 
 data class LinksResponse(
     @JsonProperty("team_link_id") val teamLinkId: Long,
-    @JsonProperty("plat_form_code") val platFormCode: String,
+    @JsonProperty("plat_form_code") val platFormCode: PlatformCode,
     @JsonProperty("link_url") val linkUrl: String,
 )
 
