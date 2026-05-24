@@ -1,7 +1,5 @@
 package com.beat_it.team.service
 
-import com.beat_it.cal.dto.ScheduleUpdateRequest
-import com.beat_it.cal.entity.Schedule
 import com.beat_it.global.error.BusinessException
 import com.beat_it.global.error.ErrorCode
 import com.beat_it.team.dto.TeamCreateRequest
@@ -9,7 +7,12 @@ import com.beat_it.team.dto.TeamCreateResponse
 import com.beat_it.team.dto.TeamDetailResponse
 import com.beat_it.team.dto.TeamDetailUpdateRequest
 import com.beat_it.team.dto.TeamDetailUpdateResponse
+import com.beat_it.team.entity.TeamMemberships
 import com.beat_it.team.entity.Teams
+import com.beat_it.team.entity.enum.TeamRole
+import com.beat_it.team.repository.TeamLinksRepository
+import com.beat_it.team.repository.TeamMembershipRepository
+import com.beat_it.team.repository.TeamPartsRepository
 import com.beat_it.team.repository.TeamRepository
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -17,11 +20,14 @@ import java.util.UUID
 
 @Service
 class TeamService(
-    private val teamRepository: TeamRepository
+    private val teamRepository: TeamRepository,
+    private val teamLinksRepository: TeamLinksRepository,
+    private val teamPartsRepository: TeamPartsRepository,
+    private val teamMembershipRepository: TeamMembershipRepository,
 ) {
 
     @Transactional
-    fun createTeam(request: TeamCreateRequest): TeamCreateResponse {
+    fun createTeam(userid: Long, request: TeamCreateRequest): TeamCreateResponse {
         validateCreateRequest(request)
 
         val inviteCode = generateInviteCode()
@@ -38,6 +44,13 @@ class TeamService(
 
         // TODO: 팀 생성자를 TeamMember에 LEADER로 저장해야 함
         // 현재 createTeam 함수에 userId가 없기 때문에, 나중에 Controller에서 userId를 넘겨받는 구조가 필요함
+        val leaderTeamMemberships = TeamMemberships(
+            team = savedTeam,
+            userid = userid,
+            teamRole = TeamRole.LEADER,
+        )
+
+        teamMembershipRepository.save(leaderTeamMemberships)
 
         return TeamCreateResponse(
             teamId = savedTeam.teamId!!,
@@ -162,15 +175,18 @@ class TeamService(
 
     private fun validateTeamUpdatePermission(teamId: Long, userId: Long) {
         // TODO: TeamMemberRepository가 생기면 여기서 LEADER 또는 MANAGER인지 확인
-        // val member = teamMemberRepository.findByTeamIdAndUserId(teamId, userId)
-        // if (member.role != TeamRole.LEADER && member.role != TeamRole.MANAGER) {
-        //     throw BusinessException(ErrorCode.TEAM_NO_PERMISSION)
-        // }
+        val membership = teamMembershipRepository.findByTeamIdAndUserIdAndLeaftAtIsNull(teamId, userId) ?: throw BusinessException(ErrorCode.TEAM_NO_PERMISSION)
+        if (membership.teamRole != TeamRole.LEADER && membership.teamRole != TeamRole.MANAGER) {
+            throw BusinessException(ErrorCode.TEAM_NO_PERMISSION)
+        }
     }
 
     private fun validateTeamDeletePermission(teamId: Long, userId: Long) {
         // TODO: 팀 삭제 권한 검증
-        // 보통 LEADER만 삭제 가능하게 처리 >> API 명세 수정할 것.
+        val membership = teamMembershipRepository.findByTeamIdAndUserIdAndLeaftAtIsNull(teamId, userId) ?: throw BusinessException(ErrorCode.TEAM_NO_PERMISSION)
+        if (membership.teamRole != TeamRole.LEADER) {
+            throw BusinessException(ErrorCode.TEAM_NO_PERMISSION)
+        }
     }
 
     private fun generateInviteCode(): String {
