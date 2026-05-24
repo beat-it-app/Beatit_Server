@@ -20,9 +20,6 @@ class TeamLinks(
     @JoinColumn(name = "team_id", nullable = false)
     val team: Teams,
 
-    @Column(name="part_name",nullable = false)
-    var partName: String = "",
-
     @Enumerated(EnumType.STRING)
     @Column(name="platform_code",nullable = false)
     var platformCode: PlatformCode = PlatformCode.CUSTOM,

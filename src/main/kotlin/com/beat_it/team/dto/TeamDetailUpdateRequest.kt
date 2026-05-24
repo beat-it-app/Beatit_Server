@@ -1,24 +1,27 @@
 package com.beat_it.team.dto
 
+import com.beat_it.team.entity.enum.TeamType
 import com.fasterxml.jackson.annotation.JsonProperty
 import java.time.LocalDate
 import java.time.OffsetDateTime
 
 data class TeamDetailUpdateRequest(
     @JsonProperty("name")
-    val teamName: String,
+    val teamName: String? = null,
 
-    val description: String?,
+    val description: String? = null,
 
-    @JsonProperty("established_on") val establishedOn: LocalDate?,
+    val teamType: TeamType? = null,
 
-    @JsonProperty("profile_image_url") val profileImageUrl: String?,
+    @JsonProperty("established_on") val establishedOn: LocalDate? = null,
 
-    val links: List<LinksRequest> = emptyList(),
+    @JsonProperty("profile_image_url") val profileImageUrl: String? = null,
 
-)
+    val links: List<TeamLinksRequest>? = null,
 
-data class LinksRequest(
+    )
+
+data class TeamLinksRequest(
+    @JsonProperty("platform_code") val platformCode: String,
     @JsonProperty("link_url") val linkUrl: String,
-    @JsonProperty("plat_form_code") val platFormCode: String,
 )

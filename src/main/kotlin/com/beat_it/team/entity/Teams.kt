@@ -41,16 +41,16 @@ class Teams(
 
 ) : BaseUpdatedTimeEntity() {
 
-    fun updateTeamDetail (
-        teamName: String,
+    fun updateTeamDetail(
+        teamName: String?,
         description: String?,
         establishedOn: LocalDate?,
-        teamType: TeamType,
+        teamType: TeamType?,
     ) {
-        this.teamName = teamName
-        this.description = description
-        this.establishedOn = establishedOn
-        this.teamType = teamType
+        teamName?.let { this.teamName = it }
+        description?.let { this.description = it }
+        establishedOn?.let { this.establishedOn = it }
+        teamType?.let { this.teamType = it }
     }
 
 

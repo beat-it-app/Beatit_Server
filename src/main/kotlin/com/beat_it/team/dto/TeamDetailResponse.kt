@@ -24,7 +24,7 @@ data class TeamDetailResponse(
 
 data class LinksResponse(
     @JsonProperty("team_link_id") val teamLinkId: Long,
-    @JsonProperty("plat_form_code") val platFormCode: PlatformCode,
+    @JsonProperty("platform_code") val platFormCode: PlatformCode,
     @JsonProperty("link_url") val linkUrl: String,
 )
 

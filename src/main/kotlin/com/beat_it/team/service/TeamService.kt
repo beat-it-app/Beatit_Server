@@ -9,6 +9,8 @@ import com.beat_it.team.dto.TeamCreateResponse
 import com.beat_it.team.dto.TeamDetailResponse
 import com.beat_it.team.dto.TeamDetailUpdateRequest
 import com.beat_it.team.dto.TeamDetailUpdateResponse
+import com.beat_it.team.dto.TeamLinksRequest
+import com.beat_it.team.entity.TeamLinks
 import com.beat_it.team.entity.TeamMemberships
 import com.beat_it.team.entity.Teams
 import com.beat_it.team.entity.enum.TeamRole
@@ -72,21 +74,20 @@ class TeamService(
         request: TeamDetailUpdateRequest
     ): TeamDetailUpdateResponse {
         val team = findTeamOrThrow(teamId)
+        val currentLinks = teamLinksRepository.findAllByTeamId(teamId)
 
         validateTeamUpdatePermission(teamId, userId)
+        validateUpdateRequest(request)
 
-        if (isNotChanged(team, request)) {
+        if (isNotChanged(team, request, currentLinks)) {
             throw BusinessException(ErrorCode.TEAM_NO_CONTENT_TO_UPDATE)
         }
-
-        validateUpdateRequest(request)
 
         team.updateTeamDetail(
             teamName = request.teamName,
             description = request.description,
             establishedOn = request.establishedOn,
             teamType = team.teamType,
-
         )
 
         // TODO: profileImageFileId가 있다면 파일 존재 여부 검증 후 연결
@@ -180,16 +181,37 @@ class TeamService(
         }
     }
 
-
-    private fun isNotChanged(team: Teams, request: TeamDetailUpdateRequest): Boolean {
+    private fun isNotChanged(
+        team: Teams,
+        request: TeamDetailUpdateRequest,
+        currentLinks: List<TeamLinks>
+    ): Boolean {
         val isAnyFieldChanged =
-                    (request.teamName != team.teamName) ||
-                    (request.description != null && request.description != team.description) ||
-                    (request.establishedOn != null && request.establishedOn != team.establishedOn)
-                    (request.profileImageUrl != null && request.profileImageUrl != team.profileImageUrl)
-                    // (request.links != null && request.links != team.links)
+            (request.teamName != team.teamName) ||
+            (request.description != null && request.description != team.description) ||
+            (request.establishedOn != null && request.establishedOn != team.establishedOn) ||
+            (request.teamType != null && request.teamType != team.teamType) ||
+            (request.profileImageUrl != null && request.profileImageUrl != team.profileImageUrl)
 
-        return !(isAnyFieldChanged)
+        val isLinksChanged =
+            request.links != null && !isLinksSame(currentLinks, request.links)
+
+        return !(isAnyFieldChanged || isLinksChanged)
+    }
+
+    private fun isLinksSame(
+        currentLinks: List<TeamLinks>,
+        requestLinks: List<TeamLinksRequest>
+    ) : Boolean {
+        val current = currentLinks
+            .map { it.platformCode to it.linkUrl }
+            .sortedWith(compareBy({it.first.toString()}, { it.second }))
+
+        val requested = requestLinks
+            .map { it.platformCode to it.linkUrl }
+            .sortedWith(compareBy({it.first.toString()}, { it.second }))
+
+        return current == requested
     }
 
     private fun findTeamOrThrow(teamId: Long): Teams {
