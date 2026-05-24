@@ -36,16 +36,14 @@ class AuthService (
         // 1. Users 생성 및 저장
         var user = Users.createNewUser(
             role = Role.USER,
-            accountStatus = AccountStatus.ACTIVE,
-            createdAt = OffsetDateTime.now()
+            accountStatus = AccountStatus.ACTIVE
         )
         user = userRepository.save(user)
 
         // 2. UserSettings 생성 및 저장
         val userSetting = UserSettings.createNewUser(
             user,
-            allowAutoLogin = false,
-            updatedAt = OffsetDateTime.now()
+            allowAutoLogin = false
         )
         userSettingsRepository.save(userSetting)
 
@@ -137,8 +135,4 @@ class AuthService (
         }
     }
 
-    // Todo : 로그인 된 사용자 헤더로 반환할 수 있도록 하는? 함수 global로 설정해서 하기
-//    val getUser(){
-//
-//    }
 }

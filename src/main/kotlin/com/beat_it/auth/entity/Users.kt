@@ -1,5 +1,6 @@
 package com.beat_it.auth.entity
 
+import com.beat_it.global.entity.BaseCreatedTimeEntity
 import com.beat_it.auth.entity.enum.AccountStatus
 import com.beat_it.auth.entity.enum.Role
 import jakarta.persistence.*
