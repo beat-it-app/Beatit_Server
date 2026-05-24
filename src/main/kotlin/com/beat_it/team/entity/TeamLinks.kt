@@ -3,6 +3,7 @@ package com.beat_it.team.entity
 import com.beat_it.global.entity.BaseUpdatedTimeEntity
 import com.beat_it.team.entity.enum.PlatformCode
 import com.beat_it.team.entity.enum.TeamRole
+import io.swagger.v3.oas.annotations.links.Link
 import jakarta.persistence.*
 import java.time.OffsetDateTime
 
@@ -12,7 +13,7 @@ class TeamLinks(
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name="team_link_id", nullable = false)
-    val teamLinkId: Long,
+    val teamLinkId: Long? = null,
 
     //TODO: 팀 ID 연결하기
     @ManyToOne(fetch = FetchType.LAZY)
@@ -35,4 +36,9 @@ class TeamLinks(
 //    @Column(name="create_at",nullable = false)
 //    val createdAt: OffsetDateTime = OffsetDateTime.now(),
 
-) : BaseUpdatedTimeEntity()
+) : BaseUpdatedTimeEntity() {
+    fun updateLink(platformCode: PlatformCode, linkUrl: String) {
+        this.platformCode = platformCode
+        this.linkUrl = linkUrl
+    }
+}

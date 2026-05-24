@@ -11,7 +11,7 @@ class TeamMemberships(
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "team_membership_id")
-    val teamMembershipId: Long,
+    val teamMembershipId: Long? = null,
 
     //TODO: 팀 ID 연결하기
     @ManyToOne(fetch = FetchType.LAZY)
@@ -25,6 +25,14 @@ class TeamMemberships(
 
     @Column(name="left_at", nullable = true)
     var leftAt: OffsetDateTime? = null,
+
 ) : BaseUpdatedTimeEntity() {
     // TODO: 팀 권한 설정 함수 만들기
+    fun updateTeamRole(teamRole: TeamRole) {
+        this.teamRole = teamRole
+    }
+
+    fun leaveTeam() {
+        this.leftAt = OffsetDateTime.now()
+    }
 }

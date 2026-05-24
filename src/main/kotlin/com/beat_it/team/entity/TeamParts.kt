@@ -11,7 +11,7 @@ class TeamParts(
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name="team_part_id", nullable = false)
-    val teamPartId: Long,
+    val teamPartId: Long? = null,
 
     //TODO: 팀 ID 연결하기
     @ManyToOne(fetch = FetchType.LAZY)
@@ -35,4 +35,16 @@ class TeamParts(
 
     ) : BaseUpdatedTimeEntity() {
     // TODO: 파트를 추가하는 함수를 넣어야 함.
+    fun updateTeamPart(
+        partName: String,
+        displayOrder: Int,
+    ) {
+        this.partName = partName
+        this.displayOrder = displayOrder
+    }
+
+    fun deactivateTeamPart() {
+        this.isActive = false
+    }
+
 }
