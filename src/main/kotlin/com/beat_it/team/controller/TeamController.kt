@@ -11,6 +11,7 @@ import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.*
 import java.util.UUID
+import io.swagger.v3.oas.annotations.Parameter
 
 @RestController
 @RequestMapping("/teams")
@@ -20,7 +21,9 @@ class TeamController(
 
     @PostMapping
     fun createTeam(
+        @Parameter(hidden = true)
         @RequestHeader("X-User-Public-Id") userPublicId: UUID,
+
         @RequestBody request: TeamCreateRequest
     ): ResponseEntity<BasicResponse<TeamCreateResponse>> {
 
@@ -33,8 +36,12 @@ class TeamController(
 
     @PatchMapping
     fun updateTeamDetail(
-        @RequestHeader("X-Team-Public-Id") teamPublicId: UUID,
+        @Parameter(hidden = true)
         @RequestHeader("X-User-Public-Id") userPublicId: UUID,
+
+        @Parameter(hidden = true)
+        @RequestHeader("X-Team-Public-Id") teamPublicId: UUID,
+
         @RequestBody request: TeamDetailUpdateRequest,
     ): ResponseEntity<BasicResponse<TeamDetailUpdateResponse>> {
         val responseData = teamService.updateTeamDetail(teamPublicId, userPublicId, request)
@@ -43,8 +50,12 @@ class TeamController(
 
     @DeleteMapping
     fun deleteTeam(
-        @RequestHeader("X-Team-Public-Id") teamPublicId: UUID,
+        @Parameter(hidden = true)
         @RequestHeader("X-User-Public-Id") userPublicId: UUID,
+
+        @Parameter(hidden = true)
+        @RequestHeader("X-Team-Public-Id") teamPublicId: UUID,
+
     ): ResponseEntity<BasicResponse<Nothing>> {
         teamService.deleteTeam(teamPublicId, userPublicId)
         return ResponseEntity.ok(
@@ -54,7 +65,9 @@ class TeamController(
 
     @GetMapping
     fun getTeamDetail(
+        @Parameter(hidden = true)
         @RequestHeader("X-Team-Public-Id") teamPublicId: UUID,
+
     ): ResponseEntity<BasicResponse<TeamDetailResponse>> {
         val responseData = teamService.getTeamDetail(teamPublicId)
         return ResponseEntity.ok(
