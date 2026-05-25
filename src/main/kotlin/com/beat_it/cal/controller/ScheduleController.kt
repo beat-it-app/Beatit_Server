@@ -1,6 +1,7 @@
 package com.beat_it.cal.controller
 
 import com.beat_it.cal.dto.CalendarSchedulesResponse
+import com.beat_it.cal.dto.DateSchedulesResponse
 import com.beat_it.cal.dto.ScheduleCreateRequest
 import com.beat_it.cal.dto.ScheduleCreateResponse
 import com.beat_it.cal.dto.ScheduleDetailResponse
@@ -65,7 +66,7 @@ class ScheduleController(
             )
     }
 
-    @GetMapping
+    @GetMapping("/month")
     fun getCalendarSchedules(
         @RequestHeader("X-USER-ID") userId: Long,
         @RequestParam year: Int,
@@ -75,6 +76,19 @@ class ScheduleController(
         return ResponseEntity
             .status(HttpStatus.OK)
             .body(BasicResponse.success(responseData, HttpStatus.OK, "공유 캘린더 범위 조회에 성공했습니다."))
+    }
+
+    @GetMapping("/date")
+    fun getDateSchedules(
+        @RequestHeader("X-USER-ID") userId: Long,
+        @RequestParam year: Int,
+        @RequestParam month: Int,
+        @RequestParam date: Int
+    ): ResponseEntity<BasicResponse<DateSchedulesResponse>> { // 반환 DTO 타입을 명확히 컴파일 시점에 지정 가능!
+        val responseData = scheduleService.getDateSchedules(userId, year, month, date)
+        return ResponseEntity
+            .status(HttpStatus.OK)
+            .body(BasicResponse.success(responseData, HttpStatus.OK, "선택 날짜 일정 조회에 성공했습니다."))
     }
 
 }

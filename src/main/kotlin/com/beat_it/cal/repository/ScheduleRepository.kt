@@ -21,4 +21,17 @@ interface ScheduleRepository : JpaRepository<Schedule, Long> {
         @Param("startDateTime") startDateTime: OffsetDateTime,
         @Param("endDateTime") endDateTime: OffsetDateTime
     ): List<Schedule>
+
+    @Query("""
+        SELECT s FROM Schedule s 
+        WHERE s.userId = :userId 
+          AND s.startsAt <= :endDateTime 
+          AND s.endsAt >= :startDateTime
+        ORDER BY s.startsAt ASC
+    """)
+    fun findByUserIdAndDailyRange(
+        @Param("userId") userId: Long,
+        @Param("startDateTime") startDateTime: OffsetDateTime,
+        @Param("endDateTime") endDateTime: OffsetDateTime
+    ): List<Schedule>
 }
