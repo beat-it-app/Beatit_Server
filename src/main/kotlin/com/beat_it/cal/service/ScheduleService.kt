@@ -145,6 +145,7 @@ class ScheduleService(
 
     @Transactional(readOnly = true)
     fun getCalendarSchedules(userId: Long, year: Int, month: Int): CalendarSchedulesResponse {
+        validateYearAndMonth(year, month)
         val startLocalDate = LocalDate.of(year, month, 1)
         val endLocalDate = startLocalDate.withDayOfMonth(startLocalDate.lengthOfMonth())
 
@@ -168,6 +169,7 @@ class ScheduleService(
 
     @Transactional(readOnly = true)
     fun getDateSchedules(userId: Long, year: Int, month: Int, date: Int): DateSchedulesResponse {
+        validateYearMonthAndDate(year, month, date)
         val targetLocalDate = LocalDate.of(year, month, date)
 
         val zoneOffset = ZoneOffset.ofHours(9)
@@ -175,7 +177,7 @@ class ScheduleService(
         val endDateTime = OffsetDateTime.of(targetLocalDate, LocalTime.MAX, zoneOffset)
 
         val schedules = scheduleRepository.findByUserIdAndDailyRange(userId, startDateTime, endDateTime)
-        
+
         val dateSchedules = schedules.map { schedule ->
             DateSchedule(
                 scheduleId = schedule.scheduleId ?: throw IllegalStateException("일정 ID가 존재하지 않습니다."),
@@ -235,6 +237,35 @@ class ScheduleService(
     private fun validateScheduleTeam(scheduleTeamId: Long, currentTeamId: Long) {
         if (scheduleTeamId != currentTeamId) {
             throw BusinessException(ErrorCode.CALENDAR_TEAM_MISMATCH)
+        }
+    }
+
+    private fun validateYearAndMonth(year: Int, month: Int) {
+        if (year !in 1000..9999) {
+            throw BusinessException(ErrorCode.CALENDAR_INVALID_YEAR)
+        }
+        if (month !in 1..12) {
+            throw BusinessException(ErrorCode.CALENDAR_INVALID_MONTH)
+        }
+    }
+
+    private fun validateYearMonthAndDate(year: Int, month: Int, date: Int) {
+        if (year !in 1000..9999) {
+            throw BusinessException(ErrorCode.CALENDAR_INVALID_YEAR)
+        }
+
+        if (month !in 1..12) {
+            throw BusinessException(ErrorCode.CALENDAR_INVALID_MONTH)
+        }
+
+        if (date !in 1..31) {
+            throw BusinessException(ErrorCode.CALENDAR_INVALID_DATE)
+        }
+
+        try {
+            java.time.YearMonth.of(year, month).atDay(date)
+        } catch (e: java.time.DateTimeException) {
+            throw BusinessException(ErrorCode.CALENDAR_NON_EXISTENT_DATE)
         }
     }
 }
