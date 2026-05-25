@@ -15,5 +15,5 @@ data class TeamDetailUpdateResponse(
 
     @JsonProperty("updated_at") val updatedAt: OffsetDateTime,
 
-    val links: List<TeamLinksRequest>? = null,
+    val links: List<LinksResponse>? = null,
     )

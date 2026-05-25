@@ -20,7 +20,6 @@ import com.beat_it.team.repository.TeamLinksRepository
 import com.beat_it.team.repository.TeamMembershipRepository
 import com.beat_it.team.repository.TeamPartsRepository
 import com.beat_it.team.repository.TeamRepository
-import com.sun.org.apache.xalan.internal.lib.NodeInfo.publicId
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.util.UUID
@@ -115,12 +114,22 @@ class TeamService(
             teamLinksRepository.saveAll(newLinks)
         }
 
+        val links = teamLinksRepository.findAllByTeamTeamId(team.teamId!!)
+            .map {
+                LinksResponse(
+                    teamLinkId = it.teamLinkId!!,
+                    platFormCode = it.platformCode,
+                    linkUrl = it.linkUrl,
+                )
+            }
+
         return TeamDetailUpdateResponse(
             teamId = team.teamId!!,
             teamName = team.teamName,
             description = team.description,
             establishedOn = team.establishedOn,
-            updatedAt = team.updatedAt
+            updatedAt = team.updatedAt,
+            links = links
         )
     }
 
