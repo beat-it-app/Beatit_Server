@@ -195,7 +195,7 @@ class TeamService(
     }
 
     private fun findTeamOrThrow(teamPublicId: UUID): Teams {
-        return teamRepository.findByPublicId(teamPublicId)
+        return teamRepository.findByPublicIdAndDeletedAtIsNull(teamPublicId)
             ?: throw BusinessException(ErrorCode.TEAM_NOT_FOUND)
     }
 
