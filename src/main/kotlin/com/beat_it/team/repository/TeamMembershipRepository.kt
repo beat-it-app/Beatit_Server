@@ -5,11 +5,12 @@ import org.springframework.data.jpa.repository.JpaRepository
 
 interface TeamMembershipRepository : JpaRepository<TeamMemberships, Long> {
 
-    fun findByTeamIdAndUserIdAndLeaftAtIsNull(
+    fun findByTeamTeamIdAndUserIdAndLeftAtIsNull(
         teamId: Long,
         userId: Long,
     ): TeamMemberships?
 
-    fun countByTeamIdAndLeftAtIsNull(teamId: Long): Int
-
+    fun countByTeamTeamIdAndLeftAtIsNull(
+        teamId: Long,
+    ): Int
 }

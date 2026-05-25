@@ -6,8 +6,7 @@ import java.time.LocalDate
 import java.time.OffsetDateTime
 
 data class TeamCreateRequest(
-    @JsonProperty("name")
-    val teamName: String,
+    @JsonProperty("name") val teamName: String,
 
     val description: String?,
 

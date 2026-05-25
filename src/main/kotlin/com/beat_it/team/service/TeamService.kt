@@ -31,7 +31,7 @@ class TeamService(
 ) {
 
     @Transactional
-    fun createTeam(userid: Long, request: TeamCreateRequest): TeamCreateResponse {
+    fun createTeam(userId: Long, request: TeamCreateRequest): TeamCreateResponse {
         validateCreateRequest(request)
 
         val inviteCode = generateInviteCode()
@@ -50,7 +50,7 @@ class TeamService(
         // 현재 createTeam 함수에 userId가 없기 때문에, 나중에 Controller에서 userId를 넘겨받는 구조가 필요함
         val leaderTeamMemberships = TeamMemberships(
             team = savedTeam,
-            userid = userid,
+            userId = userId,
             teamRole = TeamRole.LEADER,
         )
 
@@ -74,7 +74,7 @@ class TeamService(
         request: TeamDetailUpdateRequest
     ): TeamDetailUpdateResponse {
         val team = findTeamOrThrow(teamId)
-        val currentLinks = teamLinksRepository.findAllByTeamId(teamId)
+        val currentLinks = teamLinksRepository.findAllByTeamTeamId(teamId)
 
         validateTeamUpdatePermission(teamId, userId)
         validateUpdateRequest(request)
@@ -90,8 +90,23 @@ class TeamService(
             teamType = team.teamType,
         )
 
-        // TODO: profileImageFileId가 있다면 파일 존재 여부 검증 후 연결
-        // TODO: links가 있다면 TeamLinks 엔티티 저장/수정
+        request.profileImageUrl?.let {
+            team.profileImageUrl = it
+        }
+
+        request.links?.let { linkRequests ->
+            teamLinksRepository.deleteAllByTeamTeamId(teamId)
+
+            val newLinks = linkRequests.map { linkRequest ->
+                TeamLinks(
+                    team = team,
+                    platformCode = linkRequest.platformCode,
+                    linkUrl = linkRequest.linkUrl
+                )
+            }
+
+            teamLinksRepository.saveAll(newLinks)
+        }
 
         return TeamDetailUpdateResponse(
             teamId = team.teamId!!,
@@ -118,10 +133,10 @@ class TeamService(
     fun getTeamDetail(teamId: Long): TeamDetailResponse {
         val team = findTeamOrThrow(teamId)
 
-        val memberCount = teamMembershipRepository.countByTeamIdAndLeftAtIsNull(teamId)
+        val memberCount = teamMembershipRepository.countByTeamTeamIdAndLeftAtIsNull(teamId)
 
         val links = teamLinksRepository
-            .findAllByTeamId(teamId)
+            .findAllByTeamTeamId(teamId)
             .map {
                 LinksResponse(
                     teamLinkId = it.teamLinkId!!,
@@ -131,7 +146,7 @@ class TeamService(
             }
 
         val parts = teamPartsRepository
-            .findAllByTeamId(teamId)
+            .findAllByTeamTeamId(teamId)
             .map {
                 PartsResponse(
                     teamPartId = it.teamPartId!!,
@@ -221,7 +236,7 @@ class TeamService(
 
     private fun validateTeamUpdatePermission(teamId: Long, userId: Long) {
         // TODO: TeamMemberRepository가 생기면 여기서 LEADER 또는 MANAGER인지 확인
-        val membership = teamMembershipRepository.findByTeamIdAndUserIdAndLeaftAtIsNull(teamId, userId) ?: throw BusinessException(ErrorCode.TEAM_NO_PERMISSION)
+        val membership = teamMembershipRepository.findByTeamTeamIdAndUserIdAndLeftAtIsNull(teamId, userId) ?: throw BusinessException(ErrorCode.TEAM_NO_PERMISSION)
         if (membership.teamRole != TeamRole.LEADER && membership.teamRole != TeamRole.MANAGER) {
             throw BusinessException(ErrorCode.TEAM_NO_PERMISSION)
         }
@@ -229,7 +244,7 @@ class TeamService(
 
     private fun validateTeamDeletePermission(teamId: Long, userId: Long) {
         // TODO: 팀 삭제 권한 검증
-        val membership = teamMembershipRepository.findByTeamIdAndUserIdAndLeaftAtIsNull(teamId, userId) ?: throw BusinessException(ErrorCode.TEAM_NO_PERMISSION)
+        val membership = teamMembershipRepository.findByTeamTeamIdAndUserIdAndLeftAtIsNull(teamId, userId) ?: throw BusinessException(ErrorCode.TEAM_NO_PERMISSION)
         if (membership.teamRole != TeamRole.LEADER) {
             throw BusinessException(ErrorCode.TEAM_NO_PERMISSION)
         }

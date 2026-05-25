@@ -5,11 +5,9 @@ import java.time.LocalDate
 import java.time.OffsetDateTime
 
 data class TeamDetailUpdateResponse(
-    @JsonProperty("team_id")
-    val teamId: Long,
+    @JsonProperty("team_id") val teamId: Long,
 
-    @JsonProperty("name")
-    val teamName: String,
+    @JsonProperty("name") val teamName: String,
 
     val description: String?,
 
@@ -17,4 +15,5 @@ data class TeamDetailUpdateResponse(
 
     @JsonProperty("updated_at") val updatedAt: OffsetDateTime,
 
+    val links: List<TeamLinksRequest>? = null,
     )

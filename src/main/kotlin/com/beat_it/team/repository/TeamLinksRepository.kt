@@ -5,10 +5,11 @@ import org.springframework.data.jpa.repository.JpaRepository
 
 interface TeamLinksRepository : JpaRepository<TeamLinks, Long> {
 
-    fun findAllByTeamId(
+    fun findAllByTeamTeamId(
         teamId: Long,
     ): List<TeamLinks>
 
-    fun deleteAllByTeamId(teamId: Long)
-
+    fun deleteAllByTeamTeamId(
+        teamId: Long,
+    )
 }
