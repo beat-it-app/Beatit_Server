@@ -10,6 +10,7 @@ import com.beat_it.global.response.BasicResponse
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.*
+import java.util.UUID
 
 @RestController
 @RequestMapping("/teams")
@@ -19,11 +20,11 @@ class TeamController(
 
     @PostMapping
     fun createTeam(
-        @RequestHeader("X-USER-ID") userId: Long,
+        @RequestHeader("X-User-Public-Id") userPublicId: UUID,
         @RequestBody request: TeamCreateRequest
     ): ResponseEntity<BasicResponse<TeamCreateResponse>> {
 
-        val responseData = teamService.createTeam(userId, request)
+        val responseData = teamService.createTeam(userPublicId, request)
 
         return ResponseEntity
             .status(HttpStatus.CREATED)
@@ -32,20 +33,20 @@ class TeamController(
 
     @PatchMapping
     fun updateTeamDetail(
-        @RequestHeader("X-TEAM-ID") teamId: Long,
-        @RequestHeader("X-USER-ID") userId: Long,
+        @RequestHeader("X-Team-Public-Id") teamPublicId: UUID,
+        @RequestHeader("X-User-Public-Id") userPublicId: UUID,
         @RequestBody request: TeamDetailUpdateRequest,
     ): ResponseEntity<BasicResponse<TeamDetailUpdateResponse>> {
-        val responseData = teamService.updateTeamDetail(teamId, userId, request)
+        val responseData = teamService.updateTeamDetail(teamPublicId, userPublicId, request)
         return ResponseEntity.ok(BasicResponse.success(responseData, HttpStatus.OK, "팀 상세 내용이 수정되었습니다."))
     }
 
     @DeleteMapping
     fun deleteTeam(
-        @RequestHeader("X-TEAM-ID") teamId: Long,
-        @RequestHeader("X-USER-ID") userId: Long,
+        @RequestHeader("X-Team-Public-Id") teamPublicId: UUID,
+        @RequestHeader("X-User-Public-Id") userPublicId: UUID,
     ): ResponseEntity<BasicResponse<Nothing>> {
-        teamService.deleteTeam(teamId, userId)
+        teamService.deleteTeam(teamPublicId, userPublicId)
         return ResponseEntity.ok(
             BasicResponse.success(HttpStatus.OK,"팀이 성공적으로 삭제되었습니다.")
         )
@@ -53,9 +54,9 @@ class TeamController(
 
     @GetMapping
     fun getTeamDetail(
-        @RequestHeader("X-TEAM-ID") teamId: Long,
+        @RequestHeader("X-Team-Public-Id") teamPublicId: UUID,
     ): ResponseEntity<BasicResponse<TeamDetailResponse>> {
-        val responseData = teamService.getTeamDetail(teamId)
+        val responseData = teamService.getTeamDetail(teamPublicId)
         return ResponseEntity.ok(
             BasicResponse.success(responseData, HttpStatus.OK,"팀 상세 내용 조회에 성공했습니다.")
         )

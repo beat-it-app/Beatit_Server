@@ -1,5 +1,7 @@
 package com.beat_it.team.service
 
+import com.beat_it.auth.entity.Users
+import com.beat_it.auth.repository.UserRepository
 import com.beat_it.global.error.BusinessException
 import com.beat_it.global.error.ErrorCode
 import com.beat_it.team.dto.LinksResponse
@@ -18,12 +20,14 @@ import com.beat_it.team.repository.TeamLinksRepository
 import com.beat_it.team.repository.TeamMembershipRepository
 import com.beat_it.team.repository.TeamPartsRepository
 import com.beat_it.team.repository.TeamRepository
+import com.sun.org.apache.xalan.internal.lib.NodeInfo.publicId
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.util.UUID
 
 @Service
 class TeamService(
+    private val userRepository: UserRepository,
     private val teamRepository: TeamRepository,
     private val teamLinksRepository: TeamLinksRepository,
     private val teamPartsRepository: TeamPartsRepository,
@@ -31,8 +35,10 @@ class TeamService(
 ) {
 
     @Transactional
-    fun createTeam(userId: Long, request: TeamCreateRequest): TeamCreateResponse {
+    fun createTeam(userPublicId: UUID, request: TeamCreateRequest): TeamCreateResponse {
         validateCreateRequest(request)
+
+        val userId = findUserOrThrow(userPublicId).userId!!
 
         val inviteCode = generateInviteCode()
 
@@ -69,14 +75,15 @@ class TeamService(
 
     @Transactional
     fun updateTeamDetail(
-        teamId: Long,
-        userId: Long,
+        teamPublicId: UUID,
+        userPublicId: UUID,
         request: TeamDetailUpdateRequest
     ): TeamDetailUpdateResponse {
-        val team = findTeamOrThrow(teamId)
-        val currentLinks = teamLinksRepository.findAllByTeamTeamId(teamId)
+        val team = findTeamOrThrow(teamPublicId)
+        val user = findUserOrThrow(userPublicId)
+        val currentLinks = teamLinksRepository.findAllByTeamTeamId(team.teamId!!)
 
-        validateTeamUpdatePermission(teamId, userId)
+        validateTeamUpdatePermission(team.teamId!!, user.userId!!)
         validateUpdateRequest(request)
 
         if (isNotChanged(team, request, currentLinks)) {
@@ -95,7 +102,7 @@ class TeamService(
         }
 
         request.links?.let { linkRequests ->
-            teamLinksRepository.deleteAllByTeamTeamId(teamId)
+            teamLinksRepository.deleteAllByTeamTeamId(team.teamId!!)
 
             val newLinks = linkRequests.map { linkRequest ->
                 TeamLinks(
@@ -119,24 +126,25 @@ class TeamService(
 
     @Transactional
     fun deleteTeam(
-        teamId: Long,
-        userId: Long
+        teamPublicId: UUID,
+        userPublicId: UUID,
     ) {
-        val team = findTeamOrThrow(teamId)
+        val team = findTeamOrThrow(teamPublicId)
+        val user = findUserOrThrow(userPublicId)
 
-        validateTeamDeletePermission(teamId, userId)
+        validateTeamDeletePermission(team.teamId!!, user.userId!!)
 
         team.deleteTeam()
     }
 
     @Transactional(readOnly = true)
-    fun getTeamDetail(teamId: Long): TeamDetailResponse {
-        val team = findTeamOrThrow(teamId)
+    fun getTeamDetail(teamPublicId: UUID): TeamDetailResponse {
+        val team = findTeamOrThrow(teamPublicId)
 
-        val memberCount = teamMembershipRepository.countByTeamTeamIdAndLeftAtIsNull(teamId)
+        val memberCount = teamMembershipRepository.countByTeamTeamIdAndLeftAtIsNull(team.teamId!!)
 
         val links = teamLinksRepository
-            .findAllByTeamTeamId(teamId)
+            .findAllByTeamTeamId(team.teamId!!)
             .map {
                 LinksResponse(
                     teamLinkId = it.teamLinkId!!,
@@ -146,7 +154,7 @@ class TeamService(
             }
 
         val parts = teamPartsRepository
-            .findAllByTeamTeamId(teamId)
+            .findAllByTeamTeamId(team.teamId!!)
             .map {
                 PartsResponse(
                     teamPartId = it.teamPartId!!,
@@ -170,6 +178,16 @@ class TeamService(
             archiveCount = 0,
             cloudItemCount = 0
         )
+    }
+
+    private fun findUserOrThrow(userPublicId: UUID) : Users {
+        return userRepository.findByPublicId(userPublicId)
+            ?: throw BusinessException(ErrorCode.USER_NOT_FOUND)
+    }
+
+    private fun findTeamOrThrow(teamPublicId: UUID): Teams {
+        return teamRepository.findByPublicId(teamPublicId)
+            ?: throw BusinessException(ErrorCode.TEAM_NOT_FOUND)
     }
 
     private fun validateCreateRequest(request: TeamCreateRequest) {
@@ -229,10 +247,7 @@ class TeamService(
         return current == requested
     }
 
-    private fun findTeamOrThrow(teamId: Long): Teams {
-        return teamRepository.findByTeamIdAndDeletedAtIsNull(teamId)
-            ?: throw BusinessException(ErrorCode.TEAM_NOT_FOUND)
-    }
+
 
     private fun validateTeamUpdatePermission(teamId: Long, userId: Long) {
         // TODO: TeamMemberRepository가 생기면 여기서 LEADER 또는 MANAGER인지 확인
