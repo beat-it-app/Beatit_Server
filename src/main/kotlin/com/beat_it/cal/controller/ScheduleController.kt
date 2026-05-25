@@ -1,5 +1,6 @@
 package com.beat_it.cal.controller
 
+import com.beat_it.cal.dto.CalendarSchedulesResponse
 import com.beat_it.cal.dto.ScheduleCreateRequest
 import com.beat_it.cal.dto.ScheduleCreateResponse
 import com.beat_it.cal.dto.ScheduleDetailResponse
@@ -63,4 +64,17 @@ class ScheduleController(
             .body(BasicResponse.success(responseData, HttpStatus.OK, "일정 상세 조회에 성공했습니다.")
             )
     }
+
+    @GetMapping
+    fun getCalendarSchedules(
+        @RequestHeader("X-USER-ID") userId: Long,
+        @RequestParam year: Int,
+        @RequestParam month: Int
+    ): ResponseEntity<BasicResponse<CalendarSchedulesResponse>> {
+        val responseData = scheduleService.getCalendarSchedules(userId, year, month)
+        return ResponseEntity
+            .status(HttpStatus.OK)
+            .body(BasicResponse.success(responseData, HttpStatus.OK, "공유 캘린더 범위 조회에 성공했습니다."))
+    }
+
 }

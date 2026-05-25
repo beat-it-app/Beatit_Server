@@ -1,5 +1,7 @@
 package com.beat_it.cal.service
 
+import com.beat_it.cal.dto.CalendarSchedule
+import com.beat_it.cal.dto.CalendarSchedulesResponse
 import com.beat_it.cal.dto.ParticipantResponse
 import com.beat_it.cal.dto.ScheduleCreateRequest
 import com.beat_it.cal.dto.ScheduleCreateResponse
@@ -11,7 +13,10 @@ import com.beat_it.global.error.BusinessException
 import com.beat_it.global.error.ErrorCode
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+import java.time.LocalDate
+import java.time.LocalTime
 import java.time.OffsetDateTime
+import java.time.ZoneOffset
 
 @Service
 class ScheduleService(
@@ -134,6 +139,34 @@ class ScheduleService(
                 )
             }
         )
+    }
+
+    @Transactional(readOnly = true)
+    fun getCalendarSchedules(userId: Long, year: Int, month: Int): CalendarSchedulesResponse {
+        // 1. 해당 월의 시작일(1일)과 종료일(말일) 계산
+        val startLocalDate = LocalDate.of(year, month, 1)
+        val endLocalDate = startLocalDate.withDayOfMonth(startLocalDate.lengthOfMonth())
+
+        // 2. 쿼리에 사용할 범위 지정 (그 달의 1일 00:00:00 ~ 말일 23:59:59.999)
+        // 프로젝트 타임존 컨벤션에 맞게 ZoneOffset을 조정하세요. (여기서는 KST인 +09:00 가정)
+        val zoneOffset = ZoneOffset.ofHours(9)
+        val startDateTime = OffsetDateTime.of(startLocalDate, LocalTime.MIN, zoneOffset)
+        val endDateTime = OffsetDateTime.of(endLocalDate, LocalTime.MAX, zoneOffset)
+
+        // 3. Repository를 통해 조건에 맞는 일정 조회 (기간 겹침 조건 적용)
+        val schedules = scheduleRepository.findByUserIdAndMonthRange(userId, startDateTime, endDateTime)
+
+        // 4. Entity 리스트를 DTO 리스트로 매핑하여 반환
+        val calendarSchedules = schedules.map { schedule ->
+            CalendarSchedule(
+                scheduleId = schedule.scheduleId ?: throw IllegalStateException("일정 ID가 존재하지 않습니다."),
+                title = schedule.title,
+                startsAt = schedule.startsAt,
+                endsAt = schedule.endsAt
+            )
+        }
+
+        return CalendarSchedulesResponse(items = calendarSchedules)
     }
 
     private fun validateScheduleCommon(title: String?, startsAt: OffsetDateTime?, endsAt: OffsetDateTime?) {
