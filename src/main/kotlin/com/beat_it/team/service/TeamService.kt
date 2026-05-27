@@ -80,20 +80,19 @@ class TeamService(
     ): TeamDetailUpdateResponse {
         val team = findTeamOrThrow(teamPublicId)
         val user = findUserOrThrow(userPublicId)
-        val currentLinks = teamLinksRepository.findAllByTeamTeamId(team.teamId!!)
+        val teamId = team.teamId!!
 
-        validateTeamUpdatePermission(team.teamId!!, user.userId!!)
+        val currentLinks = teamLinksRepository.findAllByTeamTeamId(teamId)
+
+        validateTeamUpdatePermission(teamId, user.userId!!)
         validateUpdateRequest(request)
-
-        if (isNotChanged(team, request, currentLinks)) {
-            throw BusinessException(ErrorCode.TEAM_NO_CONTENT_TO_UPDATE)
-        }
+        validateTeamDetailChanged(team, request, currentLinks)
 
         team.updateTeamDetail(
             teamName = request.teamName,
             description = request.description,
             establishedOn = request.establishedOn,
-            teamType = team.teamType,
+            teamType = request.teamType,
         )
 
         request.profileImageUrl?.let {
@@ -101,7 +100,7 @@ class TeamService(
         }
 
         request.links?.let { linkRequests ->
-            teamLinksRepository.deleteAllByTeamTeamId(team.teamId!!)
+            teamLinksRepository.deleteAllByTeamTeamId(teamId)
 
             val newLinks = linkRequests.map { linkRequest ->
                 TeamLinks(
@@ -114,17 +113,17 @@ class TeamService(
             teamLinksRepository.saveAll(newLinks)
         }
 
-        val links = teamLinksRepository.findAllByTeamTeamId(team.teamId!!)
+        val links = teamLinksRepository.findAllByTeamTeamId(teamId)
             .map {
                 LinksResponse(
                     teamLinkId = it.teamLinkId!!,
-                    platFormCode = it.platformCode,
+                    platformCode = it.platformCode,
                     linkUrl = it.linkUrl,
                 )
             }
 
         return TeamDetailUpdateResponse(
-            teamId = team.teamId!!,
+            teamId = teamId,
             teamName = team.teamName,
             description = team.description,
             establishedOn = team.establishedOn,
@@ -157,7 +156,7 @@ class TeamService(
             .map {
                 LinksResponse(
                     teamLinkId = it.teamLinkId!!,
-                    platFormCode = it.platformCode,
+                    platformCode = it.platformCode,
                     linkUrl = it.linkUrl,
                 )
             }
@@ -223,22 +222,24 @@ class TeamService(
         }
     }
 
-    private fun isNotChanged(
+    private fun validateTeamDetailChanged(
         team: Teams,
         request: TeamDetailUpdateRequest,
         currentLinks: List<TeamLinks>
-    ): Boolean {
+    ) {
         val isAnyFieldChanged =
-            (request.teamName != team.teamName) ||
-            (request.description != null && request.description != team.description) ||
-            (request.establishedOn != null && request.establishedOn != team.establishedOn) ||
-            (request.teamType != null && request.teamType != team.teamType) ||
-            (request.profileImageUrl != null && request.profileImageUrl != team.profileImageUrl)
+            (request.teamName != null && request.teamName != team.teamName) ||
+                    (request.description != null && request.description != team.description) ||
+                    (request.establishedOn != null && request.establishedOn != team.establishedOn) ||
+                    (request.teamType != null && request.teamType != team.teamType) ||
+                    (request.profileImageUrl != null && request.profileImageUrl != team.profileImageUrl)
 
         val isLinksChanged =
             request.links != null && !isLinksSame(currentLinks, request.links)
 
-        return !(isAnyFieldChanged || isLinksChanged)
+        if (!isAnyFieldChanged && !isLinksChanged) {
+            throw BusinessException(ErrorCode.TEAM_NO_CONTENT_TO_UPDATE)
+        }
     }
 
     private fun isLinksSame(
