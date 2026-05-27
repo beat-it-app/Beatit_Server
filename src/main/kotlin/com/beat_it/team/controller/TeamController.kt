@@ -12,6 +12,8 @@ import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.*
 import java.util.UUID
 import io.swagger.v3.oas.annotations.Parameter
+import org.springframework.security.core.annotation.AuthenticationPrincipal
+import org.springframework.security.core.userdetails.UserDetails
 
 @RestController
 @RequestMapping("/teams")
@@ -21,13 +23,11 @@ class TeamController(
 
     @PostMapping
     fun createTeam(
-        @Parameter(hidden = true)
-        @RequestHeader("X-User-Public-Id") userPublicId: UUID,
-
+        @AuthenticationPrincipal userDetails: UserDetails?,
         @RequestBody request: TeamCreateRequest
     ): ResponseEntity<BasicResponse<TeamCreateResponse>> {
 
-        val responseData = teamService.createTeam(userPublicId, request)
+        val responseData = teamService.createTeam(userDetails.username, request)
 
         return ResponseEntity
             .status(HttpStatus.CREATED)
