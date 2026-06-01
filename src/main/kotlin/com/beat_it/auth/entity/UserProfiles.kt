@@ -22,4 +22,10 @@ class UserProfiles(
     @Column(nullable = false)
     var name: String
 
-) : BaseUpdatedTimeEntity()
+) : BaseUpdatedTimeEntity() {
+    companion object {
+        fun createProfile(user: Users, name: String, authFile: AuthFiles?): UserProfiles {
+            return UserProfiles(user = user, name = name, authFile = authFile)
+        }
+    }
+}

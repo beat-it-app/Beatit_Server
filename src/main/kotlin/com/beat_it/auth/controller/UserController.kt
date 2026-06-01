@@ -1,5 +1,7 @@
 package com.beat_it.auth.controller
 
+import com.beat_it.auth.dto.ProfileRequest
+import com.beat_it.cal.service.UserService
 import com.beat_it.global.error.BusinessException
 import com.beat_it.global.error.ErrorCode
 import com.beat_it.global.response.BasicResponse
@@ -10,13 +12,17 @@ import org.springframework.http.ResponseEntity
 import org.springframework.security.core.annotation.AuthenticationPrincipal
 import org.springframework.security.core.userdetails.UserDetails
 import org.springframework.web.bind.annotation.GetMapping
+import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestMapping
+import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
 
-@Tag(name = "3. USER API", description = "사용자 정보 관련 로직")
+@Tag(name = "2. USER API", description = "사용자 정보 관련 로직")
 @RestController
 @RequestMapping("/users")
-class UserController {
+class UserController (
+    private val userService : UserService
+){
 
     @GetMapping("/me")
     fun getCurrentUser(@AuthenticationPrincipal userDetails: UserDetails?) : ResponseEntity<BasicResponse<Map<String, String?>>> {
@@ -38,5 +44,19 @@ class UserController {
         return ResponseEntity
             .status(HttpStatus.OK)
             .body(BasicResponse.success(data, HttpStatus.OK, "현재 사용자 및 팀 아이디 조회가 성공적으로 처리되었습니다."))
+    }
+
+    @PostMapping("/profile")
+    fun createProfile(@AuthenticationPrincipal userDetails: UserDetails?,
+                            @RequestParam profileRequest: ProfileRequest): ResponseEntity<BasicResponse<Nothing>> {
+        if (userDetails == null) {
+            throw BusinessException(ErrorCode.UNAUTHORIZED)
+        }
+
+        userService.createProfile(userDetails, profileRequest)
+
+        return ResponseEntity
+            .status(HttpStatus.CREATED)
+            .body(BasicResponse.success(HttpStatus.CREATED, "프로필 생성이 성공적으로 되었습니다."))
     }
 }
