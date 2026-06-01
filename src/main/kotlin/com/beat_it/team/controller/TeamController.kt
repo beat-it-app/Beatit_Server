@@ -7,7 +7,6 @@ import com.beat_it.team.dto.TeamDetailUpdateRequest
 import com.beat_it.team.dto.TeamDetailUpdateResponse
 import com.beat_it.team.service.TeamService
 import com.beat_it.global.response.BasicResponse
-import com.beat_it.global.security.SecurityUtil
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.*
