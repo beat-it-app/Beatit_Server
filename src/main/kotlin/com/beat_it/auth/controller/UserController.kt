@@ -1,7 +1,7 @@
 package com.beat_it.auth.controller
 
-import com.beat_it.auth.dto.ProfileRequest
-import com.beat_it.cal.service.UserService
+import com.beat_it.auth.dto.ProfileCreateRequest
+import com.beat_it.auth.service.UserService
 import com.beat_it.global.error.BusinessException
 import com.beat_it.global.error.ErrorCode
 import com.beat_it.global.response.BasicResponse
@@ -11,18 +11,14 @@ import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.security.core.annotation.AuthenticationPrincipal
 import org.springframework.security.core.userdetails.UserDetails
-import org.springframework.web.bind.annotation.GetMapping
-import org.springframework.web.bind.annotation.PostMapping
-import org.springframework.web.bind.annotation.RequestMapping
-import org.springframework.web.bind.annotation.RequestParam
-import org.springframework.web.bind.annotation.RestController
+import org.springframework.web.bind.annotation.*
 
 @Tag(name = "2. USER API", description = "사용자 정보 관련 로직")
 @RestController
 @RequestMapping("/users")
 class UserController (
-    private val userService : UserService
-){
+    private val userService: UserService
+) {
 
     @GetMapping("/me")
     fun getCurrentUser(@AuthenticationPrincipal userDetails: UserDetails?) : ResponseEntity<BasicResponse<Map<String, String?>>> {
@@ -47,16 +43,17 @@ class UserController (
     }
 
     @PostMapping("/profile")
-    fun createProfile(@AuthenticationPrincipal userDetails: UserDetails?,
-                            @RequestParam profileRequest: ProfileRequest): ResponseEntity<BasicResponse<Nothing>> {
-        if (userDetails == null) {
-            throw BusinessException(ErrorCode.UNAUTHORIZED)
-        }
+    fun createProfile(
+        @AuthenticationPrincipal userDetails: UserDetails?,
+        @ModelAttribute profileCreateRequest: ProfileCreateRequest
+    ): ResponseEntity<BasicResponse<Unit>> {
+        val currentUserId = userDetails?.username
+            ?: throw BusinessException(ErrorCode.UNAUTHORIZED)
 
-        userService.createProfile(userDetails, profileRequest)
+        val data = userService.createProfile(currentUserId, profileCreateRequest)
 
         return ResponseEntity
             .status(HttpStatus.CREATED)
-            .body(BasicResponse.success(HttpStatus.CREATED, "프로필 생성이 성공적으로 되었습니다."))
+            .body(BasicResponse.success(data, HttpStatus.CREATED, "프로필이 생성되었습니다."))
     }
 }
