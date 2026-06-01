@@ -1,6 +1,5 @@
 package com.beat_it.auth.service
 
-import com.beat_it.auth.dto.ProfileCreateRequest
 import com.beat_it.auth.entity.AuthFiles
 import com.beat_it.auth.entity.UserProfiles
 import com.beat_it.auth.entity.enum.MediaCategory
@@ -11,6 +10,7 @@ import com.beat_it.global.error.BusinessException
 import com.beat_it.global.error.ErrorCode
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+import org.springframework.web.multipart.MultipartFile
 import java.util.UUID
 
 @Service
@@ -20,7 +20,7 @@ class UserService (
     private val authFilesRepository: AuthFilesRepository
 ) {
     @Transactional
-    fun createProfile(currentUserId: String, createRequest: ProfileCreateRequest) {
+    fun createProfile(currentUserId: String, name: String, profileImage: MultipartFile?) {
         val userUuid = runCatching { UUID.fromString(currentUserId) }
             .getOrElse { throw BusinessException(ErrorCode.INVALID_USER_ID) }
 
@@ -34,7 +34,7 @@ class UserService (
         // TODO : S3 연동 후 프로필 이미지 기능 구현하기
         val dummyAuthFile = AuthFiles(
             user = user,
-            originalFileName = "default.jpg",
+            originalFileName = profileImage?.originalFilename ?: "default.jpg",
             storageKey = "dummy/path/default.jpg",
             cdnUrl = "https://example.com/default-image.jpg",
             mediaCategory = MediaCategory.IMAGE,
@@ -44,7 +44,7 @@ class UserService (
 
         val userProfile = UserProfiles.create(
             user = user,
-            name = createRequest.name,
+            name = name,
             authFile = savedAuthFile
         )
         userProfilesRepository.save(userProfile)
