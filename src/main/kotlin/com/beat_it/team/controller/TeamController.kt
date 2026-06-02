@@ -9,6 +9,7 @@ import com.beat_it.team.service.TeamService
 import com.beat_it.global.response.BasicResponse
 import com.beat_it.team.dto.JoinTeamRequest
 import com.beat_it.team.dto.JoinTeamResponse
+import com.beat_it.team.dto.MyTeamListResponse
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.*
@@ -94,6 +95,15 @@ class TeamController(
     }
 
     @GetMapping("/me")
-    fun 
+    fun getMyTeams(
+        @AuthenticationPrincipal userDetails: UserDetails?,
+    ): ResponseEntity<BasicResponse<MyTeamListResponse>> {
+        val userPublicId = UUID.fromString(userDetails?.username)
+        val responseData = teamService.getTeamList(userPublicId)
+
+        return ResponseEntity.ok(
+            BasicResponse.success(responseData, HttpStatus.OK, "나의 팀 리스토 조회에 성공했습니다.")
+        )
+    }
 }
 

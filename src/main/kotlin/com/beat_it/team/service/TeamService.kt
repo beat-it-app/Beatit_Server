@@ -7,6 +7,8 @@ import com.beat_it.global.error.ErrorCode
 import com.beat_it.team.dto.JoinTeamRequest
 import com.beat_it.team.dto.JoinTeamResponse
 import com.beat_it.team.dto.LinksResponse
+import com.beat_it.team.dto.MyTeamItemResponse
+import com.beat_it.team.dto.MyTeamListResponse
 import com.beat_it.team.dto.PartsResponse
 import com.beat_it.team.dto.TeamCreateRequest
 import com.beat_it.team.dto.TeamCreateResponse
@@ -217,6 +219,35 @@ class TeamService(
             teamName = team.teamName,
             teamRole = savedMembership.teamRole,
             joinedAt = savedMembership.createdAt
+        )
+    }
+
+    @Transactional(readOnly = true)
+    fun getTeamList(userPublicId: UUID): MyTeamListResponse {
+        val user = findUserOrThrow(userPublicId)
+
+        val memberships = teamMembershipRepository
+            .findAllByUserIdAndLeftAtIsNullAndTeamDeletedAtIsNullOrderByCreatedAtDesc(user.userId!!)
+
+        if(memberships.isEmpty()) {
+            throw BusinessException(ErrorCode.TEAM_NOT_FOUND)
+        }
+
+        val items = memberships.map { membership ->
+            val team = membership.team
+
+            MyTeamItemResponse(
+                teamId = team.teamId!!,
+                teamName = team.teamName,
+                description = team.description,
+                profileImageUrl = team.profileImageUrl,
+                teamRole = membership.teamRole,
+                joinedAt = membership.createdAt
+            )
+        }
+
+        return MyTeamListResponse(
+            items = items
         )
     }
 
