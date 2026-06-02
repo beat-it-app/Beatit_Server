@@ -117,7 +117,7 @@ class ScheduleService(
     }
 
     @Transactional(readOnly = true)
-    fun getScheduleDetail(scheduleId: Long): ScheduleDetailResponse {
+    fun getScheduleDetail(scheduleId: Long, userId: Long): ScheduleDetailResponse {
         val schedule = findScheduleOrThrow(scheduleId)
 
         //TODO: 현재 내가 있는 팀 소속이 무엇인지 어떻게 넘겨받을 것인지
@@ -157,7 +157,7 @@ class ScheduleService(
 
         val calendarSchedules = schedules.map { schedule ->
             CalendarSchedule(
-                scheduleId = schedule.scheduleId ?: throw IllegalStateException("일정 ID가 존재하지 않습니다."),
+                scheduleId = schedule.scheduleId ?: throw BusinessException(ErrorCode.CALENDAR_NOT_FOUND),
                 title = schedule.title,
                 startsAt = schedule.startsAt,
                 endsAt = schedule.endsAt
@@ -180,7 +180,7 @@ class ScheduleService(
 
         val dateSchedules = schedules.map { schedule ->
             DateSchedule(
-                scheduleId = schedule.scheduleId ?: throw IllegalStateException("일정 ID가 존재하지 않습니다."),
+                scheduleId = schedule.scheduleId ?: throw BusinessException(ErrorCode.CALENDAR_NOT_FOUND),
                 title = schedule.title,
                 content = schedule.content ?: "",
                 startsAt = schedule.startsAt,

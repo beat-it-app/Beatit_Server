@@ -8,11 +8,8 @@ data class CalendarSchedulesResponse(
 )
 
 data class CalendarSchedule(
-    @JsonProperty("schedule_id")
     val scheduleId: Long,
     val title: String,
-    @JsonProperty("starts_at")
     val startsAt: OffsetDateTime,
-    @JsonProperty("ends_at")
     val endsAt: OffsetDateTime
 )
