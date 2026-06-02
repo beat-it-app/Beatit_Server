@@ -16,7 +16,7 @@ enum class ErrorCode(
     FORBIDDEN(HttpStatus.FORBIDDEN, "COMMON-006", "해당 요청에 대한 접근 권한이 없습니다."),
     INVALID_USER_ID(HttpStatus.BAD_REQUEST, "COMMON-007", "유효하지 않은 유저 ID 형식입니다."),
 
-    // --- AUTH 관련 에러 ---
+    // --- 사용자 관련 에러 (AUTH - SIGNUP/LOGIN/USER)  ---
     IDENTIFIER_DUPLICATED(HttpStatus.BAD_REQUEST, "SIGNUP-001", "이미 사용 중인 아이디입니다."),
     PROFILE_ALREADY_EXISTS(HttpStatus.BAD_REQUEST, "SIGNUP-002", "이미 프로필이 존재합니다."),
     EMAIL_SEND_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "SIGNUP-003", "이메일 인증번호 발송에 실패했습니다."),
@@ -27,6 +27,7 @@ enum class ErrorCode(
     MISSING_PASSWORD(HttpStatus.BAD_REQUEST, "SIGNUP-008", "일반 회원가입 시 비밀번호는 필수입니다."),
     MISSING_PROVIDER(HttpStatus.BAD_REQUEST, "SIGNUP-009", "소셜 회원가입 시 제공자 정보는 필수입니다."),
     INVALID_PASSWORD(HttpStatus.BAD_REQUEST, "LOGIN-001", "비밀번호가 일치하지 않습니다."),
+    INVALID_NAME_FORMAT(HttpStatus.BAD_REQUEST, "USER-001", "프로필 이름은 1자 이상 10자 이하로 입력해주세요."),
 
     // --- 일정 관련 에러 (CALENDAR) ---
     CALENDAR_NO_CONTENT_TO_UPDATE(HttpStatus.BAD_REQUEST, "CALENDAR-001", "변경할 내용이 없습니다."),

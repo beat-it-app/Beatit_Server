@@ -31,6 +31,10 @@ class UserService (
             throw BusinessException(ErrorCode.PROFILE_ALREADY_EXISTS)
         }
 
+        if (name.isBlank() || name.length > 10) {
+            throw BusinessException(ErrorCode.INVALID_NAME_FORMAT)
+        }
+
         // TODO : S3 연동 후 프로필 이미지 기능 구현하기
         val dummyAuthFile = AuthFiles(
             user = user,

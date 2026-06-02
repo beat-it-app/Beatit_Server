@@ -19,7 +19,7 @@ class UserProfiles(
     @JoinColumn(name = "profile_image", nullable = false)
     var authFile: AuthFiles,
 
-    @Column(nullable = false)
+    @Column(nullable = false, length = 10)
     var name: String
 
 ) : BaseUpdatedTimeEntity() {
