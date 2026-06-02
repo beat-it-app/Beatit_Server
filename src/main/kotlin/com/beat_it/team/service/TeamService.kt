@@ -362,9 +362,9 @@ class TeamService(
 
         val normalizedInviteCode = inviteCode.trim().uppercase()
 
-        val inviteCodeRegex = Regex("^BEATIT-[A-Z0-9]{6}$]")
+        val inviteCodeRegex = Regex("^[A-Z0-9]{6}$")
 
-        if (inviteCodeRegex.matches(normalizedInviteCode)) {
+        if (!inviteCodeRegex.matches(normalizedInviteCode)) {
             throw BusinessException(ErrorCode.TEAM_INVITE_CODE_INVALID)
         }
 
@@ -383,7 +383,7 @@ class TeamService(
     private fun generateInviteCode(): String {
         // TODO: 팀 초대코드 생성법 고안 필요
         // TODO: Redis로 초대코드를 구성하는 블로그 참고하기
-        return "BEATIT-" + UUID.randomUUID()
+        return UUID.randomUUID()
             .toString()
             .replace("-", "")
             .take(6)
