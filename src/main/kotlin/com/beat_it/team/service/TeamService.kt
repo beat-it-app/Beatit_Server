@@ -16,6 +16,8 @@ import com.beat_it.team.dto.TeamDetailResponse
 import com.beat_it.team.dto.TeamDetailUpdateRequest
 import com.beat_it.team.dto.TeamDetailUpdateResponse
 import com.beat_it.team.dto.TeamLinksRequest
+import com.beat_it.team.dto.VerifyCodeRequest
+import com.beat_it.team.dto.VerifyCodeResponse
 import com.beat_it.team.entity.TeamLinks
 import com.beat_it.team.entity.TeamMemberships
 import com.beat_it.team.entity.Teams
@@ -248,6 +250,21 @@ class TeamService(
 
         return MyTeamListResponse(
             items = items
+        )
+    }
+
+    @Transactional(readOnly = true)
+    fun getVerifyCode(inviteCode: String): VerifyCodeResponse {
+        val normalizedInviteCode = validateAndNormalizeInviteCode(inviteCode)
+
+        val team = teamRepository.findByInviteCodeAndDeletedAtIsNull(normalizedInviteCode)
+            ?: throw BusinessException(ErrorCode.TEAM_INVITE_CODE_NOT_FOUND)
+
+        return VerifyCodeResponse(
+            teamId = team.teamId!!,
+            teamPublicId = team.publicId,
+            teamName = team.teamName,
+            inviteCode = team.inviteCode,
         )
     }
 

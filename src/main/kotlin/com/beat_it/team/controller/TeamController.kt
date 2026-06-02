@@ -10,6 +10,7 @@ import com.beat_it.global.response.BasicResponse
 import com.beat_it.team.dto.JoinTeamRequest
 import com.beat_it.team.dto.JoinTeamResponse
 import com.beat_it.team.dto.MyTeamListResponse
+import com.beat_it.team.dto.VerifyCodeResponse
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.*
@@ -23,7 +24,6 @@ import org.springframework.security.core.userdetails.UserDetails
 @Tag(name = "3. TEAM API", description = "팀 생성 및 수정 관련 로직")
 @RestController
 @RequestMapping("/teams")
-//@SecurityRequirements()
 class TeamController(
     private val teamService: TeamService
 ) {
@@ -103,6 +103,19 @@ class TeamController(
 
         return ResponseEntity.ok(
             BasicResponse.success(responseData, HttpStatus.OK, "나의 팀 리스토 조회에 성공했습니다.")
+        )
+    }
+
+    @GetMapping("/verify")
+    fun getVerifyCode(
+        @RequestParam("inviteCode") inviteCode: String,
+    ): ResponseEntity<BasicResponse<VerifyCodeResponse>> {
+        val responseData = teamService.getVerifyCode(inviteCode)
+
+        return ResponseEntity.ok(
+            BasicResponse.success(
+                responseData, HttpStatus.OK, "팀 초대 링크 조회에 성공했습니다."
+            )
         )
     }
 }
