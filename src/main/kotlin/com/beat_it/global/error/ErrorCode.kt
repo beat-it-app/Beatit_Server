@@ -38,6 +38,16 @@ enum class ErrorCode(
     CALENDAR_START_TIME_REQUIRED(HttpStatus.BAD_REQUEST, "CALENDAR-008", "일정 시작 시각은 필수입니다."),
     CALENDAR_END_TIME_REQUIRED(HttpStatus.BAD_REQUEST, "CALENDAR-009", "일정 종료 시각은 필수입니다."),
 
+    // --- 팀 관련 에러 (TEAM) ---
+    TEAM_NO_CONTENT_TO_UPDATE(HttpStatus.BAD_REQUEST, "TEAM-001", "팀에 대해 변경할 내용이 업습니다."),
+    TEAM_NO_PERMISSION(HttpStatus.FORBIDDEN, "TEAM-002", "팀 조회 권한이 없습니다."),
+    TEAM_NOT_FOUND(HttpStatus.NOT_FOUND, "TEAM-003", "팀을 찾을 수 없습니다."),
+    TEAM_NAME_REQUIRED(HttpStatus.BAD_REQUEST, "TEAM-004", "팀 이름은 필수입니다."),
+    TEAM_NAME_TOO_LONG(HttpStatus.BAD_REQUEST, "TEAM-005", "팀 이름은 100자 이하여야 합니다."),
+    TEAM_DESCRIPTION_TOO_LONG(HttpStatus.BAD_REQUEST, "TEAM-006", "팀 설명은 500자 이하여야 합니다."),
+    TEAM_NO_UPDATE_PERMISSION(HttpStatus.FORBIDDEN, "TEAM-007","팀 수정 권한이 없습니다."),
+
+
     // --- 장소 관련 에러 ---
     LOCATION_NOT_FOUND(HttpStatus.NOT_FOUND, "LOCATION-001", "장소를 찾을 수 없습니다."),
 
