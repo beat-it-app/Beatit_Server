@@ -15,11 +15,25 @@ class UserProfiles(
     @JoinColumn(name = "user_id", nullable = false)
     val user: Users? = null,
 
-    @OneToOne
+    @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "profile_image", nullable = false)
-    var authFile: AuthFiles? = null,
+    var authFile: AuthFiles,
 
-    @Column(nullable = false)
+    @Column(nullable = false, length = 10)
     var name: String
 
-) : BaseUpdatedTimeEntity()
+) : BaseUpdatedTimeEntity() {
+    companion object {
+        fun create(
+            user: Users,
+            name: String,
+            authFile: AuthFiles
+        ): UserProfiles {
+            return UserProfiles(
+                user = user,
+                name = name,
+                authFile = authFile
+            )
+        }
+    }
+}

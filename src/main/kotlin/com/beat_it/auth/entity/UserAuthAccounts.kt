@@ -37,7 +37,7 @@ class UserAuthAccounts(
             fun createNormalUser(
                 user: Users,
                 identifier: String,
-                password: String,
+                password: String?,
                 email: String
             ): UserAuthAccounts {
                 return UserAuthAccounts(

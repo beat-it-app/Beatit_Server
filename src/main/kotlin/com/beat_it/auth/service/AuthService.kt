@@ -19,7 +19,6 @@ import com.beat_it.global.security.jwt.JwtTokenProvider
 import jakarta.transaction.Transactional
 import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.stereotype.Service
-import java.time.OffsetDateTime
 
 @Service
 class AuthService (
@@ -32,6 +31,10 @@ class AuthService (
 ){
     @Transactional
     fun signUp(dto : SignUpRequest): SignUpResponse {
+        val identifier = dto.identifier ?: throw BusinessException(ErrorCode.MISSING_IDENTIFIER)
+        
+        // 아이디 중복 확인
+        checkDuplicateIdentifier(identifier)
 
         // 1. Users 생성 및 저장
         var user = Users.createNewUser(
@@ -48,14 +51,13 @@ class AuthService (
         userSettingsRepository.save(userSetting)
 
         // 3. UserAuthAccounts 생성 및 저장
-        val identifier = dto.identifier ?: throw BusinessException(ErrorCode.MISSING_IDENTIFIER)
         val password = dto.password ?: throw BusinessException(ErrorCode.MISSING_PASSWORD)
         val encodedPassword = passwordEncoder.encode(password)
 
         val userAuthAccount = UserAuthAccounts.createNormalUser(
             user = user,
             identifier = identifier,
-            password = encodedPassword ?: throw RuntimeException("비밀번호 암호화에 실패했습니다."),
+            password = encodedPassword,
             email = dto.email
         )
 

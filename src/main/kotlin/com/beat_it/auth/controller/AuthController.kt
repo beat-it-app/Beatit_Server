@@ -17,11 +17,11 @@ import org.springframework.web.bind.annotation.*
 @RequestMapping("/auth")
 @SecurityRequirements()
 class AuthController (
-    private val userService : AuthService,
+    private val authService : AuthService,
 ){
     @PostMapping("/signup")
     fun signUp(@RequestBody signUpRequest : SignUpRequest) : ResponseEntity<BasicResponse<SignUpResponse>> {
-        val data = userService.signUp(signUpRequest)
+        val data = authService.signUp(signUpRequest)
         return ResponseEntity
             .status(HttpStatus.CREATED)
             .body(BasicResponse.success(data, HttpStatus.CREATED, "회원가입이 성공적으로 처리되었습니다."))
@@ -30,7 +30,7 @@ class AuthController (
     // 2. 로그인
     @PostMapping("/login")
     fun login(@RequestBody loginRequest : LoginRequest) : ResponseEntity<BasicResponse<LoginResponse>> {
-        val (accessToken, data) = userService.login(loginRequest)
+        val (accessToken, data) = authService.login(loginRequest)
 
         return ResponseEntity
             .status(HttpStatus.OK)
@@ -41,7 +41,7 @@ class AuthController (
     // 4. 아이디 중복 확인
     @GetMapping("/check-identifier")
     fun checkDuplicateIdentifier(@RequestParam identifier: String): ResponseEntity<BasicResponse<Nothing>> {
-        userService.checkDuplicateIdentifier(identifier)
+        authService.checkDuplicateIdentifier(identifier)
         return ResponseEntity
             .status(HttpStatus.OK)
             .body(BasicResponse.success(HttpStatus.OK, "사용 가능한 아이디입니다."))
@@ -50,7 +50,7 @@ class AuthController (
     // 5. 이메일 인증번호 발송
     @PostMapping("/email-verification/send")
     fun sendEmailVerificationCode(@RequestParam email: String): ResponseEntity<BasicResponse<Nothing>> {
-        userService.sendEmailVerificationCode(email)
+        authService.sendEmailVerificationCode(email)
         return ResponseEntity
             .status(HttpStatus.OK)
             .body(BasicResponse.success(HttpStatus.OK, "이메일 인증번호 발송이 성공적으로 처리되었습니다."))
@@ -59,7 +59,7 @@ class AuthController (
     // 6. 이메일 인증번호 인증하기
     @PostMapping("/email-verification/verify")
     fun verifyEmailVerificationCode(@RequestParam email: String, @RequestParam code: String): ResponseEntity<BasicResponse<Nothing>> {
-        userService.verifyEmailVerificationCode(email, code)
+        authService.verifyEmailVerificationCode(email, code)
         return ResponseEntity
             .status(HttpStatus.OK)
             .body(BasicResponse.success(HttpStatus.OK, "이메일 인증이 성공적으로 처리되었습니다."))
