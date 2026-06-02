@@ -142,7 +142,7 @@ class TeamService(
 
         validateTeamDeletePermission(team.teamId!!, user.userId!!)
 
-        team.deleteTeam()
+        team.delete()
     }
 
     @Transactional(readOnly = true)
