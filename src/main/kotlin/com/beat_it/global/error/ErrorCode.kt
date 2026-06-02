@@ -38,6 +38,10 @@ enum class ErrorCode(
     CALENDAR_TITLE_REQUIRED(HttpStatus.BAD_REQUEST, "CALENDAR-007", "일정명은 필수입니다."),
     CALENDAR_START_TIME_REQUIRED(HttpStatus.BAD_REQUEST, "CALENDAR-008", "일정 시작 시각은 필수입니다."),
     CALENDAR_END_TIME_REQUIRED(HttpStatus.BAD_REQUEST, "CALENDAR-009", "일정 종료 시각은 필수입니다."),
+    CALENDAR_INVALID_YEAR(HttpStatus.BAD_REQUEST, "CALENDAR-010", "연도 값이 올바르지 않습니다."),
+    CALENDAR_INVALID_MONTH(HttpStatus.BAD_REQUEST, "CALENDAR-011", "월 값은 1~12 사이여야 합니다."),
+    CALENDAR_INVALID_DATE(HttpStatus.BAD_REQUEST, "CALENDAR-012", "일 값은 1~31 사이여야 합니다."),
+    CALENDAR_NON_EXISTENT_DATE(HttpStatus.BAD_REQUEST, "CALENDAR-013", "해당 연월에 존재하지 않는 날짜입니다."),
 
     // --- 팀 관련 에러 (TEAM) ---
     TEAM_NO_CONTENT_TO_UPDATE(HttpStatus.BAD_REQUEST, "TEAM-001", "팀에 대해 변경할 내용이 업습니다."),

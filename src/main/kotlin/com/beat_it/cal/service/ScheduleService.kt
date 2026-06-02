@@ -1,5 +1,9 @@
 package com.beat_it.cal.service
 
+import com.beat_it.cal.dto.CalendarSchedule
+import com.beat_it.cal.dto.CalendarSchedulesResponse
+import com.beat_it.cal.dto.DateSchedule
+import com.beat_it.cal.dto.DateSchedulesResponse
 import com.beat_it.cal.dto.ParticipantResponse
 import com.beat_it.cal.dto.ScheduleCreateRequest
 import com.beat_it.cal.dto.ScheduleCreateResponse
@@ -11,7 +15,10 @@ import com.beat_it.global.error.BusinessException
 import com.beat_it.global.error.ErrorCode
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+import java.time.LocalDate
+import java.time.LocalTime
 import java.time.OffsetDateTime
+import java.time.ZoneOffset
 
 @Service
 class ScheduleService(
@@ -110,7 +117,7 @@ class ScheduleService(
     }
 
     @Transactional(readOnly = true)
-    fun getScheduleDetail(scheduleId: Long): ScheduleDetailResponse {
+    fun getScheduleDetail(scheduleId: Long, userId: Long): ScheduleDetailResponse {
         val schedule = findScheduleOrThrow(scheduleId)
 
         //TODO: 현재 내가 있는 팀 소속이 무엇인지 어떻게 넘겨받을 것인지
@@ -134,6 +141,55 @@ class ScheduleService(
                 )
             }
         )
+    }
+
+    @Transactional(readOnly = true)
+    fun getCalendarSchedules(userId: Long, year: Int, month: Int): CalendarSchedulesResponse {
+        validateYearAndMonth(year, month)
+        val startLocalDate = LocalDate.of(year, month, 1)
+        val endLocalDate = startLocalDate.withDayOfMonth(startLocalDate.lengthOfMonth())
+
+        val zoneOffset = ZoneOffset.ofHours(9)
+        val startDateTime = OffsetDateTime.of(startLocalDate, LocalTime.MIN, zoneOffset)
+        val endDateTime = OffsetDateTime.of(endLocalDate, LocalTime.MAX, zoneOffset)
+
+        val schedules = scheduleRepository.findByUserIdAndMonthRange(userId, startDateTime, endDateTime)
+
+        val calendarSchedules = schedules.map { schedule ->
+            CalendarSchedule(
+                scheduleId = schedule.scheduleId ?: throw BusinessException(ErrorCode.CALENDAR_NOT_FOUND),
+                title = schedule.title,
+                startsAt = schedule.startsAt,
+                endsAt = schedule.endsAt
+            )
+        }
+
+        return CalendarSchedulesResponse(items = calendarSchedules)
+    }
+
+    @Transactional(readOnly = true)
+    fun getDateSchedules(userId: Long, year: Int, month: Int, date: Int): DateSchedulesResponse {
+        validateYearMonthAndDate(year, month, date)
+        val targetLocalDate = LocalDate.of(year, month, date)
+
+        val zoneOffset = ZoneOffset.ofHours(9)
+        val startDateTime = OffsetDateTime.of(targetLocalDate, LocalTime.MIN, zoneOffset)
+        val endDateTime = OffsetDateTime.of(targetLocalDate, LocalTime.MAX, zoneOffset)
+
+        val schedules = scheduleRepository.findByUserIdAndDailyRange(userId, startDateTime, endDateTime)
+
+        val dateSchedules = schedules.map { schedule ->
+            DateSchedule(
+                scheduleId = schedule.scheduleId ?: throw BusinessException(ErrorCode.CALENDAR_NOT_FOUND),
+                title = schedule.title,
+                content = schedule.content ?: "",
+                startsAt = schedule.startsAt,
+                endsAt = schedule.endsAt,
+                locationId = schedule.locationId
+            )
+        }
+
+        return DateSchedulesResponse(items = dateSchedules)
     }
 
     private fun validateScheduleCommon(title: String?, startsAt: OffsetDateTime?, endsAt: OffsetDateTime?) {
@@ -181,6 +237,35 @@ class ScheduleService(
     private fun validateScheduleTeam(scheduleTeamId: Long, currentTeamId: Long) {
         if (scheduleTeamId != currentTeamId) {
             throw BusinessException(ErrorCode.CALENDAR_TEAM_MISMATCH)
+        }
+    }
+
+    private fun validateYearAndMonth(year: Int, month: Int) {
+        if (year !in 1000..9999) {
+            throw BusinessException(ErrorCode.CALENDAR_INVALID_YEAR)
+        }
+        if (month !in 1..12) {
+            throw BusinessException(ErrorCode.CALENDAR_INVALID_MONTH)
+        }
+    }
+
+    private fun validateYearMonthAndDate(year: Int, month: Int, date: Int) {
+        if (year !in 1000..9999) {
+            throw BusinessException(ErrorCode.CALENDAR_INVALID_YEAR)
+        }
+
+        if (month !in 1..12) {
+            throw BusinessException(ErrorCode.CALENDAR_INVALID_MONTH)
+        }
+
+        if (date !in 1..31) {
+            throw BusinessException(ErrorCode.CALENDAR_INVALID_DATE)
+        }
+
+        try {
+            java.time.YearMonth.of(year, month).atDay(date)
+        } catch (e: java.time.DateTimeException) {
+            throw BusinessException(ErrorCode.CALENDAR_NON_EXISTENT_DATE)
         }
     }
 }
