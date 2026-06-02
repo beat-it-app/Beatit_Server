@@ -12,6 +12,11 @@ interface TeamMembershipRepository : JpaRepository<TeamMemberships, Long> {
         userId: Long,
     ): TeamMemberships?
 
+    fun existsByTeamTeamIdAndUserIdAndLeftAtIsNull(
+        teamId: Long,
+        userId: Long
+    ): Boolean
+
     fun countByTeamTeamIdAndLeftAtIsNull(
         teamId: Long,
     ): Int

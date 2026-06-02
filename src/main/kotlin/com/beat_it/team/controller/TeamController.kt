@@ -7,6 +7,8 @@ import com.beat_it.team.dto.TeamDetailUpdateRequest
 import com.beat_it.team.dto.TeamDetailUpdateResponse
 import com.beat_it.team.service.TeamService
 import com.beat_it.global.response.BasicResponse
+import com.beat_it.team.dto.JoinTeamRequest
+import com.beat_it.team.dto.JoinTeamResponse
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.*
@@ -20,7 +22,7 @@ import org.springframework.security.core.userdetails.UserDetails
 @Tag(name = "3. TEAM API", description = "팀 생성 및 수정 관련 로직")
 @RestController
 @RequestMapping("/teams")
-@SecurityRequirements()
+//@SecurityRequirements()
 class TeamController(
     private val teamService: TeamService
 ) {
@@ -77,5 +79,21 @@ class TeamController(
             BasicResponse.success(responseData, HttpStatus.OK,"팀 상세 내용 조회에 성공했습니다.")
         )
     }
+
+    @PostMapping( "/join")
+    fun joinTeam(
+        @AuthenticationPrincipal userDetails: UserDetails?,
+        @RequestBody request: JoinTeamRequest,
+    ): ResponseEntity<BasicResponse<JoinTeamResponse>> {
+        val userPublicId = UUID.fromString(userDetails?.username)
+        val responseData = teamService.joinTeam(userPublicId, request.inviteCode)
+
+        return ResponseEntity.ok(
+            BasicResponse.success(responseData, HttpStatus.OK, "팀 가입이 완료되었습니다.")
+        )
+    }
+
+    @GetMapping("/me")
+    fun 
 }
 

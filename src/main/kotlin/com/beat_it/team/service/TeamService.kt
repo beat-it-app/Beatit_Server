@@ -4,6 +4,8 @@ import com.beat_it.auth.entity.Users
 import com.beat_it.auth.repository.UserRepository
 import com.beat_it.global.error.BusinessException
 import com.beat_it.global.error.ErrorCode
+import com.beat_it.team.dto.JoinTeamRequest
+import com.beat_it.team.dto.JoinTeamResponse
 import com.beat_it.team.dto.LinksResponse
 import com.beat_it.team.dto.PartsResponse
 import com.beat_it.team.dto.TeamCreateRequest
@@ -188,6 +190,36 @@ class TeamService(
         )
     }
 
+    @Transactional
+    fun joinTeam(userPublicId: UUID, inviteCode: String?): JoinTeamResponse {
+        val normalizedInviteCode = validateAndNormalizeInviteCode(inviteCode)
+
+        val user = findUserOrThrow(userPublicId)
+
+        val team = teamRepository.findByInviteCodeAndDeletedAtIsNull(normalizedInviteCode)
+            ?: throw BusinessException(ErrorCode.TEAM_INVITE_CODE_NOT_FOUND)
+
+        val teamId = team.teamId!!
+        val userId = user.userId!!
+
+        validateNotAlreadyJoined(teamId, userId)
+
+        val teamMembership = TeamMemberships(
+            team = team,
+            userId = userId,
+            teamRole = TeamRole.MEMBER
+        )
+
+        val savedMembership = teamMembershipRepository.save(teamMembership)
+
+        return JoinTeamResponse(
+            teamId = teamId,
+            teamName = team.teamName,
+            teamRole = savedMembership.teamRole,
+            joinedAt = savedMembership.createdAt
+        )
+    }
+
     private fun findUserOrThrow(userPublicId: UUID) : Users {
         return userRepository.findByPublicId(userPublicId)
             ?: throw BusinessException(ErrorCode.USER_NOT_FOUND)
@@ -272,6 +304,31 @@ class TeamService(
         val membership = teamMembershipRepository.findByTeamTeamIdAndUserIdAndLeftAtIsNull(teamId, userId) ?: throw BusinessException(ErrorCode.TEAM_NO_PERMISSION)
         if (membership.teamRole != TeamRole.LEADER) {
             throw BusinessException(ErrorCode.TEAM_NO_PERMISSION)
+        }
+    }
+
+    private fun validateAndNormalizeInviteCode(inviteCode: String?): String {
+        if(inviteCode.isNullOrBlank()) {
+            throw BusinessException(ErrorCode.TEAM_INVITE_CODE_REQUIRED)
+        }
+
+        val normalizedInviteCode = inviteCode.trim().uppercase()
+
+        val inviteCodeRegex = Regex("^BEATIT-[A-Z0-9]{6}$]")
+
+        if (inviteCodeRegex.matches(normalizedInviteCode)) {
+            throw BusinessException(ErrorCode.TEAM_INVITE_CODE_INVALID)
+        }
+
+        return normalizedInviteCode
+    }
+
+    private fun validateNotAlreadyJoined(teamId: Long, userId: Long) {
+        val alreadyJoined = teamMembershipRepository
+            .existsByTeamTeamIdAndUserIdAndLeftAtIsNull(teamId, userId)
+
+        if (alreadyJoined) {
+            throw BusinessException(ErrorCode.TEAM_ALREADY_JOINED)
         }
     }
 

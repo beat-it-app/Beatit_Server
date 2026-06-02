@@ -51,6 +51,10 @@ enum class ErrorCode(
     TEAM_NAME_TOO_LONG(HttpStatus.BAD_REQUEST, "TEAM-005", "팀 이름은 100자 이하여야 합니다."),
     TEAM_DESCRIPTION_TOO_LONG(HttpStatus.BAD_REQUEST, "TEAM-006", "팀 설명은 500자 이하여야 합니다."),
     TEAM_NO_UPDATE_PERMISSION(HttpStatus.FORBIDDEN, "TEAM-007","팀 수정 권한이 없습니다."),
+    TEAM_INVITE_CODE_REQUIRED(HttpStatus.BAD_REQUEST, "TEAM-008", "초대 코드는 필수입니다."),
+    TEAM_INVITE_CODE_INVALID(HttpStatus.BAD_REQUEST, "TEAM-009", "유효하지 않은 초대 코드입니다."),
+    TEAM_INVITE_CODE_NOT_FOUND(HttpStatus.NOT_FOUND, "TEAM-010", "존재하지 않는 팀 초대 코드입니다."),
+    TEAM_ALREADY_JOINED(HttpStatus.CONFLICT, "TEAM-011", "이미 가입된 팀입니다."),
 
 
     // --- 장소 관련 에러 ---
