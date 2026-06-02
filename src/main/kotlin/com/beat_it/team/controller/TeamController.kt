@@ -82,7 +82,7 @@ class TeamController(
     }
 
     @PostMapping( "/join")
-    fun joinTeam(
+    fun postJoinTeam(
         @AuthenticationPrincipal userDetails: UserDetails?,
         @RequestBody request: JoinTeamRequest,
     ): ResponseEntity<BasicResponse<JoinTeamResponse>> {
