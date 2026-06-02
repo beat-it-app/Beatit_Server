@@ -12,11 +12,15 @@ import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.*
 import java.util.UUID
 import io.swagger.v3.oas.annotations.Parameter
+import io.swagger.v3.oas.annotations.security.SecurityRequirements
+import io.swagger.v3.oas.annotations.tags.Tag
 import org.springframework.security.core.annotation.AuthenticationPrincipal
 import org.springframework.security.core.userdetails.UserDetails
 
+@Tag(name = "3. TEAM API", description = "팀 생성 및 수정 관련 로직")
 @RestController
 @RequestMapping("/teams")
+@SecurityRequirements()
 class TeamController(
     private val teamService: TeamService
 ) {
