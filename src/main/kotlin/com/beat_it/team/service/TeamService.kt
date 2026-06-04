@@ -96,8 +96,8 @@ class TeamService(
             teamType = request.teamType,
         )
 
-        request.profileImageUrl?.let {
-            team.profileImageUrl = it
+        request.teamImageUrl?.let {
+            team.teamImageUrl = it
         }
 
         request.links?.let { linkRequests ->
@@ -233,7 +233,7 @@ class TeamService(
                     (request.description != null && request.description != team.description) ||
                     (request.establishedOn != null && request.establishedOn != team.establishedOn) ||
                     (request.teamType != null && request.teamType != team.teamType) ||
-                    (request.profileImageUrl != null && request.profileImageUrl != team.profileImageUrl)
+                    (request.teamImageUrl != null && request.teamImageUrl != team.teamImageUrl)
 
         val isLinksChanged =
             request.links != null && !isLinksSame(currentLinks, request.links)
