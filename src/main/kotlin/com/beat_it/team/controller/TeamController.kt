@@ -1,5 +1,7 @@
 package com.beat_it.team.controller
 
+import com.beat_it.global.error.BusinessException
+import com.beat_it.global.error.ErrorCode
 import com.beat_it.team.dto.TeamCreateRequest
 import com.beat_it.team.dto.TeamCreateResponse
 import com.beat_it.team.dto.TeamDetailResponse
@@ -7,6 +9,7 @@ import com.beat_it.team.dto.TeamDetailUpdateRequest
 import com.beat_it.team.dto.TeamDetailUpdateResponse
 import com.beat_it.team.service.TeamService
 import com.beat_it.global.response.BasicResponse
+import com.beat_it.team.repository.TeamRepository
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.*
@@ -20,9 +23,10 @@ import org.springframework.security.core.userdetails.UserDetails
 @Tag(name = "3. TEAM API", description = "팀 생성 및 수정 관련 로직")
 @RestController
 @RequestMapping("/teams")
-@SecurityRequirements()
+@SecurityRequirements
 class TeamController(
-    private val teamService: TeamService
+    private val teamService: TeamService,
+    private val teamRepository: TeamRepository
 ) {
 
     @PostMapping
@@ -76,6 +80,21 @@ class TeamController(
         return ResponseEntity.ok(
             BasicResponse.success(responseData, HttpStatus.OK,"팀 상세 내용 조회에 성공했습니다.")
         )
+    }
+
+    @PostMapping
+    fun selectTeam(@AuthenticationPrincipal userDetails: UserDetails?,
+                          @RequestParam("teamPublicId") teamPublicId: UUID
+    ): ResponseEntity<BasicResponse<Nothing>> {
+        val currentUserId = userDetails?.username?.toLong()
+            ?: throw BusinessException(ErrorCode.UNAUTHORIZED)
+
+        val team = teamRepository.findByPublicId(teamPublicId)
+            ?: throw BusinessException(ErrorCode.TEAM_NOT_FOUND)
+
+        teamService.selectTeam(currentUserId, team.teamId!!)
+
+        return ResponseEntity.ok(BasicResponse.success(HttpStatus.OK, "팀이 성공적으로 선택되었습니다."))
     }
 }
 

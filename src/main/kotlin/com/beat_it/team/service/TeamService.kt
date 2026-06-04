@@ -20,6 +20,7 @@ import com.beat_it.team.repository.TeamLinksRepository
 import com.beat_it.team.repository.TeamMembershipRepository
 import com.beat_it.team.repository.TeamPartsRepository
 import com.beat_it.team.repository.TeamRepository
+import org.springframework.data.repository.findByIdOrNull
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.util.UUID
@@ -283,5 +284,13 @@ class TeamService(
             .replace("-", "")
             .take(6)
             .uppercase()
+    }
+
+    @Transactional
+    fun selectTeam(userId: Long, teamId: Long) {
+        val user = userRepository.findByIdOrNull(userId)
+            ?: throw BusinessException(ErrorCode.USER_NOT_FOUND)
+
+        user.updateCurrentTeam(teamId)
     }
 }
