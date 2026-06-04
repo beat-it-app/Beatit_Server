@@ -49,8 +49,7 @@ class TeamController(
     @PatchMapping
     fun updateTeamDetail(
         @AuthenticationPrincipal userDetails: UserDetails?,
-        @Parameter(hidden = true)
-        @RequestHeader("X-Team-Public-Id") teamPublicId: UUID,
+        @RequestParam("teamPublicId") teamPublicId: UUID,
 
         @RequestBody request: TeamDetailUpdateRequest,
     ): ResponseEntity<BasicResponse<TeamDetailUpdateResponse>> {
@@ -63,8 +62,7 @@ class TeamController(
     @DeleteMapping
     fun deleteTeam(
         @AuthenticationPrincipal userDetails: UserDetails?,
-        @Parameter(hidden = true)
-        @RequestHeader("X-Team-Public-Id") teamPublicId: UUID,
+        @RequestParam("teamPublicId") teamPublicId: UUID,
     ): ResponseEntity<BasicResponse<Nothing>> {
         val userPublicId = UUID.fromString(userDetails?.username)
         teamService.deleteTeam(teamPublicId, userPublicId)

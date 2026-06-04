@@ -140,8 +140,14 @@ class TeamService(
     }
 
     @Transactional(readOnly = true)
-    fun getTeamDetail(teamPublicId: UUID): TeamDetailResponse {
-        val team = findTeamOrThrow(teamPublicId)
+    fun getTeamDetail(userId: Long): TeamDetailResponse? {
+        val user = userRepository.findByIdOrNull(userId)
+            ?: throw BusinessException(ErrorCode.USER_NOT_FOUND)
+
+        val teamId = user.currentTeamId ?: return null
+
+        val team = teamRepository.findByIdOrNull(teamId)
+            ?: throw BusinessException(ErrorCode.TEAM_NOT_FOUND)
 
         val memberCount = teamMembershipRepository.countByTeamTeamIdAndLeftAtIsNull(team.teamId!!)
 

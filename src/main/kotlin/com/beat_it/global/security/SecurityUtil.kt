@@ -21,14 +21,4 @@ object SecurityUtil {
             else -> throw BusinessException(ErrorCode.UNAUTHORIZED)
         }
     }
-
-    fun getHeaderUserPublicId(): String? {
-        val requestAttributes = RequestContextHolder.getRequestAttributes() as? ServletRequestAttributes
-        return requestAttributes?.request?.getHeader("X-User-Public-Id")
-    }
-
-    fun getHeaderTeamPublicId(): String? {
-        val requestAttributes = RequestContextHolder.getRequestAttributes() as? ServletRequestAttributes
-        return requestAttributes?.request?.getHeader("X-Team-Public-Id")
-    }
 }
