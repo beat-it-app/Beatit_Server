@@ -22,13 +22,13 @@ class JwtTokenProvider(
     // 1. 시크릿 키 객체 생성 (JJWT 최신 버전 방식)
     private val key: SecretKey = Keys.hmacShaKeyFor(secretKey.toByteArray())
 
-    // 2. Access Token 발급 (subject에 UUID인 publicId를 넣습니다)
-    fun createAccessToken(publicId: String, role: Role): String {
+    // 2. Access Token 발급 (subject에 userId를 넣습니다)
+    fun createAccessToken(userId: String, role: Role): String {
         val now = Date()
         val validity = Date(now.time + accessTokenValidity)
 
         return Jwts.builder()
-            .subject(publicId)
+            .subject(userId)
             .claim("role", role)
             .issuedAt(now)
             .expiration(validity)
@@ -38,12 +38,12 @@ class JwtTokenProvider(
 
     // 3. 토큰에서 Authentication 객체 추출 (필터에서 사용)
     fun getAuthentication(token: String): Authentication {
-        val userDetails = userDetailsService.loadUserByUsername(getPublicId(token))
+        val userDetails = userDetailsService.loadUserByUsername(getUserId(token))
         return UsernamePasswordAuthenticationToken(userDetails, "", userDetails.authorities)
     }
 
-    // 4. 토큰에서 publicId(subject) 추출
-    fun getPublicId(token: String): String {
+    // 4. 토큰에서 userId(subject) 추출
+    fun getUserId(token: String): String {
         return parseClaims(token).subject
     }
 

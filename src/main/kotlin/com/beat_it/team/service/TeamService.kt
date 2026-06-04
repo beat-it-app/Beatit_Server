@@ -28,10 +28,8 @@ class TeamService(
 ) {
 
     @Transactional
-    fun createTeam(userPublicId: UUID, request: TeamCreateRequest): TeamCreateResponse {
+    fun createTeam(userId: Long, request: TeamCreateRequest): TeamCreateResponse {
         validateCreateRequest(request)
-
-        val userId = findUserOrThrow(userPublicId).userId!!
 
         val inviteCode = generateInviteCode()
 
@@ -69,11 +67,11 @@ class TeamService(
     @Transactional
     fun updateTeamDetail(
         teamPublicId: UUID,
-        userPublicId: UUID,
+        userId: Long,
         request: TeamDetailUpdateRequest
     ): TeamDetailUpdateResponse {
         val team = findTeamOrThrow(teamPublicId)
-        val user = findUserOrThrow(userPublicId)
+        val user = findUserOrThrow(userId)
         val teamId = team.teamId!!
 
         val currentLinks = teamLinksRepository.findAllByTeamTeamId(teamId)
@@ -129,10 +127,10 @@ class TeamService(
     @Transactional
     fun deleteTeam(
         teamPublicId: UUID,
-        userPublicId: UUID,
+        userId: Long,
     ) {
         val team = findTeamOrThrow(teamPublicId)
-        val user = findUserOrThrow(userPublicId)
+        val user = findUserOrThrow(userId)
 
         validateTeamDeletePermission(team.teamId!!, user.userId!!)
 
@@ -141,8 +139,7 @@ class TeamService(
 
     @Transactional(readOnly = true)
     fun getTeamDetail(userId: Long): TeamDetailResponse? {
-        val user = userRepository.findByIdOrNull(userId)
-            ?: throw BusinessException(ErrorCode.USER_NOT_FOUND)
+        val user = findUserOrThrow(userId)
 
         val teamId = user.currentTeamId ?: return null
 
@@ -190,7 +187,8 @@ class TeamService(
 
     @Transactional(readOnly = true)
     fun getUserTeams(userId: Long) : UserTeamListResponse {
-        val memberships = teamMembershipRepository.findAllByUserIdAndLeftAtIsNull(userId)
+        val user = findUserOrThrow(userId)
+        val memberships = teamMembershipRepository.findAllByUserIdAndLeftAtIsNull(user.userId!!)
 
         val teams = memberships.map { membership ->
             val team = membership.team
@@ -207,8 +205,8 @@ class TeamService(
     }
 
 
-    private fun findUserOrThrow(userPublicId: UUID) : Users {
-        return userRepository.findByPublicId(userPublicId)
+    private fun findUserOrThrow(userId: Long) : Users {
+        return userRepository.findByIdOrNull(userId)
             ?: throw BusinessException(ErrorCode.USER_NOT_FOUND)
     }
 
@@ -306,8 +304,7 @@ class TeamService(
 
     @Transactional
     fun selectTeam(userId: Long, teamId: Long) {
-        val user = userRepository.findByIdOrNull(userId)
-            ?: throw BusinessException(ErrorCode.USER_NOT_FOUND)
+        val user = findUserOrThrow(userId)
 
         user.updateCurrentTeam(teamId)
     }

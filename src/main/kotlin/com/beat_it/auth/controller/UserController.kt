@@ -27,10 +27,10 @@ class UserController (
             throw BusinessException(ErrorCode.UNAUTHORIZED)
         }
 
-        val publicId = userDetails.username
+        val userId = userDetails.username
         
         val data = mapOf(
-            "tokenUserPublicId" to publicId
+            "tokenUserId" to userId
         )
 
         return ResponseEntity

@@ -23,7 +23,6 @@ import org.springframework.security.core.userdetails.UserDetails
 @Tag(name = "3. TEAM API", description = "팀 생성 및 수정 관련 로직")
 @RestController
 @RequestMapping("/teams")
-@SecurityRequirements
 class TeamController(
     private val teamService: TeamService,
     private val teamRepository: TeamRepository
@@ -49,12 +48,12 @@ class TeamController(
     @PatchMapping
     fun updateTeamDetail(
         @AuthenticationPrincipal userDetails: UserDetails?,
-        @RequestParam("teamPublicId") teamPublicId: UUID,
-
+        @RequestParam("teamPublicId") teamPublicId: UUID, //FIXME : teamService.getTeamDetail(userId) 사용하도록 수정
         @RequestBody request: TeamDetailUpdateRequest,
     ): ResponseEntity<BasicResponse<TeamDetailUpdateResponse>> {
-        val userPublicId = UUID.fromString(userDetails?.username)
-        val responseData = teamService.updateTeamDetail(teamPublicId, userPublicId, request)
+        val userId = userDetails?.username?.toLong()
+            ?: throw BusinessException(ErrorCode.UNAUTHORIZED)
+        val responseData = teamService.updateTeamDetail(teamPublicId, userId, request)
 
         return ResponseEntity.ok(BasicResponse.success(responseData, HttpStatus.OK, "팀 상세 내용이 수정되었습니다."))
     }
@@ -62,10 +61,11 @@ class TeamController(
     @DeleteMapping
     fun deleteTeam(
         @AuthenticationPrincipal userDetails: UserDetails?,
-        @RequestParam("teamPublicId") teamPublicId: UUID,
+        @RequestParam("teamPublicId") teamPublicId: UUID, //FIXME : teamService.getTeamDetail(userId) 사용하도록 수정
     ): ResponseEntity<BasicResponse<Nothing>> {
-        val userPublicId = UUID.fromString(userDetails?.username)
-        teamService.deleteTeam(teamPublicId, userPublicId)
+        val userId = userDetails?.username?.toLong()
+            ?: throw BusinessException(ErrorCode.UNAUTHORIZED)
+        teamService.deleteTeam(teamPublicId, userId)
 
         return ResponseEntity.ok(
             BasicResponse.success(HttpStatus.OK,"팀이 성공적으로 삭제되었습니다.")
@@ -81,7 +81,6 @@ class TeamController(
 
         val teamDetail = teamService.getTeamDetail(userId)
 
-        // 선택된 팀이 있다면 상세 정보 반환
         if (teamDetail != null) {
             return ResponseEntity.ok(
                 BasicResponse.success(teamDetail, HttpStatus.OK,"팀 상세 내용 조회에 성공했습니다."))
@@ -89,10 +88,9 @@ class TeamController(
 
         val userTeams = teamService.getUserTeams(userId)
 
-        // 선택된 팀이 없음
-        return if (userTeams.teams.isEmpty()) { // 소속된 팀조차 없음
+        return if (userTeams.teams.isEmpty()) {
             ResponseEntity.ok(BasicResponse.success(HttpStatus.OK, "소속된 팀이 없습니다. 팀을 생성하거나 초대코드를 입력하세요."))
-        } else { // 소속된 팀 리스트는 있음
+        } else {
             ResponseEntity.ok(BasicResponse.success(userTeams, HttpStatus.OK, "선택된 팀이 없어 소속된 팀 리스트를 반환합니다."))
         }
     }
@@ -100,15 +98,15 @@ class TeamController(
     @Operation(summary = "로그인할 팀 선택하기")
     @PostMapping("/select")
     fun selectTeam(@AuthenticationPrincipal userDetails: UserDetails?,
-                          @RequestParam("teamPublicId") teamPublicId: UUID
+                        @RequestParam("teamPublicId") teamPublicId: UUID //FIXME : teamService.getTeamDetail(userId) 사용하도록 수정
     ): ResponseEntity<BasicResponse<Nothing>> {
-        val currentUserId = userDetails?.username?.toLong()
+        val userId = userDetails?.username?.toLong()
             ?: throw BusinessException(ErrorCode.UNAUTHORIZED)
 
         val team = teamRepository.findByPublicId(teamPublicId)
             ?: throw BusinessException(ErrorCode.TEAM_NOT_FOUND)
 
-        teamService.selectTeam(currentUserId, team.teamId!!)
+        teamService.selectTeam(userId, team.teamId!!)
 
         return ResponseEntity.ok(BasicResponse.success(HttpStatus.OK, "팀이 성공적으로 선택되었습니다."))
     }
