@@ -4,14 +4,7 @@ import com.beat_it.auth.entity.Users
 import com.beat_it.auth.repository.UserRepository
 import com.beat_it.global.error.BusinessException
 import com.beat_it.global.error.ErrorCode
-import com.beat_it.team.dto.LinksResponse
-import com.beat_it.team.dto.PartsResponse
-import com.beat_it.team.dto.TeamCreateRequest
-import com.beat_it.team.dto.TeamCreateResponse
-import com.beat_it.team.dto.TeamDetailResponse
-import com.beat_it.team.dto.TeamDetailUpdateRequest
-import com.beat_it.team.dto.TeamDetailUpdateResponse
-import com.beat_it.team.dto.TeamLinksRequest
+import com.beat_it.team.dto.*
 import com.beat_it.team.entity.TeamLinks
 import com.beat_it.team.entity.TeamMemberships
 import com.beat_it.team.entity.Teams
@@ -174,7 +167,7 @@ class TeamService(
 
         return TeamDetailResponse(
             teamId = team.teamId,
-            profileImageUrl = team.profileImageUrl,
+            teamImageUrl = team.teamImageUrl,
             teamName = team.teamName,
             description = team.description,
             establishedOn = team.establishedOn,
@@ -188,6 +181,25 @@ class TeamService(
             cloudItemCount = 0
         )
     }
+
+    @Transactional(readOnly = true)
+    fun getUserTeams(userId: Long) : UserTeamListResponse {
+        val memberships = teamMembershipRepository.findAllByUserIdAndLeftAtIsNull(userId)
+
+        val teams = memberships.map { membership ->
+            val team = membership.team
+            TeamSimpleInfo(
+                teamId = team.teamId!!,
+                teamName = team.teamName,
+                teamType = team.teamType,
+                teamImageUrl = team.teamImageUrl,
+                createAt = team.createdAt.toLocalDate()
+            )
+        }
+
+        return UserTeamListResponse(teams = teams)
+    }
+
 
     private fun findUserOrThrow(userPublicId: UUID) : Users {
         return userRepository.findByPublicId(userPublicId)
