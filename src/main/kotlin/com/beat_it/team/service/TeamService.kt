@@ -29,7 +29,11 @@ class TeamService(
 
     @Transactional
     fun createTeam(userId: Long, request: TeamCreateRequest): TeamCreateResponse {
+        val user = findUserOrThrow(userId)
+
         validateCreateRequest(request)
+
+        val userId = user.userId!!
 
         val inviteCode = generateInviteCode()
 
@@ -43,8 +47,6 @@ class TeamService(
 
         val savedTeam = teamRepository.save(team)
 
-        // TODO: 팀 생성자를 TeamMember에 LEADER로 저장해야 함
-        // 현재 createTeam 함수에 userId가 없기 때문에, 나중에 Controller에서 userId를 넘겨받는 구조가 필요함
         val leaderTeamMemberships = TeamMemberships(
             team = savedTeam,
             userId = userId,
@@ -70,13 +72,15 @@ class TeamService(
         userId: Long,
         request: TeamDetailUpdateRequest
     ): TeamDetailUpdateResponse {
-        val team = findTeamOrThrow(teamPublicId)
         val user = findUserOrThrow(userId)
+        val team = findTeamOrThrow(teamPublicId)
+
+        val userId = user.userId!!
         val teamId = team.teamId!!
 
         val currentLinks = teamLinksRepository.findAllByTeamTeamId(teamId)
 
-        validateTeamUpdatePermission(teamId, user.userId!!)
+        validateTeamUpdatePermission(teamId, userId)
         validateUpdateRequest(request)
         validateTeamDetailChanged(team, request, currentLinks)
 
@@ -128,9 +132,14 @@ class TeamService(
     fun deleteTeam(
         teamPublicId: UUID,
         userId: Long,
+        teamPublicId: UUID,
     ) {
         val team = findTeamOrThrow(teamPublicId)
         val user = findUserOrThrow(userId)
+        val team = findTeamOrThrow(teamPublicId)
+
+        val userId = user.userId!!
+        val teamId = team.teamId!!
 
         validateTeamDeletePermission(team.teamId!!, user.userId!!)
 
@@ -186,10 +195,9 @@ class TeamService(
     }
 
     @Transactional
-    fun joinTeam(userPublicId: UUID, inviteCode: String?): JoinTeamResponse {
+    fun joinTeam(userId: Long, inviteCode: String?): JoinTeamResponse {
         val normalizedInviteCode = validateAndNormalizeInviteCode(inviteCode)
-
-        val user = findUserOrThrow(userPublicId)
+        val user = findUserOrThrow(userId)
 
         val team = teamRepository.findByInviteCodeAndDeletedAtIsNull(normalizedInviteCode)
             ?: throw BusinessException(ErrorCode.TEAM_INVITE_CODE_NOT_FOUND)
