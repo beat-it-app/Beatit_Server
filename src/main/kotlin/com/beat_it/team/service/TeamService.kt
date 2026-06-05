@@ -33,8 +33,6 @@ class TeamService(
 
         validateCreateRequest(request)
 
-        val userId = user.userId!!
-
         val inviteCode = generateInviteCode()
 
         val team = Teams(
@@ -49,7 +47,7 @@ class TeamService(
 
         val leaderTeamMemberships = TeamMemberships(
             team = savedTeam,
-            userId = userId,
+            userId = user.userId!!,
             teamRole = TeamRole.LEADER,
         )
 
@@ -140,6 +138,7 @@ class TeamService(
         validateTeamDeletePermission(team.teamId!!, user.userId!!)
 
         team.delete()
+        //TODO: team을 삭제했으면 selectedTeamId에도 null 값이 들어가야 하는거 아닌가?
     }
 
     @Transactional(readOnly = true)
@@ -148,10 +147,10 @@ class TeamService(
 
         val teamId = user.currentTeamId ?: return null
 
-        val team = teamRepository.findByIdOrNull(teamId)
-            ?: throw BusinessException(ErrorCode.TEAM_NOT_FOUND)
+        val team = teamRepository.findByTeamIdAndDeletedAtIsNull(teamId)
+            ?: return null
 
-        val memberCount = teamMembershipRepository.countByTeamTeamIdAndLeftAtIsNull(teamId)  // FIXME: 위에 이미 currentTeamId가 있는데 왜 또 받는거야?
+        val memberCount = teamMembershipRepository.countByTeamTeamIdAndLeftAtIsNull(teamId)
 
         val links = teamLinksRepository
             .findAllByTeamTeamId(teamId)
@@ -198,21 +197,18 @@ class TeamService(
         val team = teamRepository.findByInviteCodeAndDeletedAtIsNull(normalizedInviteCode)
             ?: throw BusinessException(ErrorCode.TEAM_INVITE_CODE_NOT_FOUND)
 
-        val teamId = team.teamId!!
-        val userId = user.userId!!
-
-        validateNotAlreadyJoined(teamId, userId)
+        validateNotAlreadyJoined(team.teamId!!, user.userId!!)
 
         val teamMembership = TeamMemberships(
             team = team,
-            userId = userId,
+            userId = user.userId!!,
             teamRole = TeamRole.MEMBER
         )
 
         val savedMembership = teamMembershipRepository.save(teamMembership)
 
         return JoinTeamResponse(
-            teamId = teamId,
+            teamId = team.teamId!!,
             teamName = team.teamName,
             teamRole = savedMembership.teamRole,
             joinedAt = savedMembership.createdAt
@@ -223,9 +219,7 @@ class TeamService(
     fun getUserTeams(userId: Long) : UserTeamListResponse {
         val user = findUserOrThrow(userId)
 
-        val userId = user.userId!!
-
-        val memberships = teamMembershipRepository.findAllByUserIdAndLeftAtIsNull(userId)
+        val memberships = teamMembershipRepository.findAllByUserIdAndLeftAtIsNullAndTeamDeletedAtIsNullOrderByCreatedAtDesc(user.userId!!)
 
         val teams = memberships.map { membership ->
             val team = membership.team
@@ -250,7 +244,6 @@ class TeamService(
 
         return VerifyCodeResponse(
             teamId = team.teamId!!,
-            teamPublicId = team.publicId,
             teamName = team.teamName,
             inviteCode = team.inviteCode,
         )
@@ -275,8 +268,19 @@ class TeamService(
     }
 
     private fun findTeamOrThrow(teamId: Long): Teams {
-        return teamRepository.findByTeamIdOrNull(teamId)
+        return teamRepository.findByTeamIdAndDeletedAtIsNull(teamId)
             ?: throw BusinessException(ErrorCode.TEAM_NOT_FOUND)
+    }
+
+    private fun findTeamForCommandOrThrow(teamId: Long): Teams {
+        val team = teamRepository.findByTeamId(teamId)
+            ?: throw BusinessException(ErrorCode.TEAM_NOT_FOUND)
+
+        if (team.deletedAt != null) {
+            throw BusinessException(ErrorCode.TEAM_PENDING_DELETION)
+        }
+
+        return team
     }
 
     private fun validateCreateRequest(request: TeamCreateRequest) {
@@ -294,8 +298,8 @@ class TeamService(
     }
 
     private fun validateUpdateRequest(request: TeamDetailUpdateRequest) {
-        if ((request.teamName?.length ?: 0) > 100) {
-            throw BusinessException(ErrorCode.TEAM_NAME_TOO_LONG)
+        if (request.teamName != null && request.teamName.isBlank()) {
+            throw BusinessException(ErrorCode.TEAM_NAME_REQUIRED)
         }
 
         if ((request.description?.length ?: 0) > 500) {

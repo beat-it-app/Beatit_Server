@@ -55,7 +55,8 @@ enum class ErrorCode(
     TEAM_INVITE_CODE_INVALID(HttpStatus.BAD_REQUEST, "TEAM-009", "유효하지 않은 초대 코드입니다."),
     TEAM_INVITE_CODE_NOT_FOUND(HttpStatus.NOT_FOUND, "TEAM-010", "존재하지 않는 팀 초대 코드입니다."),
     TEAM_ALREADY_JOINED(HttpStatus.CONFLICT, "TEAM-011", "이미 가입된 팀입니다."),
-    TEAM_INVITE_LINK_NO_PERMISSION(HttpStatus.FORBIDDEN,  "TEAM-012", "초대 링크를 조회할 권한이 없습니다."),
+    TEAM_PENDING_DELETION(HttpStatus.BAD_REQUEST,  "TEAM-012", "이미 삭제 요청된 팀입니다."),
+    TEAM_NOT_SELECTED(HttpStatus.BAD_REQUEST, "TEAM-013", "현재 선택된 팀이 없습니다. 팀을 먼저 선택해주세요."),
 
 
     // --- 장소 관련 에러 ---
