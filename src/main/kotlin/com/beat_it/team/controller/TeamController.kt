@@ -48,7 +48,7 @@ class TeamController(
             .body(BasicResponse.success(responseData, HttpStatus.CREATED, "팀 생성에 성공했습니다."))
     }
 
-
+    @Operation(summary = "팀 수정하기")
     @PatchMapping
     fun updateTeamDetail(
         @AuthenticationPrincipal userDetails: UserDetails?,
@@ -62,6 +62,7 @@ class TeamController(
         return ResponseEntity.ok(BasicResponse.success(responseData, HttpStatus.OK, "팀 상세 내용이 수정되었습니다."))
     }
 
+    @Operation(summary = "팀 삭제하기")
     @DeleteMapping
     fun deleteTeam(
         @AuthenticationPrincipal userDetails: UserDetails?,
