@@ -68,12 +68,12 @@ class TeamService(
 
     @Transactional
     fun updateTeamDetail(
-        teamPublicId: UUID,
         userId: Long,
+        teamId: Long,
         request: TeamDetailUpdateRequest
     ): TeamDetailUpdateResponse {
         val user = findUserOrThrow(userId)
-        val team = findTeamOrThrow(teamPublicId)
+        val team = findTeamOrThrow(teamId)
 
         val userId = user.userId!!
         val teamId = team.teamId!!
@@ -130,18 +130,16 @@ class TeamService(
 
     @Transactional
     fun deleteTeam(
-        teamPublicId: UUID,
         userId: Long,
-        teamPublicId: UUID,
+        teamId: Long,
     ) {
-        val team = findTeamOrThrow(teamPublicId)
         val user = findUserOrThrow(userId)
-        val team = findTeamOrThrow(teamPublicId)
+        val team = findTeamOrThrow(teamId)
 
         val userId = user.userId!!
         val teamId = team.teamId!!
 
-        validateTeamDeletePermission(team.teamId!!, user.userId!!)
+        validateTeamDeletePermission(teamId, userId)
 
         team.delete()
     }
@@ -155,10 +153,10 @@ class TeamService(
         val team = teamRepository.findByIdOrNull(teamId)
             ?: throw BusinessException(ErrorCode.TEAM_NOT_FOUND)
 
-        val memberCount = teamMembershipRepository.countByTeamTeamIdAndLeftAtIsNull(team.teamId!!)
+        val memberCount = teamMembershipRepository.countByTeamTeamIdAndLeftAtIsNull(teamId)  // FIXME: 위에 이미 currentTeamId가 있는데 왜 또 받는거야?
 
         val links = teamLinksRepository
-            .findAllByTeamTeamId(team.teamId!!)
+            .findAllByTeamTeamId(teamId)
             .map {
                 LinksResponse(
                     teamLinkId = it.teamLinkId!!,
@@ -168,7 +166,7 @@ class TeamService(
             }
 
         val parts = teamPartsRepository
-            .findAllByTeamTeamId(team.teamId!!)
+            .findAllByTeamTeamId(teamId)
             .map {
                 PartsResponse(
                     teamPartId = it.teamPartId!!,
@@ -265,8 +263,8 @@ class TeamService(
             ?: throw BusinessException(ErrorCode.USER_NOT_FOUND)
     }
 
-    private fun findTeamOrThrow(teamPublicId: UUID): Teams {
-        return teamRepository.findByPublicIdAndDeletedAtIsNull(teamPublicId)
+    private fun findTeamOrThrow(teamId: Long): Teams {
+        return teamRepository.findByTeamIdOrNull(teamId)
             ?: throw BusinessException(ErrorCode.TEAM_NOT_FOUND)
     }
 
