@@ -15,4 +15,8 @@ interface TeamMembershipRepository : JpaRepository<TeamMemberships, Long> {
     fun countByTeamTeamIdAndLeftAtIsNull(
         teamId: Long,
     ): Int
+
+    fun findAllByUserIdAndLeftAtIsNull(
+        userId: Long,
+    ): List<TeamMemberships>
 }

@@ -4,14 +4,7 @@ import com.beat_it.auth.entity.Users
 import com.beat_it.auth.repository.UserRepository
 import com.beat_it.global.error.BusinessException
 import com.beat_it.global.error.ErrorCode
-import com.beat_it.team.dto.LinksResponse
-import com.beat_it.team.dto.PartsResponse
-import com.beat_it.team.dto.TeamCreateRequest
-import com.beat_it.team.dto.TeamCreateResponse
-import com.beat_it.team.dto.TeamDetailResponse
-import com.beat_it.team.dto.TeamDetailUpdateRequest
-import com.beat_it.team.dto.TeamDetailUpdateResponse
-import com.beat_it.team.dto.TeamLinksRequest
+import com.beat_it.team.dto.*
 import com.beat_it.team.entity.TeamLinks
 import com.beat_it.team.entity.TeamMemberships
 import com.beat_it.team.entity.Teams
@@ -20,6 +13,7 @@ import com.beat_it.team.repository.TeamLinksRepository
 import com.beat_it.team.repository.TeamMembershipRepository
 import com.beat_it.team.repository.TeamPartsRepository
 import com.beat_it.team.repository.TeamRepository
+import org.springframework.data.repository.findByIdOrNull
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.util.UUID
@@ -34,10 +28,8 @@ class TeamService(
 ) {
 
     @Transactional
-    fun createTeam(userPublicId: UUID, request: TeamCreateRequest): TeamCreateResponse {
+    fun createTeam(userId: Long, request: TeamCreateRequest): TeamCreateResponse {
         validateCreateRequest(request)
-
-        val userId = findUserOrThrow(userPublicId).userId!!
 
         val inviteCode = generateInviteCode()
 
@@ -75,11 +67,11 @@ class TeamService(
     @Transactional
     fun updateTeamDetail(
         teamPublicId: UUID,
-        userPublicId: UUID,
+        userId: Long,
         request: TeamDetailUpdateRequest
     ): TeamDetailUpdateResponse {
         val team = findTeamOrThrow(teamPublicId)
-        val user = findUserOrThrow(userPublicId)
+        val user = findUserOrThrow(userId)
         val teamId = team.teamId!!
 
         val currentLinks = teamLinksRepository.findAllByTeamTeamId(teamId)
@@ -95,8 +87,8 @@ class TeamService(
             teamType = request.teamType,
         )
 
-        request.profileImageUrl?.let {
-            team.profileImageUrl = it
+        request.teamImageUrl?.let {
+            team.teamImageUrl = it
         }
 
         request.links?.let { linkRequests ->
@@ -135,10 +127,10 @@ class TeamService(
     @Transactional
     fun deleteTeam(
         teamPublicId: UUID,
-        userPublicId: UUID,
+        userId: Long,
     ) {
         val team = findTeamOrThrow(teamPublicId)
-        val user = findUserOrThrow(userPublicId)
+        val user = findUserOrThrow(userId)
 
         validateTeamDeletePermission(team.teamId!!, user.userId!!)
 
@@ -146,8 +138,13 @@ class TeamService(
     }
 
     @Transactional(readOnly = true)
-    fun getTeamDetail(teamPublicId: UUID): TeamDetailResponse {
-        val team = findTeamOrThrow(teamPublicId)
+    fun getTeamDetail(userId: Long): TeamDetailResponse? {
+        val user = findUserOrThrow(userId)
+
+        val teamId = user.currentTeamId ?: return null
+
+        val team = teamRepository.findByIdOrNull(teamId)
+            ?: throw BusinessException(ErrorCode.TEAM_NOT_FOUND)
 
         val memberCount = teamMembershipRepository.countByTeamTeamIdAndLeftAtIsNull(team.teamId!!)
 
@@ -173,7 +170,7 @@ class TeamService(
 
         return TeamDetailResponse(
             teamId = team.teamId,
-            profileImageUrl = team.profileImageUrl,
+            teamImageUrl = team.teamImageUrl,
             teamName = team.teamName,
             description = team.description,
             establishedOn = team.establishedOn,
@@ -188,8 +185,28 @@ class TeamService(
         )
     }
 
-    private fun findUserOrThrow(userPublicId: UUID) : Users {
-        return userRepository.findByPublicId(userPublicId)
+    @Transactional(readOnly = true)
+    fun getUserTeams(userId: Long) : UserTeamListResponse {
+        val user = findUserOrThrow(userId)
+        val memberships = teamMembershipRepository.findAllByUserIdAndLeftAtIsNull(user.userId!!)
+
+        val teams = memberships.map { membership ->
+            val team = membership.team
+            TeamSimpleInfo(
+                teamId = team.teamId!!,
+                teamName = team.teamName,
+                teamType = team.teamType,
+                teamImageUrl = team.teamImageUrl,
+                createAt = team.createdAt.toLocalDate()
+            )
+        }
+
+        return UserTeamListResponse(teams = teams)
+    }
+
+
+    private fun findUserOrThrow(userId: Long) : Users {
+        return userRepository.findByIdOrNull(userId)
             ?: throw BusinessException(ErrorCode.USER_NOT_FOUND)
     }
 
@@ -232,7 +249,7 @@ class TeamService(
                     (request.description != null && request.description != team.description) ||
                     (request.establishedOn != null && request.establishedOn != team.establishedOn) ||
                     (request.teamType != null && request.teamType != team.teamType) ||
-                    (request.profileImageUrl != null && request.profileImageUrl != team.profileImageUrl)
+                    (request.teamImageUrl != null && request.teamImageUrl != team.teamImageUrl)
 
         val isLinksChanged =
             request.links != null && !isLinksSame(currentLinks, request.links)
@@ -283,5 +300,12 @@ class TeamService(
             .replace("-", "")
             .take(6)
             .uppercase()
+    }
+
+    @Transactional
+    fun selectTeam(userId: Long, teamId: Long) {
+        val user = findUserOrThrow(userId)
+
+        user.updateCurrentTeam(teamId)
     }
 }
