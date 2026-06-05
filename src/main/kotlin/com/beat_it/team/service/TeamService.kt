@@ -69,18 +69,17 @@ class TeamService(
     @Transactional
     fun updateTeamDetail(
         userId: Long,
-        teamId: Long,
         request: TeamDetailUpdateRequest
     ): TeamDetailUpdateResponse {
         val user = findUserOrThrow(userId)
-        val team = findTeamOrThrow(teamId)
+        val teamId = user.currentTeamId
+            ?: throw BusinessException(ErrorCode.TEAM_NOT_SELECTED)
 
-        val userId = user.userId!!
-        val teamId = team.teamId!!
+        val team = findTeamForCommandOrThrow(teamId)
 
-        val currentLinks = teamLinksRepository.findAllByTeamTeamId(teamId)
+        val currentLinks = teamLinksRepository.findAllByTeamTeamId(team.teamId!!)
 
-        validateTeamUpdatePermission(teamId, userId)
+        validateTeamUpdatePermission(team.teamId!!, user.userId!!)
         validateUpdateRequest(request)
         validateTeamDetailChanged(team, request, currentLinks)
 
@@ -131,15 +130,14 @@ class TeamService(
     @Transactional
     fun deleteTeam(
         userId: Long,
-        teamId: Long,
     ) {
         val user = findUserOrThrow(userId)
-        val team = findTeamOrThrow(teamId)
+        val teamId = user.currentTeamId
+            ?: throw BusinessException(ErrorCode.TEAM_NOT_SELECTED)
 
-        val userId = user.userId!!
-        val teamId = team.teamId!!
+        val team = findTeamForCommandOrThrow(teamId)
 
-        validateTeamDeletePermission(teamId, userId)
+        validateTeamDeletePermission(team.teamId!!, user.userId!!)
 
         team.delete()
     }

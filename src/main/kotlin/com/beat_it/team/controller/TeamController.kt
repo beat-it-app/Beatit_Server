@@ -11,6 +11,7 @@ import com.beat_it.global.response.BasicResponse
 import com.beat_it.team.dto.JoinTeamRequest
 import com.beat_it.team.dto.JoinTeamResponse
 import com.beat_it.team.dto.MyTeamListResponse
+import com.beat_it.team.dto.TeamSelectRequest
 import com.beat_it.team.dto.UserTeamListResponse
 import com.beat_it.team.dto.VerifyCodeResponse
 import com.beat_it.team.repository.TeamRepository
@@ -58,10 +59,7 @@ class TeamController(
         val userId = userDetails?.username?.toLong()
             ?: throw BusinessException(ErrorCode.UNAUTHORIZED)
 
-        val teamDetail = teamService.getTeamDetail(userId)
-        val teamId = teamDetail?.teamId!!
-
-        val responseData = teamService.updateTeamDetail(userId, teamId, request)
+        val responseData = teamService.updateTeamDetail(userId, request)
 
         return ResponseEntity.ok(BasicResponse.success(responseData, HttpStatus.OK, "팀 상세 내용이 수정되었습니다."))
     }
@@ -74,10 +72,7 @@ class TeamController(
         val userId = userDetails?.username?.toLong()
             ?: throw BusinessException(ErrorCode.UNAUTHORIZED)
 
-        val teamDetail = teamService.getTeamDetail(userId)
-        val teamId = teamDetail?.teamId!!
-
-        teamService.deleteTeam(userId, teamId)
+        teamService.deleteTeam(userId)
 
         return ResponseEntity.ok(
             BasicResponse.success(HttpStatus.OK,"팀이 성공적으로 삭제되었습니다.")
