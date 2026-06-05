@@ -147,7 +147,7 @@ class TeamController(
         val responseData = teamService.getUserTeams(userId)
 
         return ResponseEntity.ok(
-            BasicResponse.success(responseData, HttpStatus.OK, "나의 팀 리스토 조회에 성공했습니다.")
+            BasicResponse.success(responseData, HttpStatus.OK, "나의 팀 리스트 조회에 성공했습니다.")
         )
     }
 
