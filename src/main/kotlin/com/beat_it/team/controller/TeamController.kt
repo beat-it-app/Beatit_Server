@@ -118,6 +118,7 @@ class TeamController(
         return ResponseEntity.ok(BasicResponse.success(HttpStatus.OK, "팀이 성공적으로 선택되었습니다."))
     }
 
+    @Operation(summary = "초대코드로 팀 가입하기")
     @PostMapping( "/join")
     fun postJoinTeam(
         @AuthenticationPrincipal userDetails: UserDetails?,
@@ -133,6 +134,7 @@ class TeamController(
         )
     }
 
+    @Operation(summary = "내 팀 목록 확인하기")
     @GetMapping("/me")
     fun getMyTeams(
         @AuthenticationPrincipal userDetails: UserDetails?,
@@ -147,6 +149,7 @@ class TeamController(
         )
     }
 
+    @Operation(summary = "초대코드의 팀 정보 조회")
     @GetMapping("/verify")
     fun getVerifyCode(
         @RequestParam("inviteCode") inviteCode: String,
