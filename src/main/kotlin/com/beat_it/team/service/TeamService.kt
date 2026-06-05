@@ -216,32 +216,25 @@ class TeamService(
     }
 
     @Transactional(readOnly = true)
-    fun getTeamList(userPublicId: UUID): MyTeamListResponse {
-        val user = findUserOrThrow(userPublicId)
+    fun getUserTeams(userId: Long) : UserTeamListResponse {
+        val user = findUserOrThrow(userId)
 
-        val memberships = teamMembershipRepository
-            .findAllByUserIdAndLeftAtIsNullAndTeamDeletedAtIsNullOrderByCreatedAtDesc(user.userId!!)
+        val userId = user.userId!!
 
-        if(memberships.isEmpty()) {
-            throw BusinessException(ErrorCode.TEAM_NOT_FOUND)
-        }
+        val memberships = teamMembershipRepository.findAllByUserIdAndLeftAtIsNull(userId)
 
-        val items = memberships.map { membership ->
+        val teams = memberships.map { membership ->
             val team = membership.team
-
-            MyTeamItemResponse(
+            TeamSimpleInfo(
                 teamId = team.teamId!!,
                 teamName = team.teamName,
-                description = team.description,
-                profileImageUrl = team.profileImageUrl,
-                teamRole = membership.teamRole,
-                joinedAt = membership.createdAt
+                teamType = team.teamType,
+                teamImageUrl = team.teamImageUrl,
+                createAt = team.createdAt.toLocalDate()
             )
         }
 
-        return MyTeamListResponse(
-            items = items
-        )
+        return UserTeamListResponse(teams = teams)
     }
 
     @Transactional(readOnly = true)
@@ -258,31 +251,6 @@ class TeamService(
             inviteCode = team.inviteCode,
         )
     }
-
-    private fun findUserOrThrow(userPublicId: UUID) : Users {
-        return userRepository.findByPublicId(userPublicId)
-            ?: throw BusinessException(ErrorCode.USER_NOT_FOUND)
-    }
-
-    @Transactional(readOnly = true)
-    fun getUserTeams(userId: Long) : UserTeamListResponse {
-        val user = findUserOrThrow(userId)
-        val memberships = teamMembershipRepository.findAllByUserIdAndLeftAtIsNull(user.userId!!)
-
-        val teams = memberships.map { membership ->
-            val team = membership.team
-            TeamSimpleInfo(
-                teamId = team.teamId!!,
-                teamName = team.teamName,
-                teamType = team.teamType,
-                teamImageUrl = team.teamImageUrl,
-                createAt = team.createdAt.toLocalDate()
-            )
-        }
-
-        return UserTeamListResponse(teams = teams)
-    }
-
 
     private fun findUserOrThrow(userId: Long) : Users {
         return userRepository.findByIdOrNull(userId)
