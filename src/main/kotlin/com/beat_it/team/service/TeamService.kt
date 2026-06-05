@@ -256,6 +256,19 @@ class TeamService(
         )
     }
 
+    @Transactional
+    fun selectTeam(userId: Long, teamId: Long) {
+        val user = findUserOrThrow(userId)
+        val team = findTeamOrThrow(teamId)
+
+        teamMembershipRepository.findByTeamTeamIdAndUserIdAndLeftAtIsNull(
+            team.teamId!!,
+            user.userId!!
+        ) ?: throw BusinessException(ErrorCode.TEAM_NO_PERMISSION)
+
+        user.updateCurrentTeam(team.teamId!!)
+    }
+
     private fun findUserOrThrow(userId: Long) : Users {
         return userRepository.findByIdOrNull(userId)
             ?: throw BusinessException(ErrorCode.USER_NOT_FOUND)
@@ -378,10 +391,5 @@ class TeamService(
             .uppercase()
     }
 
-    @Transactional
-    fun selectTeam(userId: Long, teamId: Long) {
-        val user = findUserOrThrow(userId)
 
-        user.updateCurrentTeam(teamId)
-    }
 }

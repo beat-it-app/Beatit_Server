@@ -104,13 +104,14 @@ class TeamController(
 
     @Operation(summary = "로그인할 팀 선택하기")
     @PostMapping("/select")
-    fun selectTeam(@AuthenticationPrincipal userDetails: UserDetails?,
+    fun selectTeam(
+        @AuthenticationPrincipal userDetails: UserDetails?,
+        @RequestBody request: TeamSelectRequest,
     ): ResponseEntity<BasicResponse<Nothing>> {
         val userId = userDetails?.username?.toLong()
             ?: throw BusinessException(ErrorCode.UNAUTHORIZED)
 
-        val teamDetail = teamService.getTeamDetail(userId)
-        val teamId = teamDetail?.teamId!!
+        val teamId = request.teamId
 
         teamService.selectTeam(userId, teamId)
 
