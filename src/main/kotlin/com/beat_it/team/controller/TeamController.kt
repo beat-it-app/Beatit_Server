@@ -11,6 +11,7 @@ import com.beat_it.global.response.BasicResponse
 import com.beat_it.team.dto.JoinTeamRequest
 import com.beat_it.team.dto.JoinTeamResponse
 import com.beat_it.team.dto.MyTeamListResponse
+import com.beat_it.team.dto.TeamDeleteRequest
 import com.beat_it.team.dto.TeamSelectRequest
 import com.beat_it.team.dto.UserTeamListResponse
 import com.beat_it.team.dto.VerifyCodeResponse
@@ -68,11 +69,12 @@ class TeamController(
     @DeleteMapping
     fun deleteTeam(
         @AuthenticationPrincipal userDetails: UserDetails?,
+        @RequestBody request: TeamDeleteRequest,
     ): ResponseEntity<BasicResponse<Nothing>> {
         val userId = userDetails?.username?.toLong()
             ?: throw BusinessException(ErrorCode.UNAUTHORIZED)
 
-        teamService.deleteTeam(userId)
+        teamService.deleteTeam(userId, request.teamId)
 
         return ResponseEntity.ok(
             BasicResponse.success(HttpStatus.OK,"팀이 성공적으로 삭제되었습니다.")

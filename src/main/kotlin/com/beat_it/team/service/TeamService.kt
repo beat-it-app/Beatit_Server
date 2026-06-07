@@ -128,17 +128,19 @@ class TeamService(
     @Transactional
     fun deleteTeam(
         userId: Long,
+        teamId: Long
     ) {
         val user = findUserOrThrow(userId)
-        val teamId = user.currentTeamId
-            ?: throw BusinessException(ErrorCode.TEAM_NOT_SELECTED)
-
         val team = findTeamForCommandOrThrow(teamId)
 
         validateTeamDeletePermission(team.teamId!!, user.userId!!)
 
+        //TODO: user.currentTeamId가 teamId와 같은 모든 회원의 currentTeamId도 null 처리해야 함.
+        userRepository.clearCurrentTeamIdByTeamId(teamId)
+
+        //TODO: 유효기간 관련 처리
+
         team.delete()
-        //TODO: team을 삭제했으면 selectedTeamId에도 null 값이 들어가야 하는거 아닌가?
     }
 
     @Transactional(readOnly = true)
