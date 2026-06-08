@@ -31,6 +31,8 @@ class TeamService(
     fun createTeam(userId: Long, request: TeamCreateRequest): TeamCreateResponse {
         validateCreateRequest(request)
 
+        val user = findUserOrThrow(userId)
+
         val inviteCode = generateInviteCode()
 
         val team = Teams(
@@ -52,6 +54,8 @@ class TeamService(
         )
 
         teamMembershipRepository.save(leaderTeamMemberships)
+
+        user.updateCurrentTeam(savedTeam.teamId!!)
 
         return TeamCreateResponse(
             teamId = savedTeam.teamId!!,

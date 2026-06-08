@@ -35,11 +35,14 @@ class Notices(
     var dislikeCounter: Int, // Counter라는 데이터타입도 있나봄
 
     @Column(name = "comment_counter", nullable = false)
-    var commentCounter: Int
+    var commentCounter: Int,
+
+    @Column(name = "thumbnail_image_url", length = 500)
+    var thumbnailImageUrl: String? = null
 
     ) : BaseUpdatedTimeEntity() {
         companion object {
-            fun writeNotice(userId: Long, teamId: Long, title: String, content: String): Notices {
+            fun writeNotice(userId: Long, teamId: Long, title: String, content: String, thumbnailImageUrl: String? = null): Notices {
                 return Notices(
                     userId = userId,
                     teamId = teamId,
@@ -47,7 +50,9 @@ class Notices(
                     content = content,
                     likeCounter = 0,
                     dislikeCounter = 0,
-                    commentCounter = 0,)
+                    commentCounter = 0,
+                    thumbnailImageUrl = thumbnailImageUrl
+                )
             }
         }
 }

@@ -20,7 +20,7 @@ class PollVotes (
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "poll_id", nullable = false)
-    var poll: Poll,
+    var poll: Polls,
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "poll_option_id", nullable = false)
