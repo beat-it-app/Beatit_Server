@@ -32,15 +32,15 @@ class Notices(
     var likeCounter: Int,
 
     @Column(name = "dislike_counter", nullable = false)
-    var dislikeCounter: Int, // Counter라는 데이터타입도 있나봄
+    var dislikeCounter: Int,
 
     @Column(name = "comment_counter", nullable = false)
     var commentCounter: Int,
 
-    @Column(name = "thumbnail_image_url", length = 500)
-    var thumbnailImageUrl: String? = null
+    @Column(name = "thumbnail_image_url")
+    var thumbnailImageUrl: String? = null,
 
-    ) : BaseUpdatedTimeEntity() {
+) : BaseUpdatedTimeEntity() {
         companion object {
             fun writeNotice(userId: Long, teamId: Long, title: String, content: String, thumbnailImageUrl: String? = null): Notices {
                 return Notices(
@@ -55,4 +55,5 @@ class Notices(
                 )
             }
         }
-}
+    }
+

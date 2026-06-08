@@ -5,11 +5,11 @@ import com.beat_it.global.error.BusinessException
 import com.beat_it.global.error.ErrorCode
 import com.beat_it.global.response.BasicResponse
 import com.beat_it.post.dto.NoticeCreateRequest
+import com.beat_it.post.dto.NoticeDetailResponse
 import com.beat_it.post.dto.NoticeListResponse
 import com.beat_it.post.service.NoticeService
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.Parameter
-import io.swagger.v3.oas.annotations.media.Content
 import io.swagger.v3.oas.annotations.tags.Tag
 import org.springframework.http.HttpStatus
 import org.springframework.http.MediaType
@@ -81,6 +81,21 @@ class NoticeController (
     }
 
     // 공지 상세 보기
+    @Operation(summary = "공지 상세 보기")
+    @GetMapping("/{noticeId}")
+    fun getNotice(
+        @AuthenticationPrincipal userDetails: UserDetails,
+        @PathVariable noticeId: Long
+    ): ResponseEntity<BasicResponse<NoticeDetailResponse>> {
+        val userId = userDetails.username.toLongOrNull()
+            ?: throw BusinessException(ErrorCode.UNAUTHORIZED)
+
+        val response = noticeService.getNotice(userId, noticeId)
+
+        return ResponseEntity
+            .status(HttpStatus.OK)
+            .body(BasicResponse.success(response, HttpStatus.OK, "공지사항 상세 정보를 성공적으로 불러왔습니다."))
+    }
 
     // 공지 수정하기
 
