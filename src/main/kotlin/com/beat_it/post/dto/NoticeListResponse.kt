@@ -13,7 +13,7 @@ data class NoticeItems(
     val likeCount: Int,
     val dislikeCount: Int,
     val commentCount: Int,
-    val createdAt: OffsetDateTime,
+    val createdAt: String,
     val writer: String,
     val thumbnailUrl: String?
 )

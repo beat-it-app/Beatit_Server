@@ -19,6 +19,7 @@ import org.springframework.transaction.annotation.Transactional
 import org.springframework.web.multipart.MultipartFile
 import com.beat_it.post.entity.PostFiles
 import com.beat_it.auth.entity.enum.MediaCategory
+import com.beat_it.global.util.DateTimeUtil
 
 @Service
 class NoticeService(
@@ -67,7 +68,7 @@ class NoticeService(
                 likeCount = notice.likeCounter,
                 dislikeCount = notice.dislikeCounter,
                 commentCount = notice.commentCounter,
-                createdAt = notice.createdAt,
+                createdAt = DateTimeUtil.format(notice.createdAt),
                 writer = writerName,
                 thumbnailUrl = notice.thumbnailImageUrl
             )
