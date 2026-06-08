@@ -11,5 +11,5 @@ data class TeamCreateRequest(
     val description: String?,
     val teamType: TeamType,
     val establishedOn: LocalDate?,
-    val profileImageUrl: String?,
+    val teamImageUrl: String?,
 )

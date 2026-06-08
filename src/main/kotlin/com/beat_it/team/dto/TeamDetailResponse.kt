@@ -6,7 +6,7 @@ import java.time.OffsetDateTime
 
 data class TeamDetailResponse(
     val teamId: Long? = null,
-    val profileImageUrl: String?,
+    val teamImageUrl: String?,
     val teamName: String,
     val description: String?,
     val establishedOn: LocalDate?,

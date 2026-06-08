@@ -84,7 +84,7 @@ class AuthService (
         val isCreatedProfile = userProfilesRepository.existsByUser_UserId(user.userId)
 
         val accessToken = jwtTokenProvider.createAccessToken(
-            publicId = user.publicId.toString(),
+            userId = user.userId.toString(),
             role = user.role
         )
 
