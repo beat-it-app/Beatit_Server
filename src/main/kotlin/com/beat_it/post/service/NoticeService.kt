@@ -19,11 +19,13 @@ import org.springframework.transaction.annotation.Transactional
 import org.springframework.web.multipart.MultipartFile
 import com.beat_it.post.entity.PostFiles
 import com.beat_it.auth.entity.enum.MediaCategory
+import com.beat_it.auth.repository.UserRepository
 import com.beat_it.post.dto.*
 import com.beat_it.global.util.DateTimeUtil
 
 @Service
 class NoticeService(
+    private val userRepository: UserRepository,
     private val noticeRepository: NoticeRepository,
     private val teamMembershipRepository: TeamMembershipRepository,
     private val postFilesRepository: PostFilesRepository,
@@ -34,7 +36,10 @@ class NoticeService(
 ) {
 
     @Transactional(readOnly = true)
-    fun getNoticeList(userId: Long, teamId: Long, keyword: String?, sortStr: String): NoticeListResponse? {
+    fun getNoticeList(userId: Long, keyword: String?, sortStr: String): NoticeListResponse? {
+        val user = userRepository.findById(userId)
+            .orElseThrow { BusinessException(ErrorCode.USER_NOT_FOUND) }
+        val teamId = user.currentTeamId ?: throw BusinessException(ErrorCode.TEAM_NOT_FOUND)
 
         teamMembershipRepository.findByTeamTeamIdAndUserIdAndLeftAtIsNull(
             teamId = teamId,
@@ -81,7 +86,11 @@ class NoticeService(
     }
 
     @Transactional
-    fun createNotice(userId: Long, teamId: Long, dto: NoticeCreateRequest, images: List<MultipartFile>?) {
+    fun createNotice(userId: Long, dto: NoticeCreateRequest, images: List<MultipartFile>?) {
+        val user = userRepository.findById(userId)
+            .orElseThrow { BusinessException(ErrorCode.USER_NOT_FOUND) }
+        val teamId = user.currentTeamId ?: throw BusinessException(ErrorCode.TEAM_NOT_FOUND)
+
         teamMembershipRepository.findByTeamTeamIdAndUserIdAndLeftAtIsNull(
             teamId = teamId,
             userId = userId

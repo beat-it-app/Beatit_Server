@@ -1,6 +1,5 @@
 package com.beat_it.post.controller
 
-import com.beat_it.auth.repository.UserRepository
 import com.beat_it.global.error.BusinessException
 import com.beat_it.global.error.ErrorCode
 import com.beat_it.global.response.BasicResponse
@@ -23,8 +22,7 @@ import org.springframework.web.multipart.MultipartFile
 @RestController
 @RequestMapping("/posts/notices")
 class NoticeController (
-    private val noticeService: NoticeService,
-    private val userRepository: UserRepository
+    private val noticeService: NoticeService
 ){
     @Operation(summary = "공지사항 목록 불러오기")
     @GetMapping
@@ -36,11 +34,7 @@ class NoticeController (
         val userId = userDetails.username.toLongOrNull()
             ?: throw BusinessException(ErrorCode.UNAUTHORIZED)
 
-        val user = userRepository.findById(userId)
-            .orElseThrow { BusinessException(ErrorCode.USER_NOT_FOUND) }
-        val teamId = user.currentTeamId ?: throw BusinessException(ErrorCode.TEAM_NOT_FOUND)
-
-        val responseData = noticeService.getNoticeList(userId, teamId, keyword, sort)
+        val responseData = noticeService.getNoticeList(userId, keyword, sort)
 
         return ResponseEntity
             .status(HttpStatus.OK)
@@ -61,16 +55,12 @@ class NoticeController (
         val userId = userDetails.username.toLongOrNull()
             ?: throw BusinessException(ErrorCode.UNAUTHORIZED)
 
-        val user = userRepository.findById(userId)
-            .orElseThrow { BusinessException(ErrorCode.USER_NOT_FOUND) }
-        val teamId = user.currentTeamId ?: throw BusinessException(ErrorCode.TEAM_NOT_FOUND)
-
         if (title.isBlank() || content.isBlank()) {
             throw BusinessException(ErrorCode.TITLE_CONTENT_REQUIRED)
         }
 
         val dto = NoticeCreateRequest(title = title, content = content)
-        noticeService.createNotice(userId, teamId, dto, images)
+        noticeService.createNotice(userId, dto, images)
 
         return ResponseEntity
             .status(HttpStatus.CREATED)
