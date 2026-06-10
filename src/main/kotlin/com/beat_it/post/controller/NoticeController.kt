@@ -54,10 +54,7 @@ class NoticeController (
         @Parameter(description = "공지 제목", example = "[아주 중요] 합주실 사용 공지")
         @RequestParam title: String,
         @Parameter(description = "공지 본문",
-                example = "안녕하세요, 합주실 사용 관련하여 공지합니다.\n\n" +
-                "합주실은 공지 탭의 '투표' 기능을 통해 한 달에 한 번씩 투표 진행 후 결정됩니다.\n" +
-                "팀원분들께서는 기한 내에 반드시 투표 부탁드립니다.\n\n" +
-                "감사합니다.")
+                example = "((합주실 깨끗.하게 쓰세요!))")
         @RequestParam content: String,
         @RequestPart(value = "images", required = false) images: List<MultipartFile>?
     ): ResponseEntity<BasicResponse<Nothing>> {
@@ -80,7 +77,6 @@ class NoticeController (
             .body(BasicResponse.success(HttpStatus.CREATED, "공지를 성공적으로 작성했습니다."))
     }
 
-    // 공지 상세 보기
     @Operation(summary = "공지 상세 보기")
     @GetMapping("/{noticeId}")
     fun getNotice(

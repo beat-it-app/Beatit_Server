@@ -134,8 +134,6 @@ class NoticeService(
         }
     }
 
-
-    // 공지 상세 보기
     @Transactional
     fun getNotice(userId: Long, noticeId: Long): NoticeDetailResponse {
         val notice = noticeRepository.findById(noticeId)
