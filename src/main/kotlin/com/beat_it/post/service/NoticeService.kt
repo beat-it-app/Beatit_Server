@@ -159,12 +159,10 @@ class NoticeService(
         val attachments = noticeAttachmentsRepository.findByNoticeNoticeIdOrderByDisplayOrderAsc(noticeId)
         val imageUrls = attachments.map { it.postFile.cdnUrl }
 
-        // 리액션 정보
         val userReaction = noticeReactionRepository.findByNoticeNoticeIdAndUserId(noticeId, userId)
         val isLiked = userReaction.map { it.reactionType == ReactionType.LIKE }.orElse(false)
         val isDisliked = userReaction.map { it.reactionType == ReactionType.DISLIKE }.orElse(false)
 
-        // 댓글 목록
         val comments = postCommentRepository.findByPostTypeAndPostIdOrderByCreatedAtAsc(PostType.NOTICE, noticeId)
 
         val reactionDto = NoticeReactionDto(
@@ -206,8 +204,28 @@ class NoticeService(
     // 공지 수정하기
 
 
-    // 공지 삭제하기
+    @Transactional
+    fun deleteNotice(userId: Long, noticeId: Long) {
+        val notice = noticeRepository.findById(noticeId)
+            .orElseThrow { BusinessException(ErrorCode.RESOURCE_NOT_FOUND) }
 
+        if (notice.userId != userId) {
+            throw BusinessException(ErrorCode.FORBIDDEN)
+        }
+
+        val attachments = noticeAttachmentsRepository.findByNoticeNoticeIdOrderByDisplayOrderAsc(noticeId)
+        attachments.forEach { attachment ->
+            attachment.postFile.delete()
+            postFilesRepository.save(attachment.postFile)
+        }
+
+        noticeAttachmentsRepository.deleteByNoticeNoticeId(noticeId)
+        noticeReactionRepository.deleteByNoticeNoticeId(noticeId)
+        postCommentRepository.deleteByPostTypeAndPostId(PostType.NOTICE, noticeId)
+        // TODO : 나중에 like/dislike도 삭제 로직 추가해야 함
+
+        noticeRepository.delete(notice)
+    }
 
     // 투표 로직
 

@@ -85,9 +85,22 @@ class NoticeController (
 
     // 공지 수정하기
 
+    
+    @Operation(summary = "공지 삭제하기 - 작성자만 가능")
+    @DeleteMapping("/{noticeId}")
+    fun deleteNotice(
+        @AuthenticationPrincipal userDetails: UserDetails,
+        @PathVariable noticeId: Long
+    ): ResponseEntity<BasicResponse<Nothing>> {
+        val userId = userDetails.username.toLongOrNull()
+            ?: throw BusinessException(ErrorCode.UNAUTHORIZED)
 
-    // 공지 삭제하기
+        noticeService.deleteNotice(userId, noticeId)
 
+        return ResponseEntity
+            .status(HttpStatus.OK)
+            .body(BasicResponse.success(HttpStatus.OK, "공지사항이 성공적으로 삭제되었습니다."))
+    }
 
     // 투표 로직
 
