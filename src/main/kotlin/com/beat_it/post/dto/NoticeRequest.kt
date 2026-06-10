@@ -1,6 +1,6 @@
 package com.beat_it.post.dto
 
-data class NoticeCreateRequest(
+data class NoticeRequest(
     val title: String,
     val content: String
 )

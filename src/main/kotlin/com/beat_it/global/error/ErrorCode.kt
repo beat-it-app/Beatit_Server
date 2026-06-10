@@ -53,7 +53,9 @@ enum class ErrorCode(
     TEAM_NO_UPDATE_PERMISSION(HttpStatus.FORBIDDEN, "TEAM-007","팀 수정 권한이 없습니다."),
 
     // --- 5. 공지/투표 관련 에러 (POST) ---
-    TITLE_CONTENT_REQUIRED(HttpStatus.BAD_REQUEST, "POST-001", "제목과 본문은 필수입니다."),
+    TITLE_CONTENT_REQUIRED(HttpStatus.BAD_REQUEST, "POST-001", "제목과 내용은 필수 입력 사항입니다."),
+    POST_NOT_FOUND(HttpStatus.NOT_FOUND, "POST-002", "이미 삭제되었거나 존재하지 않는 공지입니다."),
+    POST_NO_CONTENT_TO_UPDATE(HttpStatus.BAD_REQUEST, "POST-003", "변경된 내용이 없습니다."),
 
     // --- 장소 관련 에러 ---
     LOCATION_NOT_FOUND(HttpStatus.NOT_FOUND, "LOCATION-001", "장소를 찾을 수 없습니다."),

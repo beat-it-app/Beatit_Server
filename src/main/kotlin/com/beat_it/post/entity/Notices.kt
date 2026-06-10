@@ -41,7 +41,13 @@ class Notices(
     var thumbnailImageUrl: String? = null,
 
 ) : BaseUpdatedTimeEntity() {
-        companion object {
+    fun update(title: String, content: String, thumbnailImageUrl: String?) {
+        this.title = title
+        this.content = content
+        this.thumbnailImageUrl = thumbnailImageUrl
+    }
+
+    companion object {
             fun writeNotice(userId: Long, teamId: Long, title: String, content: String, thumbnailImageUrl: String? = null): Notices {
                 return Notices(
                     userId = userId,

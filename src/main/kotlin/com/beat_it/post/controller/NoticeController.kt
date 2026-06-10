@@ -3,7 +3,7 @@ package com.beat_it.post.controller
 import com.beat_it.global.error.BusinessException
 import com.beat_it.global.error.ErrorCode
 import com.beat_it.global.response.BasicResponse
-import com.beat_it.post.dto.NoticeCreateRequest
+import com.beat_it.post.dto.NoticeRequest
 import com.beat_it.post.dto.NoticeDetailResponse
 import com.beat_it.post.dto.NoticeListResponse
 import com.beat_it.post.service.NoticeService
@@ -59,7 +59,7 @@ class NoticeController (
             throw BusinessException(ErrorCode.TITLE_CONTENT_REQUIRED)
         }
 
-        val dto = NoticeCreateRequest(title = title, content = content)
+        val dto = NoticeRequest(title = title, content = content)
         noticeService.createNotice(userId, dto, images)
 
         return ResponseEntity
@@ -83,9 +83,32 @@ class NoticeController (
             .body(BasicResponse.success(response, HttpStatus.OK, "공지사항 상세 정보를 성공적으로 불러왔습니다."))
     }
 
-    // 공지 수정하기
+    @Operation(summary = "공지 수정하기 - 작성자만 가능")
+    @PostMapping(value = ["/{noticeId}"], consumes = [MediaType.MULTIPART_FORM_DATA_VALUE])
+    fun editNotice(
+        @AuthenticationPrincipal userDetails: UserDetails,
+        @PathVariable noticeId: Long,
+        @Parameter(description = "공지 제목", example = "[수정] 합주실 사용 공지")
+        @RequestParam title: String,
+        @Parameter(description = "공지 본문", example = "수정된 내용입니다.")
+        @RequestParam content: String,
+        @RequestPart(value = "images", required = false) images: List<MultipartFile>?
+    ): ResponseEntity<BasicResponse<Nothing>> {
+        val userId = userDetails.username.toLongOrNull()
+            ?: throw BusinessException(ErrorCode.UNAUTHORIZED)
 
-    
+        if (title.isBlank() || content.isBlank()) {
+            throw BusinessException(ErrorCode.TITLE_CONTENT_REQUIRED)
+        }
+
+        val dto = NoticeRequest(title = title, content = content)
+        noticeService.editNotice(userId, noticeId, dto, images)
+
+        return ResponseEntity
+            .status(HttpStatus.OK)
+            .body(BasicResponse.success(HttpStatus.OK, "공지사항을 성공적으로 수정했습니다."))
+    }
+
     @Operation(summary = "공지 삭제하기 - 작성자만 가능")
     @DeleteMapping("/{noticeId}")
     fun deleteNotice(

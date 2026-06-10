@@ -3,9 +3,7 @@ package com.beat_it.post.service
 import com.beat_it.auth.repository.UserProfilesRepository
 import com.beat_it.global.error.BusinessException
 import com.beat_it.global.error.ErrorCode
-import com.beat_it.post.dto.NoticeCreateRequest
-import com.beat_it.post.dto.NoticeItems
-import com.beat_it.post.dto.NoticeListResponse
+import com.beat_it.post.dto.*
 import com.beat_it.post.entity.NoticeAttachments
 import com.beat_it.post.entity.Notices
 import com.beat_it.post.entity.enum.FileType
@@ -18,9 +16,7 @@ import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import org.springframework.web.multipart.MultipartFile
 import com.beat_it.post.entity.PostFiles
-import com.beat_it.auth.entity.enum.MediaCategory
 import com.beat_it.auth.repository.UserRepository
-import com.beat_it.post.dto.*
 import com.beat_it.global.util.DateTimeUtil
 
 @Service
@@ -28,11 +24,12 @@ class NoticeService(
     private val userRepository: UserRepository,
     private val noticeRepository: NoticeRepository,
     private val teamMembershipRepository: TeamMembershipRepository,
-    private val postFilesRepository: PostFilesRepository,
+    private val postFileService: PostFileService,
     private val noticeAttachmentsRepository: NoticeAttachmentsRepository,
     private val userProfilesRepository: UserProfilesRepository,
     private val noticeReactionRepository: NoticeReactionRepository,
-    private val postCommentRepository: PostCommentRepository
+    private val postCommentRepository: PostCommentRepository,
+    private val postFilesRepository: PostFilesRepository
 ) {
 
     @Transactional(readOnly = true)
@@ -86,7 +83,7 @@ class NoticeService(
     }
 
     @Transactional
-    fun createNotice(userId: Long, dto: NoticeCreateRequest, images: List<MultipartFile>?) {
+    fun createNotice(userId: Long, dto: NoticeRequest, images: List<MultipartFile>?) {
         val user = userRepository.findById(userId)
             .orElseThrow { BusinessException(ErrorCode.USER_NOT_FOUND) }
         val teamId = user.currentTeamId ?: throw BusinessException(ErrorCode.TEAM_NOT_FOUND)
@@ -96,28 +93,8 @@ class NoticeService(
             userId = userId
         ) ?: throw BusinessException(ErrorCode.TEAM_NO_PERMISSION)
 
-        var thumbnailUrl: String? = null
-        var uploadedPostFiles: List<PostFiles>? = null
-
-        images?.let { multipartFiles ->
-            if (multipartFiles.isNotEmpty()) {
-                uploadedPostFiles = multipartFiles.map { file ->
-                    // TODO : S3 연동 후 실제 파일 업로드 로직 구현하기
-                    val originalFileName = file.originalFilename ?: "default_image.jpg"
-                    
-                    val postFile = PostFiles(
-                        userId = userId,
-                        originalFileName = originalFileName,
-                        storageKey = "dummy/path/$originalFileName",
-                        cdnUrl = "https://example.com/$originalFileName",
-                        mediaCategory = MediaCategory.IMAGE,
-                        isPublic = true
-                    )
-                    postFilesRepository.save(postFile)
-                }
-                thumbnailUrl = uploadedPostFiles?.firstOrNull()?.cdnUrl
-            }
-        }
+        val uploadedPostFiles = images?.let { postFileService.uploadFiles(userId, it) } ?: emptyList()
+        val thumbnailUrl = uploadedPostFiles.firstOrNull()?.cdnUrl
 
         val notice = Notices.writeNotice(
             userId = userId,
@@ -128,25 +105,13 @@ class NoticeService(
         )
 
         val savedNotice = noticeRepository.save(notice)
-
-        uploadedPostFiles?.let { postFiles ->
-            val attachments = postFiles.mapIndexed { index, postFile ->
-                NoticeAttachments(
-                    notice = savedNotice,
-                    postFile = postFile,
-                    userId = userId,
-                    fileType = FileType.IMAGE,
-                    displayOrder = index
-                )
-            }
-            noticeAttachmentsRepository.saveAll(attachments)
-        }
+        saveNoticeAttachments(savedNotice, uploadedPostFiles, userId)
     }
 
     @Transactional
     fun getNotice(userId: Long, noticeId: Long): NoticeDetailResponse {
         val notice = noticeRepository.findById(noticeId)
-            .orElseThrow { BusinessException(ErrorCode.RESOURCE_NOT_FOUND) }
+            .orElseThrow { BusinessException(ErrorCode.POST_NOT_FOUND) }
 
         teamMembershipRepository.findByTeamTeamIdAndUserIdAndLeftAtIsNull(
             teamId = notice.teamId,
@@ -201,13 +166,68 @@ class NoticeService(
         )
     }
 
-    // 공지 수정하기
+    @Transactional
+    fun editNotice(userId: Long, noticeId: Long, dto: NoticeRequest, images: List<MultipartFile>?) {
+        val notice = noticeRepository.findById(noticeId)
+            .orElseThrow { BusinessException(ErrorCode.POST_NOT_FOUND) }
 
+        if (notice.userId != userId) {
+            throw BusinessException(ErrorCode.FORBIDDEN)
+        }
+
+        val existingAttachments = noticeAttachmentsRepository.findByNoticeNoticeIdOrderByDisplayOrderAsc(noticeId)
+        val isImagesSame = images == null || (images.isEmpty() && existingAttachments.isEmpty())
+
+        if (notice.title == dto.title && notice.content == dto.content && isImagesSame) {
+            throw BusinessException(ErrorCode.POST_NO_CONTENT_TO_UPDATE)
+        }
+
+        var thumbnailUrl = notice.thumbnailImageUrl
+
+        images?.let { multipartFiles ->
+            val oldAttachments = noticeAttachmentsRepository.findByNoticeNoticeIdOrderByDisplayOrderAsc(noticeId)
+            oldAttachments.forEach { attachment ->
+                attachment.postFile.delete()
+                postFilesRepository.save(attachment.postFile)
+            }
+            noticeAttachmentsRepository.deleteByNoticeNoticeId(noticeId)
+
+            val uploadedPostFiles = postFileService.uploadFiles(userId, multipartFiles)
+            thumbnailUrl = if (uploadedPostFiles.isNotEmpty()) {
+                uploadedPostFiles.first().cdnUrl
+            } else {
+                null
+            }
+            saveNoticeAttachments(notice, uploadedPostFiles, userId)
+        }
+
+        notice.update(
+            title = dto.title,
+            content = dto.content,
+            thumbnailImageUrl = thumbnailUrl
+        )
+        noticeRepository.save(notice)
+    }
+
+    private fun saveNoticeAttachments(notice: Notices, postFiles: List<PostFiles>, userId: Long) {
+        if (postFiles.isEmpty()) return
+
+        val attachments = postFiles.mapIndexed { index, postFile ->
+            NoticeAttachments(
+                notice = notice,
+                postFile = postFile,
+                userId = userId,
+                fileType = FileType.IMAGE,
+                displayOrder = index
+            )
+        }
+        noticeAttachmentsRepository.saveAll(attachments)
+    }
 
     @Transactional
     fun deleteNotice(userId: Long, noticeId: Long) {
         val notice = noticeRepository.findById(noticeId)
-            .orElseThrow { BusinessException(ErrorCode.RESOURCE_NOT_FOUND) }
+            .orElseThrow { BusinessException(ErrorCode.POST_NOT_FOUND) }
 
         if (notice.userId != userId) {
             throw BusinessException(ErrorCode.FORBIDDEN)
@@ -226,12 +246,4 @@ class NoticeService(
 
         noticeRepository.delete(notice)
     }
-
-    // 투표 로직
-
-
-    // 좋아요
-    // 좋아요 있으면 싫어요 불가능하도록 -> 반대도 마찬가지
-
-    // 싫어요
 }
