@@ -242,7 +242,6 @@ class NoticeService(
         noticeAttachmentsRepository.deleteByNoticeNoticeId(noticeId)
         noticeReactionRepository.deleteByNoticeNoticeId(noticeId)
         postCommentRepository.deleteByPostTypeAndPostId(PostType.NOTICE, noticeId)
-        // TODO : 나중에 like/dislike도 삭제 로직 추가해야 함
 
         noticeRepository.delete(notice)
     }
