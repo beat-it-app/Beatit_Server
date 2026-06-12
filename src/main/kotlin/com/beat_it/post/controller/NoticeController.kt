@@ -54,7 +54,7 @@ class NoticeController (
         val userId = userDetails.username.toLongOrNull()
             ?: throw BusinessException(ErrorCode.UNAUTHORIZED)
 
-        noticeService.isTitleContentEmpty(title, content)
+        noticeService.validateTitleAndContent(title, content)
 
         val dto = NoticeRequest(title = title, content = content)
         noticeService.createNotice(userId, dto, images)
@@ -94,7 +94,7 @@ class NoticeController (
         val userId = userDetails.username.toLongOrNull()
             ?: throw BusinessException(ErrorCode.UNAUTHORIZED)
 
-        noticeService.isTitleContentEmpty(title, content)
+        noticeService.validateTitleAndContent(title, content)
 
         val dto = NoticeRequest(title = title, content = content)
         noticeService.editNotice(userId, noticeId, dto, images)

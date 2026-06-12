@@ -92,8 +92,7 @@ class NoticeService(
 
     @Transactional
     fun getNotice(userId: Long, noticeId: Long): NoticeDetailResponse {
-        val notice = noticeRepository.findById(noticeId)
-            .orElseThrow { BusinessException(ErrorCode.POST_NOT_FOUND) }
+        val notice = getNotice(noticeId)
 
         userService.getCurrentTeamId(userId)
 
@@ -147,14 +146,10 @@ class NoticeService(
 
     @Transactional
     fun editNotice(userId: Long, noticeId: Long, dto: NoticeRequest, images: List<MultipartFile>?) {
-        val notice = noticeRepository.findById(noticeId)
-            .orElseThrow { BusinessException(ErrorCode.POST_NOT_FOUND) }
-
+        val notice = getNotice(noticeId)
         userService.getCurrentTeamId(userId)
 
-        if (notice.userId != userId) {
-            throw BusinessException(ErrorCode.FORBIDDEN)
-        }
+        validateWriter(notice, userId)
 
         val existingAttachments = noticeAttachmentsRepository.findByNoticeNoticeIdOrderByDisplayOrderAsc(noticeId)
         val isImagesSame = images == null || (images.isEmpty() && existingAttachments.isEmpty())
@@ -207,14 +202,10 @@ class NoticeService(
 
     @Transactional
     fun deleteNotice(userId: Long, noticeId: Long) {
-        val notice = noticeRepository.findById(noticeId)
-            .orElseThrow { BusinessException(ErrorCode.POST_NOT_FOUND) }
-
+        val notice = getNotice(noticeId)
         userService.getCurrentTeamId(userId)
 
-        if (notice.userId != userId) {
-            throw BusinessException(ErrorCode.FORBIDDEN)
-        }
+        validateWriter(notice, userId)
 
         val attachments = noticeAttachmentsRepository.findByNoticeNoticeIdOrderByDisplayOrderAsc(noticeId)
         attachments.forEach { attachment ->
@@ -228,9 +219,19 @@ class NoticeService(
         noticeRepository.delete(notice)
     }
 
-    fun isTitleContentEmpty(title: String, content: String) {
+    fun validateTitleAndContent(title: String, content: String) {
         if (title.isBlank() || content.isBlank()) {
             throw BusinessException(ErrorCode.TITLE_CONTENT_REQUIRED)
+        }
+    }
+
+    private fun getNotice(noticeId: Long): Notices{
+        return noticeRepository.findById(noticeId).orElseThrow {BusinessException(ErrorCode.POST_NOT_FOUND)}
+    }
+
+    private fun validateWriter(notice: Notices, userId: Long){
+        if (notice.userId != userId) {
+            throw BusinessException(ErrorCode.FORBIDDEN)
         }
     }
 }
