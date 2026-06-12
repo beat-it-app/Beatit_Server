@@ -117,7 +117,7 @@ class NoticeService(
         )
 
         val commentDtos = comments.map { comment ->
-            val commentWriterProfile = userService.getUserProfile(notice.userId)
+            val commentWriterProfile = userService.getUserProfile(comment.userId)
             NoticeCommentDto(
                 commentId = comment.commentId!!,
                 writerName = commentWriterProfile?.name ?: "알 수 없음",
