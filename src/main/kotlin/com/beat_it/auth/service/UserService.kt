@@ -52,7 +52,14 @@ class UserService (
         )
         userProfilesRepository.save(userProfile)
     }
-    // 사용자 프로필 받아오는 로직
+
+    fun getCurrentTeamId(userId: Long): Long{
+        val user = userRepository.findById(userId)
+            .orElseThrow { BusinessException(ErrorCode.USER_NOT_FOUND) }
+
+        return user.currentTeamId ?: throw BusinessException(ErrorCode.TEAM_NOT_FOUND)
+        }
+
     fun getUserProfile(userId: Long): UserProfiles? {
         return userProfilesRepository.findByUserUserId(userId)
     }

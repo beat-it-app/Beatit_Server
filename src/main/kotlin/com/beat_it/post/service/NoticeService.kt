@@ -14,13 +14,11 @@ import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import org.springframework.web.multipart.MultipartFile
 import com.beat_it.post.entity.PostFiles
-import com.beat_it.auth.repository.UserRepository
 import com.beat_it.auth.service.UserService
 import com.beat_it.global.util.DateTimeUtil
 
 @Service
 class NoticeService(
-    private val userRepository: UserRepository,
     private val noticeRepository: NoticeRepository,
     private val postFileService: PostFileService,
     private val noticeAttachmentsRepository: NoticeAttachmentsRepository,
@@ -32,9 +30,7 @@ class NoticeService(
 
     @Transactional(readOnly = true)
     fun getNoticeList(userId: Long, keyword: String?, sortStr: String): NoticeListResponse? {
-        val user = userRepository.findById(userId)
-            .orElseThrow { BusinessException(ErrorCode.USER_NOT_FOUND) }
-        val teamId = user.currentTeamId ?: throw BusinessException(ErrorCode.TEAM_NOT_FOUND)
+        val teamId = userService.getCurrentTeamId(userId)
 
         val sort = if (sortStr.uppercase() == "OLDEST") {
             Sort.by(Sort.Direction.ASC, "createdAt")
@@ -77,9 +73,7 @@ class NoticeService(
 
     @Transactional
     fun createNotice(userId: Long, dto: NoticeRequest, images: List<MultipartFile>?) {
-        val user = userRepository.findById(userId)
-            .orElseThrow { BusinessException(ErrorCode.USER_NOT_FOUND) }
-        val teamId = user.currentTeamId ?: throw BusinessException(ErrorCode.TEAM_NOT_FOUND)
+        val teamId = userService.getCurrentTeamId(userId)
 
         val uploadedPostFiles = images?.let { postFileService.uploadFiles(userId, it) } ?: emptyList()
         val thumbnailUrl = uploadedPostFiles.firstOrNull()?.cdnUrl
@@ -101,12 +95,7 @@ class NoticeService(
         val notice = noticeRepository.findById(noticeId)
             .orElseThrow { BusinessException(ErrorCode.POST_NOT_FOUND) }
 
-        val user = userRepository.findById(userId)
-            .orElseThrow { BusinessException(ErrorCode.USER_NOT_FOUND) }
-            
-        if (user.currentTeamId != notice.teamId) {
-            throw BusinessException(ErrorCode.TEAM_NO_PERMISSION)
-        }
+        userService.getCurrentTeamId(userId)
 
         val writerProfile = userService.getUserProfile(notice.userId)
         val writerName = writerProfile?.name ?: "알 수 없음"
@@ -160,6 +149,8 @@ class NoticeService(
     fun editNotice(userId: Long, noticeId: Long, dto: NoticeRequest, images: List<MultipartFile>?) {
         val notice = noticeRepository.findById(noticeId)
             .orElseThrow { BusinessException(ErrorCode.POST_NOT_FOUND) }
+
+        userService.getCurrentTeamId(userId)
 
         if (notice.userId != userId) {
             throw BusinessException(ErrorCode.FORBIDDEN)
@@ -219,6 +210,8 @@ class NoticeService(
         val notice = noticeRepository.findById(noticeId)
             .orElseThrow { BusinessException(ErrorCode.POST_NOT_FOUND) }
 
+        userService.getCurrentTeamId(userId)
+
         if (notice.userId != userId) {
             throw BusinessException(ErrorCode.FORBIDDEN)
         }
@@ -232,7 +225,6 @@ class NoticeService(
         noticeAttachmentsRepository.deleteByNoticeNoticeId(noticeId)
         noticeReactionRepository.deleteByNoticeNoticeId(noticeId)
         postCommentRepository.deleteByPostTypeAndPostId(PostType.NOTICE, noticeId)
-
         noticeRepository.delete(notice)
     }
 }
