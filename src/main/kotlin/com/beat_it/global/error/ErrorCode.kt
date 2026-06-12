@@ -16,7 +16,7 @@ enum class ErrorCode(
     FORBIDDEN(HttpStatus.FORBIDDEN, "COMMON-006", "해당 요청에 대한 접근 권한이 없습니다."),
     INVALID_USER_ID(HttpStatus.BAD_REQUEST, "COMMON-007", "유효하지 않은 유저 ID 형식입니다."),
 
-    // --- 사용자 관련 에러 (AUTH - SIGNUP/LOGIN/USER)  ---
+    // --- 1. 사용자 관련 에러 (AUTH - SIGNUP/LOGIN/USER)  ---
     IDENTIFIER_DUPLICATED(HttpStatus.BAD_REQUEST, "SIGNUP-001", "이미 사용 중인 아이디입니다."),
     PROFILE_ALREADY_EXISTS(HttpStatus.BAD_REQUEST, "SIGNUP-002", "이미 프로필이 존재합니다."),
     EMAIL_SEND_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "SIGNUP-003", "이메일 인증번호 발송에 실패했습니다."),
@@ -29,7 +29,7 @@ enum class ErrorCode(
     INVALID_PASSWORD(HttpStatus.BAD_REQUEST, "LOGIN-001", "비밀번호가 일치하지 않습니다."),
     INVALID_NAME_FORMAT(HttpStatus.BAD_REQUEST, "USER-001", "프로필 이름은 1자 이상 10자 이하로 입력해주세요."),
 
-    // --- 일정 관련 에러 (CALENDAR) ---
+    // --- 4. 일정 관련 에러 (CALENDAR) ---
     CALENDAR_NO_CONTENT_TO_UPDATE(HttpStatus.BAD_REQUEST, "CALENDAR-001", "변경할 내용이 없습니다."),
     CALENDAR_INVALID_TIME_RANGE(HttpStatus.BAD_REQUEST, "CALENDAR-002", "종료 시각은 시작 시각 이후여야 합니다."),
     CALENDAR_NO_PERMISSION(HttpStatus.FORBIDDEN, "CALENDAR-003", "일정에 대한 권한이 없습니다."),
@@ -43,7 +43,7 @@ enum class ErrorCode(
     CALENDAR_INVALID_DATE(HttpStatus.BAD_REQUEST, "CALENDAR-012", "일 값은 1~31 사이여야 합니다."),
     CALENDAR_NON_EXISTENT_DATE(HttpStatus.BAD_REQUEST, "CALENDAR-013", "해당 연월에 존재하지 않는 날짜입니다."),
 
-    // --- 팀 관련 에러 (TEAM) ---
+    // --- 3. 팀 관련 에러 (TEAM) ---
     TEAM_NO_CONTENT_TO_UPDATE(HttpStatus.BAD_REQUEST, "TEAM-001", "팀에 대해 변경할 내용이 업습니다."),
     TEAM_NO_PERMISSION(HttpStatus.FORBIDDEN, "TEAM-002", "팀 조회 권한이 없습니다."),
     TEAM_NOT_FOUND(HttpStatus.NOT_FOUND, "TEAM-003", "팀을 찾을 수 없습니다."),
@@ -52,6 +52,10 @@ enum class ErrorCode(
     TEAM_DESCRIPTION_TOO_LONG(HttpStatus.BAD_REQUEST, "TEAM-006", "팀 설명은 500자 이하여야 합니다."),
     TEAM_NO_UPDATE_PERMISSION(HttpStatus.FORBIDDEN, "TEAM-007","팀 수정 권한이 없습니다."),
 
+    // --- 5. 공지/투표 관련 에러 (POST) ---
+    TITLE_CONTENT_REQUIRED(HttpStatus.BAD_REQUEST, "POST-001", "제목과 내용은 필수 입력 사항입니다."),
+    POST_NOT_FOUND(HttpStatus.NOT_FOUND, "POST-002", "이미 삭제되었거나 존재하지 않는 공지입니다."),
+    POST_NO_CONTENT_TO_UPDATE(HttpStatus.BAD_REQUEST, "POST-003", "변경된 내용이 없습니다."),
 
     // --- 장소 관련 에러 ---
     LOCATION_NOT_FOUND(HttpStatus.NOT_FOUND, "LOCATION-001", "장소를 찾을 수 없습니다."),

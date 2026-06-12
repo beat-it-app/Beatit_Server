@@ -11,7 +11,6 @@ import com.beat_it.global.error.ErrorCode
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import org.springframework.web.multipart.MultipartFile
-import java.util.UUID
 
 @Service
 class UserService (
@@ -52,5 +51,16 @@ class UserService (
             authFile = savedAuthFile
         )
         userProfilesRepository.save(userProfile)
+    }
+
+    fun getCurrentTeamId(userId: Long): Long{
+        val user = userRepository.findById(userId)
+            .orElseThrow { BusinessException(ErrorCode.USER_NOT_FOUND) }
+
+        return user.currentTeamId ?: throw BusinessException(ErrorCode.TEAM_NOT_FOUND)
+        }
+
+    fun getUserProfile(userId: Long): UserProfiles? {
+        return userProfilesRepository.findByUserUserId(userId)
     }
 }
