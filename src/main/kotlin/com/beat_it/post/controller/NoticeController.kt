@@ -47,17 +47,14 @@ class NoticeController (
         @AuthenticationPrincipal userDetails: UserDetails,
         @Parameter(description = "공지 제목", example = "[아주 중요] 합주실 사용 공지")
         @RequestParam title: String,
-        @Parameter(description = "공지 본문",
-                example = "((합주실 깨끗.하게 쓰세요!))")
+        @Parameter(description = "공지 본문", example = "((합주실 깨끗.하게 쓰세요!))")
         @RequestParam content: String,
         @RequestPart(value = "images", required = false) images: List<MultipartFile>?
     ): ResponseEntity<BasicResponse<Nothing>> {
         val userId = userDetails.username.toLongOrNull()
             ?: throw BusinessException(ErrorCode.UNAUTHORIZED)
 
-        if (title.isBlank() || content.isBlank()) {
-            throw BusinessException(ErrorCode.TITLE_CONTENT_REQUIRED)
-        }
+        noticeService.isTitleContentEmpty(title, content)
 
         val dto = NoticeRequest(title = title, content = content)
         noticeService.createNotice(userId, dto, images)
@@ -97,9 +94,7 @@ class NoticeController (
         val userId = userDetails.username.toLongOrNull()
             ?: throw BusinessException(ErrorCode.UNAUTHORIZED)
 
-        if (title.isBlank() || content.isBlank()) {
-            throw BusinessException(ErrorCode.TITLE_CONTENT_REQUIRED)
-        }
+        noticeService.isTitleContentEmpty(title, content)
 
         val dto = NoticeRequest(title = title, content = content)
         noticeService.editNotice(userId, noticeId, dto, images)
@@ -124,8 +119,6 @@ class NoticeController (
             .status(HttpStatus.OK)
             .body(BasicResponse.success(HttpStatus.OK, "공지사항이 성공적으로 삭제되었습니다."))
     }
-
-    // 투표 로직
 
 
     // 좋아요

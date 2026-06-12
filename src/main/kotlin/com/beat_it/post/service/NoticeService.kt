@@ -227,4 +227,10 @@ class NoticeService(
         postCommentRepository.deleteByPostTypeAndPostId(PostType.NOTICE, noticeId)
         noticeRepository.delete(notice)
     }
+
+    fun isTitleContentEmpty(title: String, content: String) {
+        if (title.isBlank() || content.isBlank()) {
+            throw BusinessException(ErrorCode.TITLE_CONTENT_REQUIRED)
+        }
+    }
 }
