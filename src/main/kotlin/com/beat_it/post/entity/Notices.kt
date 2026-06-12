@@ -3,7 +3,6 @@ package com.beat_it.post.entity
 import com.beat_it.global.entity.BaseUpdatedTimeEntity
 import jakarta.persistence.*
 import jakarta.persistence.GenerationType
-import java.util.UUID
 
 @Entity
 @Table(name = "notices")
@@ -12,9 +11,6 @@ class Notices(
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "notice_id")
     val noticeId: Long? = null,
-
-    @Column(name = "public_id", nullable = false, unique = true)
-    val publicId: UUID = UUID.randomUUID(),
 
     @Column(name = "user_id", nullable = false)
     val userId: Long,
