@@ -116,6 +116,7 @@ class NoticeService(
             commentCount = comments.size
         )
 
+        // FIXME : n+1 문제가 발생할 수 있음. 검증해볼 것.
         val commentDtos = comments.map { comment ->
             val commentWriterProfile = userService.getUserProfile(comment.userId)
             NoticeCommentDto(
