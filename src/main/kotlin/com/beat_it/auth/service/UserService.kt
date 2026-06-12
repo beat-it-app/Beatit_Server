@@ -11,7 +11,6 @@ import com.beat_it.global.error.ErrorCode
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import org.springframework.web.multipart.MultipartFile
-import java.util.UUID
 
 @Service
 class UserService (
@@ -52,5 +51,9 @@ class UserService (
             authFile = savedAuthFile
         )
         userProfilesRepository.save(userProfile)
+    }
+    // 사용자 프로필 받아오는 로직
+    fun getUserProfile(userId: Long): UserProfiles? {
+        return userProfilesRepository.findByUserUserId(userId)
     }
 }

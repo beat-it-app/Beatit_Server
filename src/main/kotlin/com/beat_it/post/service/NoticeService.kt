@@ -1,6 +1,5 @@
 package com.beat_it.post.service
 
-import com.beat_it.auth.repository.UserProfilesRepository
 import com.beat_it.global.error.BusinessException
 import com.beat_it.global.error.ErrorCode
 import com.beat_it.post.dto.*
@@ -16,6 +15,7 @@ import org.springframework.transaction.annotation.Transactional
 import org.springframework.web.multipart.MultipartFile
 import com.beat_it.post.entity.PostFiles
 import com.beat_it.auth.repository.UserRepository
+import com.beat_it.auth.service.UserService
 import com.beat_it.global.util.DateTimeUtil
 
 @Service
@@ -24,10 +24,10 @@ class NoticeService(
     private val noticeRepository: NoticeRepository,
     private val postFileService: PostFileService,
     private val noticeAttachmentsRepository: NoticeAttachmentsRepository,
-    private val userProfilesRepository: UserProfilesRepository,
     private val noticeReactionRepository: NoticeReactionRepository,
     private val postCommentRepository: PostCommentRepository,
-    private val postFilesRepository: PostFilesRepository
+    private val postFilesRepository: PostFilesRepository,
+    private val userService: UserService
 ) {
 
     @Transactional(readOnly = true)
@@ -50,7 +50,7 @@ class NoticeService(
         }
 
         val noticeItems = notices.map { notice ->
-            val userProfile = userProfilesRepository.findByUserUserId(notice.userId)
+            val userProfile = userService.getUserProfile(notice.userId)
             val writerName = userProfile?.name ?: "알 수 없음"
 
             val description = if (notice.content.length > 20) {
@@ -108,7 +108,7 @@ class NoticeService(
             throw BusinessException(ErrorCode.TEAM_NO_PERMISSION)
         }
 
-        val writerProfile = userProfilesRepository.findByUserUserId(notice.userId)
+        val writerProfile = userService.getUserProfile(notice.userId)
         val writerName = writerProfile?.name ?: "알 수 없음"
 
         val attachments = noticeAttachmentsRepository.findByNoticeNoticeIdOrderByDisplayOrderAsc(noticeId)
@@ -129,7 +129,7 @@ class NoticeService(
         )
 
         val commentDtos = comments.map { comment ->
-            val commentWriterProfile = userProfilesRepository.findByUserUserId(comment.userId)
+            val commentWriterProfile = userService.getUserProfile(notice.userId)
             NoticeCommentDto(
                 commentId = comment.commentId!!,
                 writerName = commentWriterProfile?.name ?: "알 수 없음",
