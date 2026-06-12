@@ -120,9 +120,37 @@ class NoticeController (
             .body(BasicResponse.success(HttpStatus.OK, "공지사항이 성공적으로 삭제되었습니다."))
     }
 
+    @Operation(summary = "공지 좋아요 토글")
+    @PostMapping("/{noticeId}/like")
+    fun toggleLike(
+        @AuthenticationPrincipal userDetails: UserDetails,
+        @PathVariable noticeId: Long
+    ): ResponseEntity<BasicResponse<Boolean>> {
+        val userId = userDetails.username.toLongOrNull()
+            ?: throw BusinessException(ErrorCode.UNAUTHORIZED)
 
-    // 좋아요
-    // 좋아요 있으면 싫어요 불가능하도록 -> 반대도 마찬가지
+        val isLiked = noticeService.toggleLike(userId, noticeId)
+        val message = if (isLiked) "좋아요를 눌렀습니다." else "좋아요를 취소했습니다."
 
-    // 싫어요
+        return ResponseEntity
+            .status(HttpStatus.OK)
+            .body(BasicResponse.success(isLiked, HttpStatus.OK, message))
+    }
+
+    @Operation(summary = "공지 싫어요 토글")
+    @PostMapping("/{noticeId}/dislike")
+    fun toggleDislike(
+        @AuthenticationPrincipal userDetails: UserDetails,
+        @PathVariable noticeId: Long
+    ): ResponseEntity<BasicResponse<Boolean>> {
+        val userId = userDetails.username.toLongOrNull()
+            ?: throw BusinessException(ErrorCode.UNAUTHORIZED)
+
+        val isDisliked = noticeService.toggleDislike(userId, noticeId)
+        val message = if (isDisliked) "싫어요를 눌렀습니다." else "싫어요를 취소했습니다."
+
+        return ResponseEntity
+            .status(HttpStatus.OK)
+            .body(BasicResponse.success(isDisliked, HttpStatus.OK, message))
+    }
 }

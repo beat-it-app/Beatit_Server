@@ -56,6 +56,8 @@ enum class ErrorCode(
     TITLE_CONTENT_REQUIRED(HttpStatus.BAD_REQUEST, "POST-001", "제목과 내용은 필수 입력 사항입니다."),
     POST_NOT_FOUND(HttpStatus.NOT_FOUND, "POST-002", "이미 삭제되었거나 존재하지 않는 공지입니다."),
     POST_NO_CONTENT_TO_UPDATE(HttpStatus.BAD_REQUEST, "POST-003", "변경된 내용이 없습니다."),
+    ALREADY_LIKED(HttpStatus.BAD_REQUEST, "POST-004", "이미 좋아요를 누르셨습니다."),
+    ALREADY_DISLIKED(HttpStatus.BAD_REQUEST, "POST-005", "이미 싫어요를 누르셨습니다."),
 
     // --- 장소 관련 에러 ---
     LOCATION_NOT_FOUND(HttpStatus.NOT_FOUND, "LOCATION-001", "장소를 찾을 수 없습니다."),

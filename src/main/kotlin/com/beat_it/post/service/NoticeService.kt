@@ -16,6 +16,7 @@ import org.springframework.web.multipart.MultipartFile
 import com.beat_it.post.entity.PostFiles
 import com.beat_it.auth.service.UserService
 import com.beat_it.global.util.DateTimeUtil
+import com.beat_it.post.entity.NoticeReactions
 
 @Service
 class NoticeService(
@@ -218,6 +219,64 @@ class NoticeService(
         noticeReactionRepository.deleteByNoticeNoticeId(noticeId)
         postCommentRepository.deleteByPostTypeAndPostId(PostType.NOTICE, noticeId)
         noticeRepository.delete(notice)
+    }
+
+    @Transactional
+    fun toggleLike(userId: Long, noticeId: Long): Boolean {
+        val notice = getNotice(noticeId)
+
+        val existingReaction = noticeReactionRepository.findByNoticeNoticeIdAndUserId(noticeId, userId)
+
+        if (existingReaction.isPresent) {
+            val reaction = existingReaction.get()
+            if (reaction.reactionType == ReactionType.LIKE) {
+                noticeReactionRepository.delete(reaction)
+                notice.decreaseLike()
+                noticeRepository.save(notice)
+                return false
+            } else {
+                throw BusinessException(ErrorCode.ALREADY_DISLIKED)
+            }
+        } else {
+            val newReaction = NoticeReactions(
+                notice = notice,
+                userId = userId,
+                reactionType = ReactionType.LIKE
+            )
+            noticeReactionRepository.save(newReaction)
+            notice.increaseLike()
+            noticeRepository.save(notice)
+            return true
+        }
+    }
+
+    @Transactional
+    fun toggleDislike(userId: Long, noticeId: Long): Boolean {
+        val notice = getNotice(noticeId)
+
+        val existingReaction = noticeReactionRepository.findByNoticeNoticeIdAndUserId(noticeId, userId)
+
+        if (existingReaction.isPresent) {
+            val reaction = existingReaction.get()
+            if (reaction.reactionType == ReactionType.DISLIKE) {
+                noticeReactionRepository.delete(reaction)
+                notice.decreaseDislike()
+                noticeRepository.save(notice)
+                return false
+            } else {
+                throw BusinessException(ErrorCode.ALREADY_LIKED)
+            }
+        } else {
+            val newReaction = NoticeReactions(
+                notice = notice,
+                userId = userId,
+                reactionType = ReactionType.DISLIKE
+            )
+            noticeReactionRepository.save(newReaction)
+            notice.increaseDislike()
+            noticeRepository.save(notice)
+            return true
+        }
     }
 
     fun validateTitleAndContent(title: String, content: String) {

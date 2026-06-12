@@ -43,6 +43,22 @@ class Notices(
         this.thumbnailImageUrl = thumbnailImageUrl
     }
 
+    fun increaseLike() {
+        this.likeCounter++
+    }
+
+    fun decreaseLike() {
+        if (this.likeCounter > 0) this.likeCounter--
+    }
+
+    fun increaseDislike() {
+        this.dislikeCounter++
+    }
+
+    fun decreaseDislike() {
+        if (this.dislikeCounter > 0) this.dislikeCounter--
+    }
+
     companion object {
             fun writeNotice(userId: Long, teamId: Long, title: String, content: String, thumbnailImageUrl: String? = null): Notices {
                 return Notices(
