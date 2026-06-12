@@ -10,7 +10,6 @@ import com.beat_it.post.entity.enum.FileType
 import com.beat_it.post.entity.enum.PostType
 import com.beat_it.post.entity.enum.ReactionType
 import com.beat_it.post.repository.*
-import com.beat_it.team.repository.TeamMembershipRepository
 import org.springframework.data.domain.Sort
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -23,7 +22,6 @@ import com.beat_it.global.util.DateTimeUtil
 class NoticeService(
     private val userRepository: UserRepository,
     private val noticeRepository: NoticeRepository,
-    private val teamMembershipRepository: TeamMembershipRepository,
     private val postFileService: PostFileService,
     private val noticeAttachmentsRepository: NoticeAttachmentsRepository,
     private val userProfilesRepository: UserProfilesRepository,
@@ -37,11 +35,6 @@ class NoticeService(
         val user = userRepository.findById(userId)
             .orElseThrow { BusinessException(ErrorCode.USER_NOT_FOUND) }
         val teamId = user.currentTeamId ?: throw BusinessException(ErrorCode.TEAM_NOT_FOUND)
-
-        teamMembershipRepository.findByTeamTeamIdAndUserIdAndLeftAtIsNull(
-            teamId = teamId,
-            userId = userId
-        ) ?: throw BusinessException(ErrorCode.TEAM_NO_PERMISSION)
 
         val sort = if (sortStr.uppercase() == "OLDEST") {
             Sort.by(Sort.Direction.ASC, "createdAt")
@@ -88,11 +81,6 @@ class NoticeService(
             .orElseThrow { BusinessException(ErrorCode.USER_NOT_FOUND) }
         val teamId = user.currentTeamId ?: throw BusinessException(ErrorCode.TEAM_NOT_FOUND)
 
-        teamMembershipRepository.findByTeamTeamIdAndUserIdAndLeftAtIsNull(
-            teamId = teamId,
-            userId = userId
-        ) ?: throw BusinessException(ErrorCode.TEAM_NO_PERMISSION)
-
         val uploadedPostFiles = images?.let { postFileService.uploadFiles(userId, it) } ?: emptyList()
         val thumbnailUrl = uploadedPostFiles.firstOrNull()?.cdnUrl
 
@@ -113,10 +101,12 @@ class NoticeService(
         val notice = noticeRepository.findById(noticeId)
             .orElseThrow { BusinessException(ErrorCode.POST_NOT_FOUND) }
 
-        teamMembershipRepository.findByTeamTeamIdAndUserIdAndLeftAtIsNull(
-            teamId = notice.teamId,
-            userId = userId
-        ) ?: throw BusinessException(ErrorCode.TEAM_NO_PERMISSION)
+        val user = userRepository.findById(userId)
+            .orElseThrow { BusinessException(ErrorCode.USER_NOT_FOUND) }
+            
+        if (user.currentTeamId != notice.teamId) {
+            throw BusinessException(ErrorCode.TEAM_NO_PERMISSION)
+        }
 
         val writerProfile = userProfilesRepository.findByUserUserId(notice.userId)
         val writerName = writerProfile?.name ?: "알 수 없음"
