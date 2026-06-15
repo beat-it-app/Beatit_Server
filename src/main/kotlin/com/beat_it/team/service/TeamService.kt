@@ -398,6 +398,4 @@ class TeamService(
             .take(6)
             .uppercase()
     }
-
-
 }

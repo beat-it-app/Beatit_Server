@@ -10,18 +10,13 @@ import com.beat_it.team.service.TeamService
 import com.beat_it.global.response.BasicResponse
 import com.beat_it.team.dto.JoinTeamRequest
 import com.beat_it.team.dto.JoinTeamResponse
-import com.beat_it.team.dto.TeamSelectRequest
 import com.beat_it.team.dto.TeamSimpleInfo
 import com.beat_it.team.dto.UserTeamListResponse
-import com.beat_it.team.dto.VerifyCodeResponse
 import com.beat_it.team.repository.TeamRepository
 import io.swagger.v3.oas.annotations.Operation
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.*
-import java.util.UUID
-import io.swagger.v3.oas.annotations.Parameter
-import io.swagger.v3.oas.annotations.security.SecurityRequirements
 import io.swagger.v3.oas.annotations.tags.Tag
 import org.springframework.security.core.annotation.AuthenticationPrincipal
 import org.springframework.security.core.userdetails.UserDetails
@@ -68,12 +63,12 @@ class TeamController(
     @DeleteMapping
     fun deleteTeam(
         @AuthenticationPrincipal userDetails: UserDetails?,
-        @RequestBody request: TeamSelectRequest
+        @RequestParam("teamId") teamId: Long
     ): ResponseEntity<BasicResponse<Nothing>> {
         val userId = userDetails?.username?.toLong()
             ?: throw BusinessException(ErrorCode.UNAUTHORIZED)
 
-        teamService.deleteTeam(userId, request.teamId)
+        teamService.deleteTeam(userId, teamId)
 
         return ResponseEntity.ok(
             BasicResponse.success(HttpStatus.OK,"팀이 성공적으로 삭제되었습니다.")
@@ -107,12 +102,10 @@ class TeamController(
     @PostMapping("/select")
     fun selectTeam(
         @AuthenticationPrincipal userDetails: UserDetails?,
-        @RequestBody request: TeamSelectRequest,
+        @RequestParam(value = "teamId") teamId: Long,
     ): ResponseEntity<BasicResponse<Nothing>> {
         val userId = userDetails?.username?.toLong()
             ?: throw BusinessException(ErrorCode.UNAUTHORIZED)
-
-        val teamId = request.teamId
 
         teamService.selectTeam(userId, teamId)
 
