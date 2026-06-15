@@ -24,8 +24,8 @@ class Teams(
     @Column(name = "public_id", nullable = false, unique = true)
     val publicId: UUID = UUID.randomUUID(),
 
-    @Column(name = "profile_image_url", nullable = true)
-    var profileImageUrl: String? = null,
+    @Column(name = "team_image_url", nullable = true)
+    var teamImageUrl: String? = null,
 
     @Column(name = "name", nullable = false)
     var teamName: String,

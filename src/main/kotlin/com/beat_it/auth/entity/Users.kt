@@ -27,7 +27,10 @@ class Users (
     var accountStatus: AccountStatus,
 
     @Column(name = "withdrawn_at")
-    var withdrawnAt: OffsetDateTime? = null
+    var withdrawnAt: OffsetDateTime? = null,
+
+    @Column(name = "current_team_id")
+    var currentTeamId: Long? = null
     
 ) : BaseCreatedTimeEntity() {
     companion object {
@@ -40,5 +43,9 @@ class Users (
                 accountStatus = accountStatus
             )
         }
+    }
+
+    fun updateCurrentTeam(teamId: Long?) {
+        this.currentTeamId = teamId
     }
 }

@@ -13,13 +13,9 @@ class SwaggerConfig {
     @Bean
     fun openAPI(): OpenAPI {
         val jwtSchemeName = "JWT AUTH"
-        val userPublicIdSchemeName = "X-User-Public-Id"
-        val teamPublicIdSchemeName = "X-Team-Public-Id"
 
         val securityRequirement = SecurityRequirement()
             .addList(jwtSchemeName)
-            .addList(userPublicIdSchemeName)
-            .addList(teamPublicIdSchemeName)
 
         val components = Components()
             .addSecuritySchemes(
@@ -28,18 +24,6 @@ class SwaggerConfig {
                     .type(SecurityScheme.Type.HTTP)
                     .scheme("bearer")
                     .bearerFormat("JWT")
-            )
-            .addSecuritySchemes(
-                userPublicIdSchemeName, SecurityScheme()
-                    .name(userPublicIdSchemeName)
-                    .type(SecurityScheme.Type.APIKEY)
-                    .`in`(SecurityScheme.In.HEADER)
-            )
-            .addSecuritySchemes(
-                teamPublicIdSchemeName, SecurityScheme()
-                    .name(teamPublicIdSchemeName)
-                    .type(SecurityScheme.Type.APIKEY)
-                    .`in`(SecurityScheme.In.HEADER)
             )
 
         return OpenAPI()

@@ -4,7 +4,6 @@ import com.beat_it.auth.service.UserService
 import com.beat_it.global.error.BusinessException
 import com.beat_it.global.error.ErrorCode
 import com.beat_it.global.response.BasicResponse
-import com.beat_it.global.security.SecurityUtil
 import io.swagger.v3.oas.annotations.Parameter
 import io.swagger.v3.oas.annotations.tags.Tag
 import org.springframework.http.HttpStatus
@@ -28,20 +27,15 @@ class UserController (
             throw BusinessException(ErrorCode.UNAUTHORIZED)
         }
 
-        val publicId = userDetails.username
-        
-        val headerUserPublicId = SecurityUtil.getHeaderUserPublicId()
-        val headerTeamPublicId = SecurityUtil.getHeaderTeamPublicId()
+        val userId = userDetails.username
         
         val data = mapOf(
-            "tokenUserPublicId" to publicId,
-            "headerUserPublicId" to headerUserPublicId,
-            "headerTeamPublicId" to headerTeamPublicId
+            "tokenUserId" to userId
         )
 
         return ResponseEntity
             .status(HttpStatus.OK)
-            .body(BasicResponse.success(data, HttpStatus.OK, "현재 사용자 및 팀 아이디 조회가 성공적으로 처리되었습니다."))
+            .body(BasicResponse.success(data, HttpStatus.OK, "현재 사용자 조회가 성공적으로 처리되었습니다."))
     }
 
     @PostMapping("/profile", consumes = [MediaType.MULTIPART_FORM_DATA_VALUE])

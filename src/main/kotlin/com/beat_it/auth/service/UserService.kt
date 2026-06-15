@@ -21,10 +21,10 @@ class UserService (
 ) {
     @Transactional
     fun createProfile(currentUserId: String, name: String, profileImage: MultipartFile?) {
-        val userUuid = runCatching { UUID.fromString(currentUserId) }
+        val userId = runCatching { currentUserId.toLong() }
             .getOrElse { throw BusinessException(ErrorCode.INVALID_USER_ID) }
 
-        val user = userRepository.findByPublicId(userUuid)
+        val user = userRepository.findById(userId).orElse(null)
             ?: throw BusinessException(ErrorCode.USER_NOT_FOUND)
 
         if (userProfilesRepository.existsByUser_UserId(user.userId)) {
