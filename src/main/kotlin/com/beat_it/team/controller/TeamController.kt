@@ -60,7 +60,7 @@ class TeamController(
     }
 
     @Operation(summary = "팀 삭제하기")
-    @DeleteMapping
+    @DeleteMapping("/{teamId}")
     fun deleteTeam(
         @AuthenticationPrincipal userDetails: UserDetails?,
         @RequestParam("teamId") teamId: Long
@@ -99,7 +99,7 @@ class TeamController(
     }
 
     @Operation(summary = "로그인할 팀 선택하기")
-    @PostMapping("/select")
+    @PostMapping("/select/{teamId}")
     fun selectTeam(
         @AuthenticationPrincipal userDetails: UserDetails?,
         @RequestParam(value = "teamId") teamId: Long,
@@ -144,7 +144,7 @@ class TeamController(
     }
 
     @Operation(summary = "초대코드의 팀 정보 조회")
-    @GetMapping("/verify")
+    @GetMapping("/verify/{inviteCode}")
     fun getVerifyCode(
         @RequestParam("inviteCode") inviteCode: String,
     ): ResponseEntity<BasicResponse<TeamSimpleInfo>> {
