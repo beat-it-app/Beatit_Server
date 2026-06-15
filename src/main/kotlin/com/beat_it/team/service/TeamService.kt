@@ -238,16 +238,18 @@ class TeamService(
     }
 
     @Transactional(readOnly = true)
-    fun getVerifyCode(inviteCode: String): VerifyCodeResponse {
+    fun getTeamInfoByInviteCode(inviteCode: String): TeamSimpleInfo {
         val normalizedInviteCode = validateAndNormalizeInviteCode(inviteCode)
 
         val team = teamRepository.findByInviteCodeAndDeletedAtIsNull(normalizedInviteCode)
             ?: throw BusinessException(ErrorCode.TEAM_INVITE_CODE_NOT_FOUND)
 
-        return VerifyCodeResponse(
+        return TeamSimpleInfo(
             teamId = team.teamId!!,
             teamName = team.teamName,
-            inviteCode = team.inviteCode,
+            teamType = team.teamType,
+            teamImageUrl = team.teamImageUrl,
+            createAt = team.createdAt.toLocalDate(),
         )
     }
 

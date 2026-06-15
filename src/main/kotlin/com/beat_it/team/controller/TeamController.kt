@@ -10,9 +10,8 @@ import com.beat_it.team.service.TeamService
 import com.beat_it.global.response.BasicResponse
 import com.beat_it.team.dto.JoinTeamRequest
 import com.beat_it.team.dto.JoinTeamResponse
-import com.beat_it.team.dto.MyTeamListResponse
-import com.beat_it.team.dto.TeamDeleteRequest
 import com.beat_it.team.dto.TeamSelectRequest
+import com.beat_it.team.dto.TeamSimpleInfo
 import com.beat_it.team.dto.UserTeamListResponse
 import com.beat_it.team.dto.VerifyCodeResponse
 import com.beat_it.team.repository.TeamRepository
@@ -69,7 +68,7 @@ class TeamController(
     @DeleteMapping
     fun deleteTeam(
         @AuthenticationPrincipal userDetails: UserDetails?,
-        @RequestBody request: TeamDeleteRequest,
+        @RequestBody request: TeamSelectRequest
     ): ResponseEntity<BasicResponse<Nothing>> {
         val userId = userDetails?.username?.toLong()
             ?: throw BusinessException(ErrorCode.UNAUTHORIZED)
@@ -155,8 +154,8 @@ class TeamController(
     @GetMapping("/verify")
     fun getVerifyCode(
         @RequestParam("inviteCode") inviteCode: String,
-    ): ResponseEntity<BasicResponse<VerifyCodeResponse>> {
-        val responseData = teamService.getVerifyCode(inviteCode)
+    ): ResponseEntity<BasicResponse<TeamSimpleInfo>> {
+        val responseData = teamService.getTeamInfoByInviteCode(inviteCode)
 
         return ResponseEntity.ok(
             BasicResponse.success(
