@@ -52,6 +52,9 @@ enum class ErrorCode(
     TEAM_DESCRIPTION_TOO_LONG(HttpStatus.BAD_REQUEST, "TEAM-006", "팀 설명은 500자 이하여야 합니다."),
     TEAM_NO_UPDATE_PERMISSION(HttpStatus.FORBIDDEN, "TEAM-007","팀 수정 권한이 없습니다."),
 
+    // --- 채팅 관련 에러 (CHAT) ---
+    CHAT_ROOM_NAME_REQUIRED(HttpStatus.BAD_REQUEST, "CHAT-001", "채팅방 이름은 필수입니다."),
+    INVALID_TEAM_PARTICIPANTS(HttpStatus.BAD_REQUEST, "CHAT-002", "팀 내 속해있는 유저만 초대 가능합니다."),
 
     // --- 장소 관련 에러 ---
     LOCATION_NOT_FOUND(HttpStatus.NOT_FOUND, "LOCATION-001", "장소를 찾을 수 없습니다."),
