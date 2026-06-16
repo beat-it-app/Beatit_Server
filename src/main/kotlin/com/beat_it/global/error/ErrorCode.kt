@@ -58,6 +58,19 @@ enum class ErrorCode(
     TEAM_PENDING_DELETION(HttpStatus.BAD_REQUEST,  "TEAM-012", "이미 삭제 요청된 팀입니다."),
     TEAM_NOT_SELECTED(HttpStatus.BAD_REQUEST, "TEAM-013", "현재 선택된 팀이 없습니다. 팀을 먼저 선택해주세요."),
 
+    // --- 연습실 관련 에러 (Archive) ---
+    ARCHIVE_NO_CONTENT_TO_UPDATE(HttpStatus.BAD_REQUEST, "ARCHIVE-001", "연습실에 대해 변경할 내용이 없습니다."),
+    ARCHIVE_NO_PERMISSION(HttpStatus.FORBIDDEN, "ARCHIVE-002", "연습실 조회 권한이 없습니다."),
+    ARCHIVE_NOT_FOUND(HttpStatus.NOT_FOUND, "ARCHIVE-003", "연습실을 찾을 수 없습니다."),
+    ARCHIVE_TITLE_REQUIRED(HttpStatus.BAD_REQUEST, "ARCHIVE-004", "연습실 제목은 필수입니다."),
+    ARCHIVE_TITLE_TOO_LONG(HttpStatus.BAD_REQUEST, "ARCHIVE-005", "연습실 제목은 100자 이하여야 합니다."),
+    ARCHIVE_DESCRIPTION_TOO_LONG(HttpStatus.BAD_REQUEST, "ARCHIVE-006", "연습실 설명은 500자 이하여야 합니다."),
+    ARCHIVE_NO_UPDATE_PERMISSION(HttpStatus.FORBIDDEN, "ARCHIVE-007", "연습실 수정 권한이 없습니다."),
+    ARCHIVE_NO_DELETE_PERMISSION(HttpStatus.FORBIDDEN, "ARCHIVE-008", "연습실 삭제 권한이 없습니다."),
+    ARCHIVE_LOCATION_REQUIRED(HttpStatus.BAD_REQUEST, "ARCHIVE-009", "연습실 위치 정보는 필수입니다."),
+    ARCHIVE_PLACE_NAME_TOO_LONG(HttpStatus.BAD_REQUEST, "ARCHIVE-010", "연습실 장소명은 100자 이하여야 합니다."),
+    ARCHIVE_IMAGE_URL_TOO_LONG(HttpStatus.BAD_REQUEST, "ARCHIVE-011", "연습실 이미지 URL은 500자 이하여야 합니다."),
+
 
     // --- 장소 관련 에러 ---
     LOCATION_NOT_FOUND(HttpStatus.NOT_FOUND, "LOCATION-001", "장소를 찾을 수 없습니다."),
