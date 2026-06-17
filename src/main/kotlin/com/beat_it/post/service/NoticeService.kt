@@ -41,6 +41,7 @@ class NoticeService(
         }
 
         val searchKeyword = keyword ?: ""
+        // FIXME : 한 번에 몇 개씩 불러올지 정해야 함 (paging 처리 같은 거 해야해)
         val notices = noticeRepository.searchNotices(teamId, searchKeyword, sort)
 
         if (notices.isEmpty()) {
@@ -75,6 +76,7 @@ class NoticeService(
 
     @Transactional
     fun createNotice(userId: Long, dto: NoticeRequest, images: List<MultipartFile>?) {
+        validateTitleAndContent(dto.title, dto.content)
         val teamId = userService.getCurrentTeamId(userId)
 
         val uploadedPostFiles = uploadAndSavePostFiles(userId, images)
@@ -94,9 +96,9 @@ class NoticeService(
 
     @Transactional
     fun getNotice(userId: Long, noticeId: Long): NoticeDetailResponse {
+        val teamId = userService.getCurrentTeamId(userId)
         val notice = getNotice(noticeId)
-
-        userService.getCurrentTeamId(userId)
+        validateTeam(notice, teamId)
 
         val writerProfile = userService.getUserProfile(notice.userId)
         val writerName = writerProfile?.name ?: "알 수 없음"
@@ -149,9 +151,11 @@ class NoticeService(
 
     @Transactional
     fun editNotice(userId: Long, noticeId: Long, dto: NoticeRequest, images: List<MultipartFile>?) {
-        val notice = getNotice(noticeId)
-        userService.getCurrentTeamId(userId)
+        validateTitleAndContent(dto.title, dto.content)
+        val teamId = userService.getCurrentTeamId(userId)
 
+        val notice = getNotice(noticeId)
+        validateTeam(notice, teamId)
         validateWriter(notice, userId)
 
         val existingAttachments = noticeAttachmentsRepository.findByNoticeNoticeIdOrderByDisplayOrderAsc(noticeId)
@@ -164,12 +168,7 @@ class NoticeService(
         var thumbnailUrl = notice.thumbnailImageUrl
 
         images?.let { multipartFiles ->
-            val oldAttachments = noticeAttachmentsRepository.findByNoticeNoticeIdOrderByDisplayOrderAsc(noticeId)
-            oldAttachments.forEach { attachment ->
-                attachment.postFile.delete()
-                postFilesRepository.save(attachment.postFile)
-            }
-            noticeAttachmentsRepository.deleteByNoticeNoticeId(noticeId)
+            deleteNoticeAttachments(existingAttachments, noticeId)
 
             val uploadedPostFiles = uploadAndSavePostFiles(userId, multipartFiles)
             thumbnailUrl = if (uploadedPostFiles.isNotEmpty()) {
@@ -186,6 +185,21 @@ class NoticeService(
             thumbnailImageUrl = thumbnailUrl
         )
         noticeRepository.save(notice)
+    }
+
+    @Transactional
+    fun deleteNotice(userId: Long, noticeId: Long) {
+        val teamId = userService.getCurrentTeamId(userId)
+        val notice = getNotice(noticeId)
+        validateTeam(notice, teamId)
+        validateWriter(notice, userId)
+
+        val existingAttachments = noticeAttachmentsRepository.findByNoticeNoticeIdOrderByDisplayOrderAsc(noticeId)
+        deleteNoticeAttachments(existingAttachments, noticeId)
+
+        noticeReactionRepository.deleteByNoticeNoticeId(noticeId)
+        postCommentRepository.deleteByPostTypeAndPostId(PostType.NOTICE, noticeId)
+        noticeRepository.delete(notice)
     }
 
     private fun uploadAndSavePostFiles(userId: Long, images: List<MultipartFile>?): List<PostFiles> {
@@ -218,26 +232,15 @@ class NoticeService(
         noticeAttachmentsRepository.saveAll(attachments)
     }
 
-    @Transactional
-    fun deleteNotice(userId: Long, noticeId: Long) {
-        val notice = getNotice(noticeId)
-        userService.getCurrentTeamId(userId)
-
-        validateWriter(notice, userId)
-
-        val attachments = noticeAttachmentsRepository.findByNoticeNoticeIdOrderByDisplayOrderAsc(noticeId)
+    private fun deleteNoticeAttachments(attachments: List<NoticeAttachments>, noticeId: Long) {
         attachments.forEach { attachment ->
             attachment.postFile.delete()
             postFilesRepository.save(attachment.postFile)
         }
-
         noticeAttachmentsRepository.deleteByNoticeNoticeId(noticeId)
-        noticeReactionRepository.deleteByNoticeNoticeId(noticeId)
-        postCommentRepository.deleteByPostTypeAndPostId(PostType.NOTICE, noticeId)
-        noticeRepository.delete(notice)
     }
 
-    fun validateTitleAndContent(title: String, content: String) {
+    private fun validateTitleAndContent(title: String, content: String) {
         if (title.isBlank() || content.isBlank()) {
             throw BusinessException(ErrorCode.TITLE_CONTENT_REQUIRED)
         }
@@ -245,6 +248,12 @@ class NoticeService(
 
     private fun getNotice(noticeId: Long): Notices{
         return noticeRepository.findById(noticeId).orElseThrow {BusinessException(ErrorCode.POST_NOT_FOUND)}
+    }
+
+    private fun validateTeam(notice: Notices, teamId: Long) {
+        if (notice.teamId != teamId) {
+            throw BusinessException(ErrorCode.FORBIDDEN)
+        }
     }
 
     private fun validateWriter(notice: Notices, userId: Long){
