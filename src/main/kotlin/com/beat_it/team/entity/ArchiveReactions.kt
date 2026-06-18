@@ -4,6 +4,8 @@ import com.beat_it.global.entity.BaseCreatedTimeEntity
 import com.beat_it.team.entity.enum.ReactionType
 import jakarta.persistence.Column
 import jakarta.persistence.Entity
+import jakarta.persistence.EnumType
+import jakarta.persistence.Enumerated
 import jakarta.persistence.FetchType
 import jakarta.persistence.GeneratedValue
 import jakarta.persistence.GenerationType
@@ -27,11 +29,8 @@ class ArchiveReactions(
     @Column(name = "user_id", nullable = false)
     val userId: Long,
 
+    @Enumerated(EnumType.STRING)
     @Column(name = "reaction_type", nullable = false)
     val reactionType: ReactionType,
-
-    //TODO: ReactedAt과 CreatedAt 둘 중 뭐를 선택할지!
-    @Column(name = "reacted_at", nullable = false)
-    var reactedAt: String,
 
 ): BaseCreatedTimeEntity() {}

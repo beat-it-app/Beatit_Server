@@ -25,6 +25,9 @@ class ArchivesFiles(
     @JoinColumn(name = "archive_id", nullable = false)
     val archive: Archives,
 
+    @Column(name = "user_id", nullable = false)
+    val userId: Long,
+
     //TODO: 팀 저장 파일 만들기
 
 ): BaseCreatedTimeEntity() {}
