@@ -31,10 +31,10 @@ class TeamController(
     @Operation(summary = "팀 생성하기")
     @PostMapping
     fun createTeam(
-        @AuthenticationPrincipal userDetails: UserDetails?,
+        @AuthenticationPrincipal userDetails: UserDetails,
         @RequestBody request: TeamCreateRequest
     ): ResponseEntity<BasicResponse<TeamCreateResponse>> {
-        val userId = userDetails?.username?.toLong()
+        val userId = userDetails.username.toLongOrNull()
             ?: throw BusinessException(ErrorCode.UNAUTHORIZED)
 
         val responseData = teamService.createTeam(userId, request)
@@ -47,11 +47,11 @@ class TeamController(
 
     @PatchMapping
     fun updateTeamDetail(
-        @AuthenticationPrincipal userDetails: UserDetails?,
+        @AuthenticationPrincipal userDetails: UserDetails,
         @RequestParam("teamPublicId") teamPublicId: UUID, //FIXME : teamService.getTeamDetail(userId) 사용하도록 수정
         @RequestBody request: TeamDetailUpdateRequest,
     ): ResponseEntity<BasicResponse<TeamDetailUpdateResponse>> {
-        val userId = userDetails?.username?.toLong()
+        val userId = userDetails.username.toLongOrNull()
             ?: throw BusinessException(ErrorCode.UNAUTHORIZED)
         val responseData = teamService.updateTeamDetail(teamPublicId, userId, request)
 
@@ -60,10 +60,10 @@ class TeamController(
 
     @DeleteMapping
     fun deleteTeam(
-        @AuthenticationPrincipal userDetails: UserDetails?,
+        @AuthenticationPrincipal userDetails: UserDetails,
         @RequestParam("teamPublicId") teamPublicId: UUID, //FIXME : teamService.getTeamDetail(userId) 사용하도록 수정
     ): ResponseEntity<BasicResponse<Nothing>> {
-        val userId = userDetails?.username?.toLong()
+        val userId = userDetails.username.toLongOrNull()
             ?: throw BusinessException(ErrorCode.UNAUTHORIZED)
         teamService.deleteTeam(teamPublicId, userId)
 
@@ -74,9 +74,9 @@ class TeamController(
 
     @Operation(summary = "팀 페이지 불러오기")
     @GetMapping
-    fun getTeamDetail(@AuthenticationPrincipal userDetails: UserDetails?
+    fun getTeamDetail(@AuthenticationPrincipal userDetails: UserDetails
     ): ResponseEntity<BasicResponse<out Any>> {
-        val userId = userDetails?.username?.toLong()
+        val userId = userDetails.username.toLongOrNull()
             ?: throw BusinessException(ErrorCode.UNAUTHORIZED)
 
         val teamDetail = teamService.getTeamDetail(userId)
@@ -97,10 +97,10 @@ class TeamController(
 
     @Operation(summary = "로그인할 팀 선택하기")
     @PostMapping("/select")
-    fun selectTeam(@AuthenticationPrincipal userDetails: UserDetails?,
+    fun selectTeam(@AuthenticationPrincipal userDetails: UserDetails,
                         @RequestParam("teamPublicId") teamPublicId: UUID //FIXME : teamService.getTeamDetail(userId) 사용하도록 수정
     ): ResponseEntity<BasicResponse<Nothing>> {
-        val userId = userDetails?.username?.toLong()
+        val userId = userDetails.username.toLongOrNull()
             ?: throw BusinessException(ErrorCode.UNAUTHORIZED)
 
         val team = teamRepository.findByPublicId(teamPublicId)
