@@ -68,6 +68,7 @@ class ScheduleService(
     @Transactional
     fun updateSchedule(scheduleId: Long, userId: Long, request: ScheduleUpdateRequest): ScheduleCreateResponse {
 
+        validateScheduleCommon(request.title, request.startsAt, request.endsAt)
         val schedule = findScheduleOrThrow(scheduleId)
 
         validateScheduleOwner(schedule.userId, userId)
@@ -75,8 +76,6 @@ class ScheduleService(
         if (isNotChanged(schedule, request)) {
             throw BusinessException(ErrorCode.CALENDAR_NO_CONTENT_TO_UPDATE)
         }
-
-        validateScheduleCommon(request.title, request.startsAt, request.endsAt)
 
         // TODO: 타 도메인 검증 (모듈 분리 대비)
         // request.locationId?.let { locationService.validateLocation(it) }
@@ -108,8 +107,7 @@ class ScheduleService(
 
     @Transactional
     fun deleteSchedule(scheduleId: Long, userId: Long) {
-        val schedule = scheduleRepository.findById(scheduleId)
-            .orElseThrow { BusinessException(ErrorCode.CALENDAR_NOT_FOUND) }
+        val schedule = findScheduleOrThrow(scheduleId)
 
         validateScheduleOwner(schedule.userId, userId)
 
@@ -256,10 +254,6 @@ class ScheduleService(
 
         if (month !in 1..12) {
             throw BusinessException(ErrorCode.CALENDAR_INVALID_MONTH)
-        }
-
-        if (date !in 1..31) {
-            throw BusinessException(ErrorCode.CALENDAR_INVALID_DATE)
         }
 
         try {
