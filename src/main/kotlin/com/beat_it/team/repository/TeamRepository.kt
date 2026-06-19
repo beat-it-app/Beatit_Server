@@ -12,7 +12,11 @@ interface TeamRepository : JpaRepository<Teams, Long> {
 
     fun findByTeamId(teamId: Long): Teams?
 
+    fun findByPublicId(publicId: UUID): Teams?
+
     fun findByTeamIdAndDeletedAtIsNull(teamId: Long): Teams?
+
+    fun findByPublicIdAndDeletedAtIsNull(publicId: UUID): Teams?
 
     fun existsByInviteCode(inviteCode: String): Boolean
 }
