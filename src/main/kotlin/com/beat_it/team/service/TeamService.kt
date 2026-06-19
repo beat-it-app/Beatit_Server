@@ -40,6 +40,7 @@ class TeamService(
             description = request.description,
             teamType = request.teamType,
             establishedOn = request.establishedOn,
+            teamImageUrl = request.teamImageUrl,
             inviteCode = inviteCode
         )
 
@@ -57,8 +58,10 @@ class TeamService(
             teamId = savedTeam.teamId!!,
             teamName = savedTeam.teamName,
             description = savedTeam.description,
-            inviteCode = savedTeam.inviteCode,
             teamType = savedTeam.teamType,
+            teamImageUrl = savedTeam.teamImageUrl,
+            establishedOn = savedTeam.establishedOn,
+            inviteCode = savedTeam.inviteCode,
             teamRole = "LEADER",
             createdAt = savedTeam.createdAt
         )
@@ -137,6 +140,7 @@ class TeamService(
 
         //TODO: user.currentTeamId가 teamId와 같은 모든 회원의 currentTeamId도 null 처리해야 함.
         userRepository.clearCurrentTeamIdByTeamId(teamId)
+        //FIXME: 하은아 파트, 링크, 멤버십도 삭제해야하는거 아냐?
 
         //TODO: 유효기간 관련 처리
 
