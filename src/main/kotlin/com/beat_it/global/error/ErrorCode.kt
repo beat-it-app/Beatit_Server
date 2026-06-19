@@ -46,6 +46,7 @@ enum class ErrorCode(
     // --- 3. 팀 관련 에러 (TEAM) ---
     TEAM_NO_CONTENT_TO_UPDATE(HttpStatus.BAD_REQUEST, "TEAM-001", "팀에 대해 변경할 내용이 업습니다."),
     TEAM_NO_PERMISSION(HttpStatus.FORBIDDEN, "TEAM-002", "팀 조회 권한이 없습니다."),
+    NOT_TEAM_MEMBER(HttpStatus.FORBIDDEN, "TEAM-002", "해당 팀의 멤버가 아닙니다."),
     TEAM_NOT_FOUND(HttpStatus.NOT_FOUND, "TEAM-003", "팀을 찾을 수 없습니다."),
     TEAM_NAME_REQUIRED(HttpStatus.BAD_REQUEST, "TEAM-004", "팀 이름은 필수입니다."),
     TEAM_NAME_TOO_LONG(HttpStatus.BAD_REQUEST, "TEAM-005", "팀 이름은 100자 이하여야 합니다."),

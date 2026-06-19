@@ -59,6 +59,14 @@ class Notices(
         if (this.dislikeCounter > 0) this.dislikeCounter--
     }
 
+    fun increaseComment() {
+        this.commentCounter++
+    }
+
+    fun decreaseComment() {
+        if (this.commentCounter > 0) this.commentCounter--
+    }
+
     companion object {
             fun writeNotice(userId: Long, teamId: Long, title: String, content: String, thumbnailImageUrl: String? = null): Notices {
                 return Notices(

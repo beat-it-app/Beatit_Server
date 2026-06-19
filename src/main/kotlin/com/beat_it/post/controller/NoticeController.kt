@@ -3,6 +3,7 @@ package com.beat_it.post.controller
 import com.beat_it.global.error.BusinessException
 import com.beat_it.global.error.ErrorCode
 import com.beat_it.global.response.BasicResponse
+import com.beat_it.post.dto.CommentRequest
 import com.beat_it.post.dto.NoticeRequest
 import com.beat_it.post.dto.NoticeDetailResponse
 import com.beat_it.post.dto.NoticeListResponse
@@ -152,5 +153,23 @@ class NoticeController (
         return ResponseEntity
             .status(HttpStatus.OK)
             .body(BasicResponse.success(isDisliked, HttpStatus.OK, message))
+    }
+
+    @Operation(summary = "댓글 달기")
+    @PostMapping("/{noticeId}/comments")
+    fun createComment(
+        @AuthenticationPrincipal userDetails: UserDetails,
+        @PathVariable noticeId: Long,
+        @RequestBody request: CommentRequest
+    ): ResponseEntity<BasicResponse<Nothing>> {
+        val userId = userDetails.username.toLongOrNull()
+            ?: throw BusinessException(ErrorCode.UNAUTHORIZED)
+
+        noticeService.validateComment(request.content)
+        noticeService.createComment(userId, noticeId, request)
+
+        return ResponseEntity
+            .status(HttpStatus.OK)
+            .body(BasicResponse.success(HttpStatus.OK, "댓글이 성공적으로 등록되었습니다."))
     }
 }

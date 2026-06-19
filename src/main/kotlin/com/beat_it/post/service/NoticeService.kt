@@ -19,6 +19,8 @@ import com.beat_it.auth.entity.enum.MediaCategory
 import com.beat_it.global.util.DateTimeUtil
 import com.beat_it.global.service.FileService
 import com.beat_it.post.entity.NoticeReactions
+import com.beat_it.post.entity.PostComments
+import javax.xml.stream.events.Comment
 
 @Service
 class NoticeService(
@@ -241,6 +243,7 @@ class NoticeService(
     @Transactional
     fun toggleLike(userId: Long, noticeId: Long): Boolean {
         val notice = getNotice(noticeId)
+        userService.getCurrentTeamId(userId)
 
         val existingReaction = noticeReactionRepository.findByNoticeNoticeIdAndUserId(noticeId, userId)
 
@@ -270,6 +273,7 @@ class NoticeService(
     @Transactional
     fun toggleDislike(userId: Long, noticeId: Long): Boolean {
         val notice = getNotice(noticeId)
+        userService.getCurrentTeamId(userId)
 
         val existingReaction = noticeReactionRepository.findByNoticeNoticeIdAndUserId(noticeId, userId)
 
@@ -296,8 +300,37 @@ class NoticeService(
         }
     }
 
+    fun createComment(userId: Long, noticeId: Long, dto: CommentRequest) {
+        val notice = getNotice(noticeId)
+        val temaId = userService.getCurrentTeamId(userId)
+        validateTeam(notice, temaId)
+        // Fixme: 17:18분에 생성했는데 8:13으로 찍힘. 시간 조정이 좀 필요해보임.
+
+        val comment = PostComments.createNoticeComment(
+            noticeId = noticeId,
+            userId = userId,
+            content = dto.content
+        )
+        postCommentRepository.save(comment)
+
+        notice.increaseComment()
+        noticeRepository.save(notice)
+    }
+
+    private fun validateTeam(notice: Notices, teamId: Long) {
+        if (notice.teamId != teamId) {
+            throw BusinessException(ErrorCode.NOT_TEAM_MEMBER)
+        }
+    }
+
     fun validateTitleAndContent(title: String, content: String) {
         if (title.isBlank() || content.isBlank()) {
+            throw BusinessException(ErrorCode.TITLE_CONTENT_REQUIRED)
+        }
+    }
+
+    fun validateComment(comment: String) {
+        if (comment.isBlank()) {
             throw BusinessException(ErrorCode.TITLE_CONTENT_REQUIRED)
         }
     }
