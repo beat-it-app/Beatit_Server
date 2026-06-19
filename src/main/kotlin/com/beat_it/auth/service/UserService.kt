@@ -8,6 +8,7 @@ import com.beat_it.auth.repository.UserProfilesRepository
 import com.beat_it.auth.repository.UserRepository
 import com.beat_it.global.error.BusinessException
 import com.beat_it.global.error.ErrorCode
+import com.beat_it.global.service.FileService
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import org.springframework.web.multipart.MultipartFile
@@ -16,7 +17,8 @@ import org.springframework.web.multipart.MultipartFile
 class UserService (
     private val userProfilesRepository: UserProfilesRepository,
     private val userRepository: UserRepository,
-    private val authFilesRepository: AuthFilesRepository
+    private val authFilesRepository: AuthFilesRepository,
+    private val fileService: FileService
 ) {
     @Transactional
     fun createProfile(currentUserId: String, name: String, profileImage: MultipartFile?) {
@@ -34,16 +36,32 @@ class UserService (
             throw BusinessException(ErrorCode.INVALID_NAME_FORMAT)
         }
 
-        // TODO : S3 연동 후 프로필 이미지 기능 구현하기
-        val dummyAuthFile = AuthFiles(
-            user = user,
-            originalFileName = profileImage?.originalFilename ?: "default.jpg",
-            storageKey = "dummy/path/default.jpg",
-            cdnUrl = "https://example.com/default-image.jpg",
-            mediaCategory = MediaCategory.IMAGE,
-            isPublic = true
-        )
-        val savedAuthFile = authFilesRepository.save(dummyAuthFile)
+        var savedAuthFile: AuthFiles? = null
+        if (profileImage != null) {
+            val uploadedResult = fileService.uploadFiles(listOf(profileImage), "profile").firstOrNull()
+            if (uploadedResult != null) {
+                val authFile = AuthFiles(
+                    user = user,
+                    originalFileName = uploadedResult.originalFileName,
+                    storageKey = uploadedResult.storageKey,
+                    cdnUrl = uploadedResult.cdnUrl,
+                    mediaCategory = MediaCategory.IMAGE,
+                    isPublic = true
+                )
+                savedAuthFile = authFilesRepository.save(authFile)
+            }
+        } else {
+            // TODO : S3 연동 후 기본 프로필 이미지 처리 (현재는 더미값)
+            val authFile = AuthFiles(
+                user = user,
+                originalFileName = "default.jpg",
+                storageKey = "dummy/path/default.jpg",
+                cdnUrl = "https://example.com/default-image.jpg",
+                mediaCategory = MediaCategory.IMAGE,
+                isPublic = true
+            )
+            savedAuthFile = authFilesRepository.save(authFile)
+        }
 
         val userProfile = UserProfiles.create(
             user = user,

@@ -15,13 +15,15 @@ import org.springframework.transaction.annotation.Transactional
 import org.springframework.web.multipart.MultipartFile
 import com.beat_it.post.entity.PostFiles
 import com.beat_it.auth.service.UserService
+import com.beat_it.auth.entity.enum.MediaCategory
 import com.beat_it.global.util.DateTimeUtil
+import com.beat_it.global.service.FileService
 import com.beat_it.post.entity.NoticeReactions
 
 @Service
 class NoticeService(
     private val noticeRepository: NoticeRepository,
-    private val postFileService: PostFileService,
+    private val fileService: FileService,
     private val noticeAttachmentsRepository: NoticeAttachmentsRepository,
     private val noticeReactionRepository: NoticeReactionRepository,
     private val postCommentRepository: PostCommentRepository,
@@ -76,7 +78,7 @@ class NoticeService(
     fun createNotice(userId: Long, dto: NoticeRequest, images: List<MultipartFile>?) {
         val teamId = userService.getCurrentTeamId(userId)
 
-        val uploadedPostFiles = images?.let { postFileService.uploadFiles(userId, it) } ?: emptyList()
+        val uploadedPostFiles = uploadAndSavePostFiles(userId, images)
         val thumbnailUrl = uploadedPostFiles.firstOrNull()?.cdnUrl
 
         val notice = Notices.writeNotice(
@@ -170,7 +172,7 @@ class NoticeService(
             }
             noticeAttachmentsRepository.deleteByNoticeNoticeId(noticeId)
 
-            val uploadedPostFiles = postFileService.uploadFiles(userId, multipartFiles)
+            val uploadedPostFiles = uploadAndSavePostFiles(userId, multipartFiles)
             thumbnailUrl = if (uploadedPostFiles.isNotEmpty()) {
                 uploadedPostFiles.first().cdnUrl
             } else {
@@ -185,6 +187,21 @@ class NoticeService(
             thumbnailImageUrl = thumbnailUrl
         )
         noticeRepository.save(notice)
+    }
+
+    private fun uploadAndSavePostFiles(userId: Long, images: List<MultipartFile>?): List<PostFiles> {
+        val uploadedFiles = images?.let { fileService.uploadFiles(it, "notice") } ?: emptyList()
+        return uploadedFiles.map { result ->
+            val postFile = PostFiles(
+                userId = userId,
+                originalFileName = result.originalFileName,
+                storageKey = result.storageKey,
+                cdnUrl = result.cdnUrl,
+                mediaCategory = MediaCategory.IMAGE,
+                isPublic = true
+            )
+            postFilesRepository.save(postFile)
+        }
     }
 
     private fun saveNoticeAttachments(notice: Notices, postFiles: List<PostFiles>, userId: Long) {
