@@ -59,6 +59,7 @@ enum class ErrorCode(
     POST_NO_CONTENT_TO_UPDATE(HttpStatus.BAD_REQUEST, "POST-003", "변경된 내용이 없습니다."),
     ALREADY_LIKED(HttpStatus.BAD_REQUEST, "POST-004", "이미 좋아요를 누르셨습니다."),
     ALREADY_DISLIKED(HttpStatus.BAD_REQUEST, "POST-005", "이미 싫어요를 누르셨습니다."),
+    INVALID_COMMENT_CONTENT(HttpStatus.BAD_REQUEST, "POST-006", "댓글 내용은 공백일 수 없습니다."),
 
     // --- 장소 관련 에러 ---
     LOCATION_NOT_FOUND(HttpStatus.NOT_FOUND, "LOCATION-001", "장소를 찾을 수 없습니다."),

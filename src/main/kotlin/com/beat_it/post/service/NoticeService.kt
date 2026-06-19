@@ -331,7 +331,7 @@ class NoticeService(
 
     fun validateComment(comment: String) {
         if (comment.isBlank()) {
-            throw BusinessException(ErrorCode.TITLE_CONTENT_REQUIRED)
+            throw BusinessException(ErrorCode.INVALID_COMMENT_CONTENT)
         }
     }
 
