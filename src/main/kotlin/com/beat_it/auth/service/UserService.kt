@@ -21,10 +21,7 @@ class UserService (
     private val fileService: FileService
 ) {
     @Transactional
-    fun createProfile(currentUserId: String, name: String, profileImage: MultipartFile?) {
-        val userId = runCatching { currentUserId.toLong() }
-            .getOrElse { throw BusinessException(ErrorCode.INVALID_USER_ID) }
-
+    fun createProfile(userId: Long, name: String, profileImage: MultipartFile?) {
         validateName(name)
 
         if (userProfilesRepository.existsByUser_UserId(userId)) {
@@ -35,8 +32,7 @@ class UserService (
             ?: throw BusinessException(ErrorCode.USER_NOT_FOUND)
 
         val savedAuthFile = if (profileImage != null) {
-            val uploadedResult = fileService.uploadFiles(listOf(profileImage), "profile").firstOrNull()
-                ?: throw BusinessException(ErrorCode.INTERNAL_SERVER_ERROR)
+            val uploadedResult = fileService.uploadFiles(listOf(profileImage), "profile").first()
             
             val authFile = AuthFiles(
                 user = user,

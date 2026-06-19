@@ -40,14 +40,14 @@ class UserController (
 
     @PostMapping("/profile", consumes = [MediaType.MULTIPART_FORM_DATA_VALUE])
     fun createProfile(
-        @AuthenticationPrincipal userDetails: UserDetails?,
+        @AuthenticationPrincipal userDetails: UserDetails,
         @Parameter(description = "프로필 이름", example = "김빗잇") @RequestParam("name") name: String,
         @RequestPart(value = "profileImage", required = false) profileImage: MultipartFile?
     ): ResponseEntity<BasicResponse<Nothing>> {
-        val currentUserId = userDetails?.username
+        val userId = userDetails.username.toLongOrNull()
             ?: throw BusinessException(ErrorCode.UNAUTHORIZED)
 
-        userService.createProfile(currentUserId, name, profileImage)
+        userService.createProfile(userId, name, profileImage)
 
         return ResponseEntity
             .status(HttpStatus.CREATED)

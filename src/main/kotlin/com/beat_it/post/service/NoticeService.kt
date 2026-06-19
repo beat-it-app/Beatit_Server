@@ -18,6 +18,8 @@ import com.beat_it.auth.service.UserService
 import com.beat_it.auth.entity.enum.MediaCategory
 import com.beat_it.global.util.DateTimeUtil
 import com.beat_it.global.service.FileService
+import com.beat_it.post.entity.enum.NoticeSortType
+import org.springframework.data.domain.PageRequest
 
 @Service
 class NoticeService(
@@ -31,21 +33,21 @@ class NoticeService(
 ) {
 
     @Transactional(readOnly = true)
-    fun getNoticeList(userId: Long, keyword: String?, sortStr: String): NoticeListResponse? {
+    fun getNoticeList(userId: Long, keyword: String?, sort: NoticeSortType): NoticeListResponse {
         val teamId = userService.getCurrentTeamId(userId)
 
-        val sort = if (sortStr.uppercase() == "OLDEST") {
-            Sort.by(Sort.Direction.ASC, "createdAt")
-        } else {
-            Sort.by(Sort.Direction.DESC, "createdAt")
+        val sort = when (sort) {
+            NoticeSortType.OLDEST -> Sort.by(Sort.Direction.ASC, "createdAt")
+            NoticeSortType.LATEST -> Sort.by(Sort.Direction.DESC, "createdAt")
         }
 
+        val pageRequest = PageRequest.of(0, 10, sort)
+
         val searchKeyword = keyword ?: ""
-        // FIXME : 한 번에 몇 개씩 불러올지 정해야 함 (paging 처리 같은 거 해야해)
-        val notices = noticeRepository.searchNotices(teamId, searchKeyword, sort)
+        val notices = noticeRepository.searchNotices(teamId, searchKeyword, pageRequest)
 
         if (notices.isEmpty()) {
-            return null
+            return NoticeListResponse(noticeListResponse = emptyList())
         }
 
         val noticeItems = notices.map { notice ->
@@ -53,7 +55,7 @@ class NoticeService(
             val writerName = userProfile?.name ?: "알 수 없음"
 
             val description = if (notice.content.length > 20) {
-                "${notice.content.substring(0, 20)}..."
+                "${notice.content.take(20)}..."
             } else {
                 notice.content
             }
@@ -240,7 +242,7 @@ class NoticeService(
         noticeAttachmentsRepository.deleteByNoticeNoticeId(noticeId)
     }
 
-    private fun validateTitleAndContent(title: String, content: String) {
+    fun validateTitleAndContent(title: String, content: String) {
         if (title.isBlank() || content.isBlank()) {
             throw BusinessException(ErrorCode.TITLE_CONTENT_REQUIRED)
         }
@@ -252,13 +254,13 @@ class NoticeService(
 
     private fun validateTeam(notice: Notices, teamId: Long) {
         if (notice.teamId != teamId) {
-            throw BusinessException(ErrorCode.FORBIDDEN)
+            throw BusinessException(ErrorCode.NOT_TEAM_MEMBER)
         }
     }
 
     private fun validateWriter(notice: Notices, userId: Long){
         if (notice.userId != userId) {
-            throw BusinessException(ErrorCode.FORBIDDEN)
+            throw BusinessException(ErrorCode.NOT_AUTHOR)
         }
     }
 }

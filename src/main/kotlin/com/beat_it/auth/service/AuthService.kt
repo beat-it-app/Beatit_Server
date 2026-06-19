@@ -16,6 +16,7 @@ import com.beat_it.auth.repository.UserSettingsRepository
 import com.beat_it.global.error.BusinessException
 import com.beat_it.global.error.ErrorCode
 import com.beat_it.global.security.jwt.JwtTokenProvider
+import com.beat_it.global.util.DateTimeUtil
 import jakarta.transaction.Transactional
 import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.stereotype.Service
@@ -31,9 +32,7 @@ class AuthService (
 ){
     @Transactional
     fun signUp(dto : SignUpRequest): SignUpResponse {
-        val identifier = dto.identifier ?: throw BusinessException(ErrorCode.MISSING_IDENTIFIER)
-        val password = dto.password ?: throw BusinessException(ErrorCode.MISSING_PASSWORD)
-
+        val identifier = dto.identifier
         checkDuplicateIdentifier(identifier)
 
         var user = Users.createNewUser(
@@ -48,7 +47,7 @@ class AuthService (
         )
         userSettingsRepository.save(userSetting)
 
-        val encodedPassword = passwordEncoder.encode(password)
+        val encodedPassword = passwordEncoder.encode(dto.password)
 
         val userAuthAccount = UserAuthAccounts.createNormalUser(
             user = user,
@@ -60,16 +59,16 @@ class AuthService (
         userAuthAccountRepository.save(userAuthAccount)
 
         return SignUpResponse(
-            userId = user.userId,
-            identifier = userAuthAccount.identifier,
+            userId = user.userId!!,
+            identifier = userAuthAccount.identifier!!,
             email = userAuthAccount.email,
-            createdAt = user.createdAt
+            createdAt = DateTimeUtil.format(user.createdAt),
         )
     }
 
     fun login(loginRequest: LoginRequest) : Pair<String,LoginResponse> {
         val userAuthAccount = userAuthAccountRepository.findByIdentifier(loginRequest.identifier)
-            ?: throw BusinessException(ErrorCode.USER_NOT_FOUND)
+            ?: throw BusinessException(ErrorCode.IDENTIFIER_NOT_FOUND)
 
         if (!passwordEncoder.matches(loginRequest.password, userAuthAccount.password)) {
             throw BusinessException(ErrorCode.INVALID_PASSWORD)
