@@ -14,5 +14,5 @@ data class TeamSimpleInfo(
     val teamName: String,
     val teamType: TeamType,
     val teamImageUrl: String?,
-    val createdAt: LocalDate,
+    val createdAt: String,
 )

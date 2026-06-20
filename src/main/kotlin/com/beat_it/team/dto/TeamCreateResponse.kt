@@ -13,5 +13,5 @@ data class TeamCreateResponse(
     val inviteCode: String,
     val teamType: TeamType,
     val teamRole: String,
-    val createdAt: OffsetDateTime,
+    val createdAt: String,
 )

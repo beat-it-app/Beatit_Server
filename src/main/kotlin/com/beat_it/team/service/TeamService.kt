@@ -3,6 +3,7 @@ package com.beat_it.team.service
 import com.beat_it.auth.service.UserService
 import com.beat_it.global.error.BusinessException
 import com.beat_it.global.error.ErrorCode
+import com.beat_it.global.util.DateTimeUtil
 import com.beat_it.team.dto.*
 import com.beat_it.team.entity.TeamLinks
 import com.beat_it.team.entity.TeamMemberships
@@ -61,7 +62,7 @@ class TeamService(
             inviteCode = savedTeam.inviteCode,
             teamType = savedTeam.teamType,
             teamRole = "LEADER",
-            createdAt = savedTeam.createdAt
+            createdAt =  DateTimeUtil.format(savedTeam.createdAt)
         )
     }
 
@@ -124,7 +125,7 @@ class TeamService(
             teamName = team.teamName,
             description = team.description,
             establishedOn = team.establishedOn,
-            updatedAt = team.updatedAt,
+            updatedAt = DateTimeUtil.format(team.updatedAt),
             links = links
         )
     }
@@ -186,8 +187,8 @@ class TeamService(
             establishedOn = team.establishedOn,
             inviteCode = team.inviteCode,
             memberCount = memberCount,
-            createdAt = team.createdAt,
-            updatedAt = team.updatedAt,
+            createdAt = DateTimeUtil.format(team.createdAt),
+            updatedAt = DateTimeUtil.format(team.updatedAt),
             links = links,
             parts = parts,
             archiveCount = 0,
@@ -217,7 +218,7 @@ class TeamService(
             teamPublicId = team.publicId,
             teamName = team.teamName,
             teamRole = savedMembership.teamRole,
-            joinedAt = savedMembership.joinedAt
+            joinedAt = DateTimeUtil.format(savedMembership.joinedAt),
         )
     }
 
@@ -235,7 +236,7 @@ class TeamService(
                 teamName = team.teamName,
                 teamType = team.teamType,
                 teamImageUrl = team.teamImageUrl,
-                createdAt = team.createdAt.toLocalDate()
+                createdAt =  DateTimeUtil.format(team.createdAt)
             )
         }
 
@@ -254,7 +255,7 @@ class TeamService(
             teamName = team.teamName,
             teamType = team.teamType,
             teamImageUrl = team.teamImageUrl,
-            createdAt = team.createdAt.toLocalDate(),
+            createdAt =  DateTimeUtil.format(team.createdAt)
         )
     }
 
@@ -372,18 +373,33 @@ class TeamService(
     private fun validateTeamRole(
         teamId: Long,
         userId: Long,
+        roleErrorCode: ErrorCode,
         vararg allowedRoles: TeamRole
     ) {
         val membership = findActiveMembershipOrThrow(teamId, userId)
 
         if (membership.teamRole !in allowedRoles) {
+            throw BusinessException(roleErrorCode)
         }
     }
 
     private fun validateTeamUpdatePermission(teamId: Long, userId: Long) {
+        validateTeamRole(
+            teamId = teamId,
+            userId = userId,
+            roleErrorCode = ErrorCode.TEAM_NO_UPDATE_PERMISSION,
+            TeamRole.LEADER,
+            TeamRole.MANAGER
+        )
     }
 
     private fun validateTeamDeletePermission(teamId: Long, userId: Long) {
+        validateTeamRole(
+            teamId = teamId,
+            userId = userId,
+            roleErrorCode = ErrorCode.TEAM_NO_DELETE_PERMISSION,
+            TeamRole.LEADER
+        )
     }
 
     private fun validateTeamMember(teamId: Long, userId: Long) {

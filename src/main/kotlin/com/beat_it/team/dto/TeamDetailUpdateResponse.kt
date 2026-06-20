@@ -10,6 +10,6 @@ data class TeamDetailUpdateResponse(
     val teamName: String,
     val description: String?,
     val establishedOn: LocalDate?,
-    val updatedAt: OffsetDateTime,
+    val updatedAt: String,
     val links: List<LinksResponse>? = null,
 )
