@@ -142,6 +142,11 @@ class TeamService(
 
         userService.clearUserCurrentTeamId(team.teamId!!)
 
+        val activeMemberships = teamMembershipRepository
+            .findAllByTeamTeamIdAndLeftAtIsNull(team.teamId!!)
+
+        activeMemberships.forEach { it.leaveTeam() }
+
         //TODO: 유효기간 관련 처리
 
         team.delete()
@@ -213,6 +218,8 @@ class TeamService(
 
         val savedMembership = teamMembershipRepository.save(teamMembership)
 
+        //TODO: 하은아, 가입하면 currentTeamId를 해당 팀으로 바꿔야 하는지 언니들에게 물어봐
+
         return TeamJoinResponse(
             teamId = team.teamId!!,
             teamPublicId = team.publicId,
@@ -270,36 +277,18 @@ class TeamService(
     }
 
     private fun findInviteCodeOrThrow(inviteCode: String): Teams {
-        val team = teamRepository.findByInviteCode(inviteCode)
+        return teamRepository.findByInviteCode(inviteCode)
             ?: throw BusinessException(ErrorCode.TEAM_INVITE_CODE_NOT_FOUND)
-
-        if (team.deletedAt != null) {
-            throw BusinessException(ErrorCode.TEAM_PENDING_DELETION)
-        }
-
-        return team
     }
 
     private fun findTeamForCommandOrThrow(teamId: Long): Teams {
-        val team = teamRepository.findByTeamId(teamId)
-            ?: throw BusinessException(ErrorCode.TEAM_NOT_FOUND)
-
-        if (team.deletedAt != null) {
-            throw BusinessException(ErrorCode.TEAM_PENDING_DELETION)
-        }
-
-        return team
+        return teamRepository.findByTeamId(teamId)
+            ?: throw BusinessException(ErrorCode.TEAM_UNAVAILABLE)
     }
 
     private fun findTeamForCommandOrThrow(teamPublicId: UUID): Teams {
-        val team = teamRepository.findByPublicId(teamPublicId)
-            ?: throw BusinessException(ErrorCode.TEAM_NOT_FOUND)
-
-        if (team.deletedAt != null) {
-            throw BusinessException(ErrorCode.TEAM_PENDING_DELETION)
-        }
-
-        return team
+        return teamRepository.findByPublicId(teamPublicId)
+            ?: throw BusinessException(ErrorCode.TEAM_UNAVAILABLE)
     }
 
     private fun validateCreateRequest(request: TeamCreateRequest) {
