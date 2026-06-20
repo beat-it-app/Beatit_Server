@@ -51,7 +51,7 @@ class TeamService(
 
         teamMembershipRepository.save(leaderTeamMemberships)
 
-        user.updateCurrentTeam(savedTeam.teamId!!)
+        userService.updateCurrentTeamId(user.userId!!, savedTeam.teamId!!)
 
         return TeamCreateResponse(
             teamId = savedTeam.teamId!!,
@@ -261,7 +261,7 @@ class TeamService(
             user.userId!!
         ) ?: throw BusinessException(ErrorCode.TEAM_NO_PERMISSION)
 
-        user.updateCurrentTeam(team.teamId!!)
+        userService.updateCurrentTeamId(user.userId!!, team.teamId!!)
     }
 
     private fun findInviteCodeOrThrow(inviteCode: String): Teams {

@@ -92,4 +92,10 @@ class UserService (
     fun clearUserCurrentTeamId(teamId: Long){
         userRepository.clearCurrentTeamIdByTeamId(teamId)
     }
+
+    @Transactional
+    fun updateCurrentTeamId(userId: Long, teamId: Long) {
+        val user = findUserOrThrow(userId)
+        user.updateCurrentTeam(teamId)
+    }
 }
