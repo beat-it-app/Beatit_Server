@@ -377,16 +377,13 @@ class TeamService(
         val membership = findActiveMembershipOrThrow(teamId, userId)
 
         if (membership.teamRole !in allowedRoles) {
-            throw BusinessException(ErrorCode.TEAM_NO_PERMISSION)
         }
     }
 
     private fun validateTeamUpdatePermission(teamId: Long, userId: Long) {
-        validateTeamRole(teamId, userId, TeamRole.LEADER, TeamRole.MANAGER)
     }
 
     private fun validateTeamDeletePermission(teamId: Long, userId: Long) {
-        validateTeamRole(teamId, userId, TeamRole.LEADER)
     }
 
     private fun validateTeamMember(teamId: Long, userId: Long) {
