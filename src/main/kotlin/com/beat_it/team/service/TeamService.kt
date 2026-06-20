@@ -2,6 +2,7 @@ package com.beat_it.team.service
 
 import com.beat_it.auth.entity.Users
 import com.beat_it.auth.repository.UserRepository
+import com.beat_it.auth.service.UserService
 import com.beat_it.global.error.BusinessException
 import com.beat_it.global.error.ErrorCode
 import com.beat_it.team.dto.*
@@ -20,7 +21,8 @@ import java.util.UUID
 
 @Service
 class TeamService(
-    private val userRepository: UserRepository,
+//    private val userRepository: UserRepository,
+    private val userService: UserService,
     private val teamRepository: TeamRepository,
     private val teamLinksRepository: TeamLinksRepository,
     private val teamPartsRepository: TeamPartsRepository,
@@ -29,11 +31,9 @@ class TeamService(
 
     @Transactional
     fun createTeam(userId: Long, request: TeamCreateRequest): TeamCreateResponse {
-        val user = findUserOrThrow(userId)
+        val user = userService.findUserOrThrow(userId)
 
         validateCreateRequest(request)
-
-        val user = findUserOrThrow(userId)
 
         val inviteCode = generateInviteCode()
 
@@ -73,7 +73,7 @@ class TeamService(
         userId: Long,
         request: TeamDetailUpdateRequest
     ): TeamDetailUpdateResponse {
-        val user = findUserOrThrow(userId)
+        val user = userService.findUserOrThrow(userId)
         val teamId = user.currentTeamId
             ?: throw BusinessException(ErrorCode.TEAM_NOT_SELECTED)
 
@@ -134,13 +134,13 @@ class TeamService(
         userId: Long,
         teamPublicId: UUID
     ) {
-        val user = findUserOrThrow(userId)
+        val user = userService.findUserOrThrow(userId)
         val team = findTeamForCommandOrThrow(teamPublicId)
 
         validateTeamDeletePermission(team.teamId!!, user.userId!!)
 
         //FIXME: user.currentTeamId가 teamId와 같은 모든 회원의 currentTeamId도 null 처리해야 함. >> 근데 이경우에는 userRepository를 사용하지 않나요???
-        userRepository.clearCurrentTeamIdByTeamId(team.teamId!!)
+//        userRepository.clearCurrentTeamIdByTeamId(team.teamId!!)
 
         //TODO: 유효기간 관련 처리
 
@@ -149,7 +149,7 @@ class TeamService(
 
     @Transactional(readOnly = true)
     fun getTeamDetail(userId: Long): TeamDetailResponse? {
-        val user = findUserOrThrow(userId)
+        val user = userService.findUserOrThrow(userId)
 
         val teamId = user.currentTeamId
             ?: throw BusinessException(ErrorCode.TEAM_NOT_SELECTED)
@@ -198,7 +198,7 @@ class TeamService(
     @Transactional
     fun joinTeam(userId: Long, inviteCode: String?): JoinTeamResponse {
         val normalizedInviteCode = validateAndNormalizeInviteCode(inviteCode)
-        val user = findUserOrThrow(userId)
+        val user = userService.findUserOrThrow(userId)
 
         val team = findInviteCodeOrThrow(normalizedInviteCode)
 
@@ -216,13 +216,13 @@ class TeamService(
             teamId = team.teamId!!,
             teamName = team.teamName,
             teamRole = savedMembership.teamRole,
-            joinedAt = savedMembership.createdAt
+            joinedAt = savedMembership.joinedAt
         )
     }
 
     @Transactional(readOnly = true)
     fun getUserTeams(userId: Long) : UserTeamListResponse {
-        val user = findUserOrThrow(userId)
+        val user = userService.findUserOrThrow(userId)
 
         val memberships = teamMembershipRepository.findAllByUserIdAndLeftAtIsNullAndTeamDeletedAtIsNullOrderByCreatedAtDesc(user.userId!!)
 
@@ -257,7 +257,7 @@ class TeamService(
 
     @Transactional
     fun selectTeam(userId: Long, teamPublicId: UUID) {
-        val user = findUserOrThrow(userId)
+        val user = userService.findUserOrThrow(userId)
         val team = findTeamOrThrow(teamPublicId)
 
         teamMembershipRepository.findByTeamTeamIdAndUserIdAndLeftAtIsNull(
@@ -266,11 +266,6 @@ class TeamService(
         ) ?: throw BusinessException(ErrorCode.TEAM_NO_PERMISSION)
 
         user.updateCurrentTeam(team.teamId!!)
-    }
-
-    private fun findUserOrThrow(userId: Long) : Users {
-        return userRepository.findByIdOrNull(userId)
-            ?: throw BusinessException(ErrorCode.USER_NOT_FOUND)
     }
 
     private fun findTeamOrThrow(teamId: Long): Teams {
