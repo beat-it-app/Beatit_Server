@@ -193,7 +193,7 @@ class TeamService(
     }
 
     @Transactional
-    fun joinTeam(userId: Long, inviteCode: String?): JoinTeamResponse {
+    fun joinTeam(userId: Long, inviteCode: String?): TeamJoinResponse {
         val normalizedInviteCode = validateAndNormalizeInviteCode(inviteCode)
         val user = userService.findUserOrThrow(userId)
 
@@ -209,7 +209,7 @@ class TeamService(
 
         val savedMembership = teamMembershipRepository.save(teamMembership)
 
-        return JoinTeamResponse(
+        return TeamJoinResponse(
             teamId = team.teamId!!,
             teamName = team.teamName,
             teamRole = savedMembership.teamRole,
@@ -230,7 +230,7 @@ class TeamService(
                 teamName = team.teamName,
                 teamType = team.teamType,
                 teamImageUrl = team.teamImageUrl,
-                createAt = team.createdAt.toLocalDate()
+                createdAt = team.createdAt.toLocalDate()
             )
         }
 
@@ -248,7 +248,7 @@ class TeamService(
             teamName = team.teamName,
             teamType = team.teamType,
             teamImageUrl = team.teamImageUrl,
-            createAt = team.createdAt.toLocalDate(),
+            createdAt = team.createdAt.toLocalDate(),
         )
     }
 
