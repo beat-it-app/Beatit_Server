@@ -55,6 +55,7 @@ class TeamService(
 
         return TeamCreateResponse(
             teamId = savedTeam.teamId!!,
+            teamPublicId = savedTeam.publicId,
             teamName = savedTeam.teamName,
             description = savedTeam.description,
             inviteCode = savedTeam.inviteCode,
@@ -119,6 +120,7 @@ class TeamService(
 
         return TeamDetailUpdateResponse(
             teamId = teamId,
+            teamPublicId = team.publicId,
             teamName = team.teamName,
             description = team.description,
             establishedOn = team.establishedOn,
@@ -145,13 +147,13 @@ class TeamService(
     }
 
     @Transactional(readOnly = true)
-    fun getTeamDetail(userId: Long): TeamDetailResponse {
+    fun getTeamDetail(userId: Long): TeamDetailResponse? {
         val user = userService.findUserOrThrow(userId)
 
         val teamId = user.currentTeamId
-            ?: throw BusinessException(ErrorCode.TEAM_NOT_SELECTED)
+            ?: return null
 
-        val team = findTeamForCommandOrThrow(teamId);
+        val team = findTeamForCommandOrThrow(teamId)
 
         val memberCount = teamMembershipRepository.countByTeamTeamIdAndLeftAtIsNull(team.teamId!!)
 
@@ -177,6 +179,7 @@ class TeamService(
 
         return TeamDetailResponse(
             teamId = team.teamId,
+            teamPublicId = team.publicId,
             teamImageUrl = team.teamImageUrl,
             teamName = team.teamName,
             description = team.description,
@@ -211,6 +214,7 @@ class TeamService(
 
         return TeamJoinResponse(
             teamId = team.teamId!!,
+            teamPublicId = team.publicId,
             teamName = team.teamName,
             teamRole = savedMembership.teamRole,
             joinedAt = savedMembership.joinedAt
@@ -227,6 +231,7 @@ class TeamService(
             val team = membership.team
             TeamSimpleInfo(
                 teamId = team.teamId!!,
+                teamPublicId = team.publicId,
                 teamName = team.teamName,
                 teamType = team.teamType,
                 teamImageUrl = team.teamImageUrl,
@@ -245,6 +250,7 @@ class TeamService(
 
         return TeamSimpleInfo(
             teamId = team.teamId!!,
+            teamPublicId = team.publicId,
             teamName = team.teamName,
             teamType = team.teamType,
             teamImageUrl = team.teamImageUrl,
