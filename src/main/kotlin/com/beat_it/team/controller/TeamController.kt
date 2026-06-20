@@ -114,15 +114,15 @@ class TeamController(
     }
 
     @Operation(summary = "초대코드로 팀 가입하기")
-    @PostMapping( "/join")
+    @PostMapping( "/join/{inviteCode}")
     fun postJoinTeam(
         @AuthenticationPrincipal userDetails: UserDetails?,
-        @RequestBody request: JoinTeamRequest,
+        @RequestParam(value = "inviteCode") inviteCode: String,
     ): ResponseEntity<BasicResponse<JoinTeamResponse>> {
         val userId = userDetails?.username?.toLong()
             ?: throw BusinessException(ErrorCode.UNAUTHORIZED)
 
-        val responseData = teamService.joinTeam(userId, request.inviteCode)
+        val responseData = teamService.joinTeam(userId, inviteCode)
 
         return ResponseEntity.ok(
             BasicResponse.success(responseData, HttpStatus.OK, "팀 가입이 완료되었습니다.")
