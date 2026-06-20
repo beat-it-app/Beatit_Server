@@ -258,7 +258,7 @@ class TeamService(
     @Transactional
     fun selectTeam(userId: Long, teamPublicId: UUID) {
         val user = userService.findUserOrThrow(userId)
-        val team = findTeamOrThrow(teamPublicId)
+        val team = findTeamForCommandOrThrow(teamPublicId)
 
         teamMembershipRepository.findByTeamTeamIdAndUserIdAndLeftAtIsNull(
             team.teamId!!,
@@ -268,19 +268,15 @@ class TeamService(
         user.updateCurrentTeam(team.teamId!!)
     }
 
-    private fun findTeamOrThrow(teamId: Long): Teams {
-        return teamRepository.findByTeamIdAndDeletedAtIsNull(teamId)
-            ?: throw BusinessException(ErrorCode.TEAM_NOT_FOUND)
-    }
-
-    private fun findTeamOrThrow(teamPublicId: UUID): Teams {
-        return teamRepository.findByPublicIdAndDeletedAtIsNull(teamPublicId)
-            ?: throw BusinessException(ErrorCode.TEAM_NOT_FOUND)
-    }
-
     private fun findInviteCodeOrThrow(inviteCode: String): Teams {
-        return teamRepository.findByInviteCodeAndDeletedAtIsNull(inviteCode)
+        val team = teamRepository.findByInviteCode(inviteCode)
             ?: throw BusinessException(ErrorCode.TEAM_INVITE_CODE_NOT_FOUND)
+
+        if (team.deletedAt != null) {
+            throw BusinessException(ErrorCode.TEAM_PENDING_DELETION)
+        }
+
+        return team
     }
 
     private fun findTeamForCommandOrThrow(teamId: Long): Teams {
@@ -295,7 +291,7 @@ class TeamService(
     }
 
     private fun findTeamForCommandOrThrow(teamPublicId: UUID): Teams {
-        val team = teamRepository.findByPublicIdAndDeletedAtIsNull(teamPublicId)
+        val team = teamRepository.findByPublicId(teamPublicId)
             ?: throw BusinessException(ErrorCode.TEAM_NOT_FOUND)
 
         if (team.deletedAt != null) {
@@ -364,10 +360,7 @@ class TeamService(
         return current == requested
     }
 
-
-
     private fun validateTeamUpdatePermission(teamId: Long, userId: Long) {
-        // TODO: TeamMemberRepository가 생기면 여기서 LEADER 또는 MANAGER인지 확인
         val membership = teamMembershipRepository.findByTeamTeamIdAndUserIdAndLeftAtIsNull(teamId, userId) ?: throw BusinessException(ErrorCode.TEAM_NO_PERMISSION)
         if (membership.teamRole != TeamRole.LEADER && membership.teamRole != TeamRole.MANAGER) {
             throw BusinessException(ErrorCode.TEAM_NO_PERMISSION)
@@ -375,8 +368,8 @@ class TeamService(
     }
 
     private fun validateTeamDeletePermission(teamId: Long, userId: Long) {
-        // TODO: 팀 삭제 권한 검증
-        val membership = teamMembershipRepository.findByTeamTeamIdAndUserIdAndLeftAtIsNull(teamId, userId) ?: throw BusinessException(ErrorCode.TEAM_NO_PERMISSION)
+        val membership = teamMembershipRepository.findByTeamTeamIdAndUserIdAndLeftAtIsNull(teamId, userId)
+            ?: throw BusinessException(ErrorCode.TEAM_NO_PERMISSION)
         if (membership.teamRole != TeamRole.LEADER) {
             throw BusinessException(ErrorCode.TEAM_NO_PERMISSION)
         }

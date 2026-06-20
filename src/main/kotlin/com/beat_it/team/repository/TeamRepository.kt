@@ -8,15 +8,11 @@ import java.util.UUID
 
 @Repository
 interface TeamRepository : JpaRepository<Teams, Long> {
-    fun findByInviteCodeAndDeletedAtIsNull(inviteCode: String): Teams?
-
     fun findByTeamId(teamId: Long): Teams?
 
     fun findByPublicId(publicId: UUID): Teams?
 
-    fun findByTeamIdAndDeletedAtIsNull(teamId: Long): Teams?
-
-    fun findByPublicIdAndDeletedAtIsNull(publicId: UUID): Teams?
+    fun findByInviteCode(inviteCode: String): Teams?
 
     fun existsByInviteCode(inviteCode: String): Boolean
 }
