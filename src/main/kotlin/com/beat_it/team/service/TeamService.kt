@@ -77,9 +77,10 @@ class TeamService(
 
         val team = findTeamForCommandOrThrow(teamId)
 
+        validateTeamUpdatePermission(team.teamId!!, user.userId!!)
+
         val currentLinks = teamLinksRepository.findAllByTeamTeamId(team.teamId!!)
 
-        validateTeamUpdatePermission(team.teamId!!, user.userId!!)
         validateTeamDetailChanged(team, request, currentLinks)
 
         team.updateTeamDetail(
@@ -144,7 +145,7 @@ class TeamService(
     }
 
     @Transactional(readOnly = true)
-    fun getTeamDetail(userId: Long): TeamDetailResponse? {
+    fun getTeamDetail(userId: Long): TeamDetailResponse {
         val user = userService.findUserOrThrow(userId)
 
         val teamId = user.currentTeamId
@@ -220,7 +221,7 @@ class TeamService(
     fun getUserTeams(userId: Long) : UserTeamListResponse {
         val user = userService.findUserOrThrow(userId)
 
-        val memberships = teamMembershipRepository.findAllByUserIdAndLeftAtIsNullAndTeamDeletedAtIsNullOrderByCreatedAtDesc(user.userId!!)
+        val memberships = teamMembershipRepository.findAllByUserIdAndLeftAtIsNullAndTeamDeletedAtIsNullOrderByJoinedAtDesc(user.userId!!)
 
         val teams = memberships.map { membership ->
             val team = membership.team
@@ -256,10 +257,7 @@ class TeamService(
         val user = userService.findUserOrThrow(userId)
         val team = findTeamForCommandOrThrow(teamPublicId)
 
-        teamMembershipRepository.findByTeamTeamIdAndUserIdAndLeftAtIsNull(
-            team.teamId!!,
-            user.userId!!
-        ) ?: throw BusinessException(ErrorCode.TEAM_NO_PERMISSION)
+        validateTeamMember(team.teamId!!, user.userId!!)
 
         userService.updateCurrentTeamId(user.userId!!, team.teamId!!)
     }
@@ -316,6 +314,10 @@ class TeamService(
             throw BusinessException(ErrorCode.TEAM_NAME_REQUIRED)
         }
 
+        if ((request.teamName?.length ?: 0) > 100) {
+            throw BusinessException(ErrorCode.TEAM_NAME_TOO_LONG)
+        }
+
         if ((request.description?.length ?: 0) > 500) {
             throw BusinessException(ErrorCode.TEAM_DESCRIPTION_TOO_LONG)
         }
@@ -356,19 +358,33 @@ class TeamService(
         return current == requested
     }
 
-    private fun validateTeamUpdatePermission(teamId: Long, userId: Long) {
-        val membership = teamMembershipRepository.findByTeamTeamIdAndUserIdAndLeftAtIsNull(teamId, userId) ?: throw BusinessException(ErrorCode.TEAM_NO_PERMISSION)
-        if (membership.teamRole != TeamRole.LEADER && membership.teamRole != TeamRole.MANAGER) {
+    private fun findActiveMembershipOrThrow(teamId: Long, userId: Long): TeamMemberships {
+        return teamMembershipRepository.findByTeamTeamIdAndUserIdAndLeftAtIsNull(teamId, userId)
+            ?: throw BusinessException(ErrorCode.TEAM_NO_PERMISSION)
+    }
+
+    private fun validateTeamRole(
+        teamId: Long,
+        userId: Long,
+        vararg allowedRoles: TeamRole
+    ) {
+        val membership = findActiveMembershipOrThrow(teamId, userId)
+
+        if (membership.teamRole !in allowedRoles) {
             throw BusinessException(ErrorCode.TEAM_NO_PERMISSION)
         }
     }
 
+    private fun validateTeamUpdatePermission(teamId: Long, userId: Long) {
+        validateTeamRole(teamId, userId, TeamRole.LEADER, TeamRole.MANAGER)
+    }
+
     private fun validateTeamDeletePermission(teamId: Long, userId: Long) {
-        val membership = teamMembershipRepository.findByTeamTeamIdAndUserIdAndLeftAtIsNull(teamId, userId)
-            ?: throw BusinessException(ErrorCode.TEAM_NO_PERMISSION)
-        if (membership.teamRole != TeamRole.LEADER) {
-            throw BusinessException(ErrorCode.TEAM_NO_PERMISSION)
-        }
+        validateTeamRole(teamId, userId, TeamRole.LEADER)
+    }
+
+    private fun validateTeamMember(teamId: Long, userId: Long) {
+        findActiveMembershipOrThrow(teamId, userId)
     }
 
     private fun validateAndNormalizeInviteCode(inviteCode: String?): String {
