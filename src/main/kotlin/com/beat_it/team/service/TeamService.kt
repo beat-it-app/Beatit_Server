@@ -1,7 +1,5 @@
 package com.beat_it.team.service
 
-import com.beat_it.auth.entity.Users
-import com.beat_it.auth.repository.UserRepository
 import com.beat_it.auth.service.UserService
 import com.beat_it.global.error.BusinessException
 import com.beat_it.global.error.ErrorCode
@@ -14,14 +12,12 @@ import com.beat_it.team.repository.TeamLinksRepository
 import com.beat_it.team.repository.TeamMembershipRepository
 import com.beat_it.team.repository.TeamPartsRepository
 import com.beat_it.team.repository.TeamRepository
-import org.springframework.data.repository.findByIdOrNull
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.util.UUID
 
 @Service
 class TeamService(
-//    private val userRepository: UserRepository,
     private val userService: UserService,
     private val teamRepository: TeamRepository,
     private val teamLinksRepository: TeamLinksRepository,
