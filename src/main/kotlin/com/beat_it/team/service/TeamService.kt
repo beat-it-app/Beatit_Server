@@ -139,8 +139,7 @@ class TeamService(
 
         validateTeamDeletePermission(team.teamId!!, user.userId!!)
 
-        //FIXME: user.currentTeamId가 teamId와 같은 모든 회원의 currentTeamId도 null 처리해야 함. >> 근데 이경우에는 userRepository를 사용하지 않나요???
-//        userRepository.clearCurrentTeamIdByTeamId(team.teamId!!)
+        userService.clearUserCurrentTeamId(team.teamId!!)
 
         //TODO: 유효기간 관련 처리
 

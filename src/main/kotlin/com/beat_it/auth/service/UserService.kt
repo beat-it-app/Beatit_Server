@@ -89,7 +89,7 @@ class UserService (
             ?: throw BusinessException(ErrorCode.USER_NOT_FOUND)
     }
 
-//    fun clearUserCurrentTeamId(userId: Long){
-//
-//    }
+    fun clearUserCurrentTeamId(teamId: Long){
+        userRepository.clearCurrentTeamIdByTeamId(teamId)
+    }
 }
