@@ -1,5 +1,6 @@
 package com.beat_it.team.entity
 
+import com.beat_it.global.entity.BaseJoinedTimeEntity
 import com.beat_it.global.entity.BaseUpdatedTimeEntity
 import com.beat_it.team.entity.enum.TeamRole
 import jakarta.persistence.*
@@ -26,7 +27,7 @@ class TeamMemberships(
 
     @Column(name = "left_at", nullable = true)
     var leftAt: OffsetDateTime? = null,
-) : BaseUpdatedTimeEntity() {
+) : BaseJoinedTimeEntity() {
 
     fun updateTeamRole(teamRole: TeamRole) {
         this.teamRole = teamRole

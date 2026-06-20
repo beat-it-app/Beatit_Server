@@ -33,6 +33,8 @@ class TeamService(
 
         validateCreateRequest(request)
 
+        val user = findUserOrThrow(userId)
+
         val inviteCode = generateInviteCode()
 
         val team = Teams(
@@ -53,6 +55,8 @@ class TeamService(
         )
 
         teamMembershipRepository.save(leaderTeamMemberships)
+
+        user.updateCurrentTeam(savedTeam.teamId!!)
 
         return TeamCreateResponse(
             teamId = savedTeam.teamId!!,
@@ -131,16 +135,15 @@ class TeamService(
     @Transactional
     fun deleteTeam(
         userId: Long,
-        teamId: Long
+        teamPublicId: UUID
     ) {
         val user = findUserOrThrow(userId)
-        val team = findTeamForCommandOrThrow(teamId)
+        val team = findTeamForCommandOrThrow(teamPublicId)
 
         validateTeamDeletePermission(team.teamId!!, user.userId!!)
 
-        //TODO: user.currentTeamId가 teamId와 같은 모든 회원의 currentTeamId도 null 처리해야 함.
-        userRepository.clearCurrentTeamIdByTeamId(teamId)
-        //FIXME: 하은아 파트, 링크, 멤버십도 삭제해야하는거 아냐?
+        //FIXME: user.currentTeamId가 teamId와 같은 모든 회원의 currentTeamId도 null 처리해야 함. >> 근데 이경우에는 userRepository를 사용하지 않나요???
+        userRepository.clearCurrentTeamIdByTeamId(team.teamId!!)
 
         //TODO: 유효기간 관련 처리
 
@@ -151,12 +154,12 @@ class TeamService(
     fun getTeamDetail(userId: Long): TeamDetailResponse? {
         val user = findUserOrThrow(userId)
 
-        val teamId = user.currentTeamId ?: return null
+        val teamId = user.currentTeamId
+            ?: throw BusinessException(ErrorCode.TEAM_NOT_SELECTED)
 
-        val team = teamRepository.findByTeamIdAndDeletedAtIsNull(teamId)
-            ?: return null
+        val team = findTeamForCommandOrThrow(teamId);
 
-        val memberCount = teamMembershipRepository.countByTeamTeamIdAndLeftAtIsNull(teamId)
+        val memberCount = teamMembershipRepository.countByTeamTeamIdAndLeftAtIsNull(team.teamId!!)
 
         val links = teamLinksRepository
             .findAllByTeamTeamId(teamId)
@@ -200,8 +203,7 @@ class TeamService(
         val normalizedInviteCode = validateAndNormalizeInviteCode(inviteCode)
         val user = findUserOrThrow(userId)
 
-        val team = teamRepository.findByInviteCodeAndDeletedAtIsNull(normalizedInviteCode)
-            ?: throw BusinessException(ErrorCode.TEAM_INVITE_CODE_NOT_FOUND)
+        val team = findInviteCodeOrThrow(normalizedInviteCode)
 
         validateNotAlreadyJoined(team.teamId!!, user.userId!!)
 
@@ -245,8 +247,7 @@ class TeamService(
     fun getTeamInfoByInviteCode(inviteCode: String): TeamSimpleInfo {
         val normalizedInviteCode = validateAndNormalizeInviteCode(inviteCode)
 
-        val team = teamRepository.findByInviteCodeAndDeletedAtIsNull(normalizedInviteCode)
-            ?: throw BusinessException(ErrorCode.TEAM_INVITE_CODE_NOT_FOUND)
+        val team = findInviteCodeOrThrow(normalizedInviteCode)
 
         return TeamSimpleInfo(
             teamId = team.teamId!!,
@@ -258,9 +259,9 @@ class TeamService(
     }
 
     @Transactional
-    fun selectTeam(userId: Long, teamId: Long) {
+    fun selectTeam(userId: Long, teamPublicId: UUID) {
         val user = findUserOrThrow(userId)
-        val team = findTeamOrThrow(teamId)
+        val team = findTeamOrThrow(teamPublicId)
 
         teamMembershipRepository.findByTeamTeamIdAndUserIdAndLeftAtIsNull(
             team.teamId!!,
@@ -280,8 +281,29 @@ class TeamService(
             ?: throw BusinessException(ErrorCode.TEAM_NOT_FOUND)
     }
 
+    private fun findTeamOrThrow(teamPublicId: UUID): Teams {
+        return teamRepository.findByPublicIdAndDeletedAtIsNull(teamPublicId)
+            ?: throw BusinessException(ErrorCode.TEAM_NOT_FOUND)
+    }
+
+    private fun findInviteCodeOrThrow(inviteCode: String): Teams {
+        return teamRepository.findByInviteCodeAndDeletedAtIsNull(inviteCode)
+            ?: throw BusinessException(ErrorCode.TEAM_INVITE_CODE_NOT_FOUND)
+    }
+
     private fun findTeamForCommandOrThrow(teamId: Long): Teams {
         val team = teamRepository.findByTeamId(teamId)
+            ?: throw BusinessException(ErrorCode.TEAM_NOT_FOUND)
+
+        if (team.deletedAt != null) {
+            throw BusinessException(ErrorCode.TEAM_PENDING_DELETION)
+        }
+
+        return team
+    }
+
+    private fun findTeamForCommandOrThrow(teamPublicId: UUID): Teams {
+        val team = teamRepository.findByPublicIdAndDeletedAtIsNull(teamPublicId)
             ?: throw BusinessException(ErrorCode.TEAM_NOT_FOUND)
 
         if (team.deletedAt != null) {
@@ -394,8 +416,6 @@ class TeamService(
     }
 
     private fun generateInviteCode(): String {
-        // TODO: 팀 초대코드 생성법 고안 필요
-        // TODO: Redis로 초대코드를 구성하는 블로그 참고하기
         return UUID.randomUUID()
             .toString()
             .replace("-", "")

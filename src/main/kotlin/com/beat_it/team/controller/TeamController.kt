@@ -18,6 +18,7 @@ import org.springframework.web.bind.annotation.*
 import io.swagger.v3.oas.annotations.tags.Tag
 import org.springframework.security.core.annotation.AuthenticationPrincipal
 import org.springframework.security.core.userdetails.UserDetails
+import java.util.UUID
 
 @Tag(name = "3-1. TEAM API", description = "팀 생성 및 수정 관련 로직")
 @RestController
@@ -57,15 +58,15 @@ class TeamController(
     }
 
     @Operation(summary = "팀 삭제하기")
-    @DeleteMapping("/{teamId}")
+    @DeleteMapping("/{teamPublicId}")
     fun deleteTeam(
         @AuthenticationPrincipal userDetails: UserDetails?,
-        @RequestParam("teamId") teamId: Long
+        @RequestParam("teamPublicId") teamPublicId: UUID
     ): ResponseEntity<BasicResponse<Nothing>> {
         val userId = userDetails?.username?.toLong()
             ?: throw BusinessException(ErrorCode.UNAUTHORIZED)
 
-        teamService.deleteTeam(userId, teamId)
+        teamService.deleteTeam(userId, teamPublicId)
 
         return ResponseEntity.ok(
             BasicResponse.success(HttpStatus.OK,"팀이 성공적으로 삭제되었습니다.")
@@ -96,21 +97,21 @@ class TeamController(
     }
 
     @Operation(summary = "로그인할 팀 선택하기")
-    @PostMapping("/select/{teamId}")
+    @PostMapping("/select/{teamPublicId}")
     fun selectTeam(
         @AuthenticationPrincipal userDetails: UserDetails?,
-        @RequestParam(value = "teamId") teamId: Long,
+        @RequestParam(value = "teamPublicId") teamPublicId: UUID,
     ): ResponseEntity<BasicResponse<Nothing>> {
         val userId = userDetails?.username?.toLong()
             ?: throw BusinessException(ErrorCode.UNAUTHORIZED)
 
-        teamService.selectTeam(userId, teamId)
+        teamService.selectTeam(userId, teamPublicId)
 
         return ResponseEntity.ok(BasicResponse.success(HttpStatus.OK, "팀이 성공적으로 선택되었습니다."))
     }
 
     @Operation(summary = "초대코드로 팀 가입하기")
-    @PostMapping( "/join")
+    @PostMapping( "/join/{inviteCode}")
     fun postJoinTeam(
         @AuthenticationPrincipal userDetails: UserDetails?,
         @RequestParam(value = "inviteCode") inviteCode: String,
