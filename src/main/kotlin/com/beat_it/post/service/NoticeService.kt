@@ -79,6 +79,8 @@ class NoticeService(
     @Transactional
     fun createNotice(userId: Long, dto: NoticeRequest, images: List<MultipartFile>?) {
         val teamId = userService.getCurrentTeamId(userId)
+        userService.getCurrentTeamId(userId)
+        validateTitleAndContent(dto.title, dto.content)
 
         val uploadedPostFiles = uploadAndSavePostFiles(userId, images)
         val thumbnailUrl = uploadedPostFiles.firstOrNull()?.cdnUrl
@@ -154,7 +156,7 @@ class NoticeService(
     fun editNotice(userId: Long, noticeId: Long, dto: NoticeRequest, images: List<MultipartFile>?) {
         val notice = getNotice(noticeId)
         userService.getCurrentTeamId(userId)
-
+        validateTitleAndContent(dto.title, dto.content)
         validateWriter(notice, userId)
 
         val existingAttachments = noticeAttachmentsRepository.findByNoticeNoticeIdOrderByDisplayOrderAsc(noticeId)
@@ -303,6 +305,7 @@ class NoticeService(
     fun createComment(userId: Long, noticeId: Long, dto: CommentRequest) {
         val notice = getNotice(noticeId)
         val temaId = userService.getCurrentTeamId(userId)
+        validateComment(dto.content)
         validateTeam(notice, temaId)
         // Fixme: 17:18분에 생성했는데 8:13으로 찍힘. 시간 조정이 좀 필요해보임.
 
@@ -323,13 +326,13 @@ class NoticeService(
         }
     }
 
-    fun validateTitleAndContent(title: String, content: String) {
+    private fun validateTitleAndContent(title: String, content: String) {
         if (title.isBlank() || content.isBlank()) {
             throw BusinessException(ErrorCode.TITLE_CONTENT_REQUIRED)
         }
     }
 
-    fun validateComment(comment: String) {
+    private fun validateComment(comment: String) {
         if (comment.isBlank()) {
             throw BusinessException(ErrorCode.INVALID_COMMENT_CONTENT)
         }
