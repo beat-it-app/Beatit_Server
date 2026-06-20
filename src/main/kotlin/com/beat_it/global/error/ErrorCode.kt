@@ -45,17 +45,17 @@ enum class ErrorCode(
 
     // --- 3. 팀 관련 에러 (TEAM) ---
     TEAM_NO_CONTENT_TO_UPDATE(HttpStatus.BAD_REQUEST, "TEAM-001", "팀에 대해 변경할 내용이 업습니다."),
-    TEAM_NO_PERMISSION(HttpStatus.FORBIDDEN, "TEAM-002", "팀 조회 권한이 없습니다."),
+    TEAM_NO_PERMISSION(HttpStatus.FORBIDDEN, "TEAM-002", "팀에 대한 권한이 없습니다."),
     TEAM_NOT_FOUND(HttpStatus.NOT_FOUND, "TEAM-003", "팀을 찾을 수 없습니다."),
     TEAM_NAME_REQUIRED(HttpStatus.BAD_REQUEST, "TEAM-004", "팀 이름은 필수입니다."),
     TEAM_NAME_TOO_LONG(HttpStatus.BAD_REQUEST, "TEAM-005", "팀 이름은 100자 이하여야 합니다."),
     TEAM_DESCRIPTION_TOO_LONG(HttpStatus.BAD_REQUEST, "TEAM-006", "팀 설명은 500자 이하여야 합니다."),
     TEAM_NO_UPDATE_PERMISSION(HttpStatus.FORBIDDEN, "TEAM-007","팀 수정 권한이 없습니다."),
     TEAM_INVITE_CODE_REQUIRED(HttpStatus.BAD_REQUEST, "TEAM-008", "초대 코드가 입력되지 않았습니다."),
-    TEAM_INVITE_CODE_INVALID(HttpStatus.BAD_REQUEST, "TEAM-009", "유효하지 않은 초대 코드입니다."),
+    TEAM_INVITE_CODE_INVALID(HttpStatus.BAD_REQUEST, "TEAM-009", "유효하지 않은 팀 초대 코드입니다."),
     TEAM_INVITE_CODE_NOT_FOUND(HttpStatus.NOT_FOUND, "TEAM-010", "존재하지 않는 팀 초대 코드입니다."),
-    TEAM_ALREADY_JOINED(HttpStatus.CONFLICT, "TEAM-011", "이미 가입된 팀입니다."),
-    TEAM_PENDING_DELETION(HttpStatus.BAD_REQUEST,  "TEAM-012", "이미 삭제 요청된 팀입니다."),
+    TEAM_ALREADY_JOINED(HttpStatus.CONFLICT, "TEAM-011", "이미 팀에 가입된 상태입니다."),
+    TEAM_PENDING_DELETION(HttpStatus.BAD_REQUEST,  "TEAM-012", "이미 삭제되었거나 존재하지 않는 팀입니다." ),
     TEAM_NOT_SELECTED(HttpStatus.BAD_REQUEST, "TEAM-013", "현재 선택된 팀이 없습니다. 팀을 먼저 선택해주세요."),
 
     // --- 5. 공지/투표 관련 에러 (POST) ---
