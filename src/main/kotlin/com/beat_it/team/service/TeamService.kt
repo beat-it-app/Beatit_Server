@@ -31,9 +31,9 @@ class TeamService(
 
     @Transactional
     fun createTeam(userId: Long, request: TeamCreateRequest): TeamCreateResponse {
-        val user = userService.findUserOrThrow(userId)
-
         validateCreateRequest(request)
+
+        val user = userService.findUserOrThrow(userId)
 
         val inviteCode = generateInviteCode()
 
@@ -73,6 +73,8 @@ class TeamService(
         userId: Long,
         request: TeamDetailUpdateRequest
     ): TeamDetailUpdateResponse {
+        validateUpdateRequest(request)
+
         val user = userService.findUserOrThrow(userId)
         val teamId = user.currentTeamId
             ?: throw BusinessException(ErrorCode.TEAM_NOT_SELECTED)
@@ -82,7 +84,6 @@ class TeamService(
         val currentLinks = teamLinksRepository.findAllByTeamTeamId(team.teamId!!)
 
         validateTeamUpdatePermission(team.teamId!!, user.userId!!)
-        validateUpdateRequest(request)
         validateTeamDetailChanged(team, request, currentLinks)
 
         team.updateTeamDetail(
