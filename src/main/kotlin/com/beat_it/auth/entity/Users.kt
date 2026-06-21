@@ -45,7 +45,7 @@ class Users (
         }
     }
 
-    fun updateCurrentTeam(teamId: Long) {
+    fun updateCurrentTeam(teamId: Long?) {
         this.currentTeamId = teamId
     }
 }
