@@ -23,6 +23,8 @@ enum class ErrorCode(
     EMAIL_VERIFICATION_CODE_MISMATCH(HttpStatus.BAD_REQUEST, "SIGNUP-004", "잘못된 인증번호입니다."),
     EMAIL_VERIFICATION_NOT_FOUND(HttpStatus.NOT_FOUND, "SIGNUP-005", "진행 중인 인증 요청을 찾을 수 없습니다."),
     MISSING_PROVIDER(HttpStatus.BAD_REQUEST, "SIGNUP-006", "소셜 회원가입 시 제공자 정보는 필수입니다."),
+    MISSING_IDENTIFIER(HttpStatus.BAD_REQUEST, "SIGNUP-007", "일반 회원가입 시 아이디는 필수입니다."),
+    MISSING_PASSWORD(HttpStatus.BAD_REQUEST, "SIGNUP-008", "일반 회원가입 시 비밀번호는 필수입니다."),
 
     IDENTIFIER_NOT_FOUND(HttpStatus.NOT_FOUND, "LOGIN-001", "존재하지 않는 아이디입니다."),
     INVALID_PASSWORD(HttpStatus.BAD_REQUEST, "LOGIN-002", "비밀번호가 일치하지 않습니다."),
