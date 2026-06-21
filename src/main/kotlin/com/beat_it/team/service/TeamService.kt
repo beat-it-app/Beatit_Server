@@ -33,8 +33,6 @@ class TeamService(
 
         validateCreateRequest(request)
 
-        val user = findUserOrThrow(userId)
-
         val inviteCode = generateInviteCode()
 
         val team = Teams(
@@ -216,7 +214,7 @@ class TeamService(
             teamId = team.teamId!!,
             teamName = team.teamName,
             teamRole = savedMembership.teamRole,
-            joinedAt = savedMembership.createdAt
+            joinedAt = savedMembership.joinedAt
         )
     }
 
