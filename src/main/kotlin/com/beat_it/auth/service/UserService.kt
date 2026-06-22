@@ -59,7 +59,7 @@ class UserService (
         val userProfile = UserProfiles.create(
             user = user,
             name = name,
-            authFile = savedAuthFile
+            authFile = savedAuthFile!!
         )
         userProfilesRepository.save(userProfile)
     }
