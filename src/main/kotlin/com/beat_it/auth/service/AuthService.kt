@@ -16,6 +16,7 @@ import com.beat_it.auth.repository.UserSettingsRepository
 import com.beat_it.global.error.BusinessException
 import com.beat_it.global.error.ErrorCode
 import com.beat_it.global.security.jwt.JwtTokenProvider
+import com.beat_it.global.util.DateTimeUtil
 import jakarta.transaction.Transactional
 import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.stereotype.Service
@@ -32,25 +33,21 @@ class AuthService (
     @Transactional
     fun signUp(dto : SignUpRequest): SignUpResponse {
         val identifier = dto.identifier ?: throw BusinessException(ErrorCode.MISSING_IDENTIFIER)
-        
-        // 아이디 중복 확인
+        val identifier = dto.identifier
         checkDuplicateIdentifier(identifier)
 
-        // 1. Users 생성 및 저장
         var user = Users.createNewUser(
             role = Role.USER,
             accountStatus = AccountStatus.ACTIVE
         )
         user = userRepository.save(user)
 
-        // 2. UserSettings 생성 및 저장
         val userSetting = UserSettings.createNewUser(
             user,
             allowAutoLogin = false
         )
         userSettingsRepository.save(userSetting)
 
-        // 3. UserAuthAccounts 생성 및 저장
         val password = dto.password ?: throw BusinessException(ErrorCode.MISSING_PASSWORD)
         val encodedPassword = passwordEncoder.encode(password)
 
@@ -64,17 +61,16 @@ class AuthService (
         userAuthAccountRepository.save(userAuthAccount)
 
         return SignUpResponse(
-            userId = user.userId,
-            identifier = userAuthAccount.identifier,
+            userId = user.userId!!,
+            identifier = userAuthAccount.identifier!!,
             email = userAuthAccount.email,
-            createdAt = user.createdAt
+            createdAt = DateTimeUtil.format(user.createdAt),
         )
     }
 
-    // 2. 로그인
     fun login(loginRequest: LoginRequest) : Pair<String,LoginResponse> {
         val userAuthAccount = userAuthAccountRepository.findByIdentifier(loginRequest.identifier)
-            ?: throw BusinessException(ErrorCode.USER_NOT_FOUND)
+            ?: throw BusinessException(ErrorCode.IDENTIFIER_NOT_FOUND)
 
         if (!passwordEncoder.matches(loginRequest.password, userAuthAccount.password)) {
             throw BusinessException(ErrorCode.INVALID_PASSWORD)
@@ -98,7 +94,6 @@ class AuthService (
         )
     }
 
-    // 4. 아이디 중복 확인
     fun checkDuplicateIdentifier(identifier: String): Boolean {
         if (userAuthAccountRepository.findByIdentifier(identifier) != null) {
             throw BusinessException(ErrorCode.IDENTIFIER_DUPLICATED)
@@ -107,7 +102,6 @@ class AuthService (
         }
     }
 
-    // 5. 이메일 인증번호 발송
     fun sendEmailVerificationCode(email: String): Boolean {
         try {
             val verificationCode = generateVerificationCode()
@@ -126,7 +120,6 @@ class AuthService (
             .joinToString("")
     }
 
-    // 6. 이메일 인증번호 인증하기
     fun verifyEmailVerificationCode(email: String, code: String): Boolean {
         val storedCode = "123456" // fixme 예시로 고정된 코드, 실제로는 DB나 캐시에서 조회해야 함
         if (storedCode == code) {
@@ -136,5 +129,4 @@ class AuthService (
             throw BusinessException(ErrorCode.EMAIL_VERIFICATION_CODE_MISMATCH)
         }
     }
-
 }

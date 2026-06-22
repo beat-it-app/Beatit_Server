@@ -20,7 +20,8 @@ import com.beat_it.global.util.DateTimeUtil
 import com.beat_it.global.service.FileService
 import com.beat_it.post.entity.NoticeReactions
 import com.beat_it.post.entity.PostComments
-import javax.xml.stream.events.Comment
+import com.beat_it.post.entity.enum.NoticeSortType
+import org.springframework.data.domain.PageRequest
 
 @Service
 class NoticeService(
@@ -34,20 +35,21 @@ class NoticeService(
 ) {
 
     @Transactional(readOnly = true)
-    fun getNoticeList(userId: Long, keyword: String?, sortStr: String): NoticeListResponse? {
+    fun getNoticeList(userId: Long, keyword: String?, sort: NoticeSortType): NoticeListResponse {
         val teamId = userService.getCurrentTeamId(userId)
 
-        val sort = if (sortStr.uppercase() == "OLDEST") {
-            Sort.by(Sort.Direction.ASC, "createdAt")
-        } else {
-            Sort.by(Sort.Direction.DESC, "createdAt")
+        val sort = when (sort) {
+            NoticeSortType.OLDEST -> Sort.by(Sort.Direction.ASC, "createdAt")
+            NoticeSortType.LATEST -> Sort.by(Sort.Direction.DESC, "createdAt")
         }
 
+        val pageRequest = PageRequest.of(0, 10, sort)
+
         val searchKeyword = keyword ?: ""
-        val notices = noticeRepository.searchNotices(teamId, searchKeyword, sort)
+        val notices = noticeRepository.searchNotices(teamId, searchKeyword, pageRequest)
 
         if (notices.isEmpty()) {
-            return null
+            return NoticeListResponse(noticeListResponse = emptyList())
         }
 
         val noticeItems = notices.map { notice ->
@@ -55,7 +57,7 @@ class NoticeService(
             val writerName = userProfile?.name ?: "알 수 없음"
 
             val description = if (notice.content.length > 20) {
-                "${notice.content.substring(0, 20)}..."
+                "${notice.content.take(20)}..."
             } else {
                 notice.content
             }
@@ -78,6 +80,7 @@ class NoticeService(
 
     @Transactional
     fun createNotice(userId: Long, dto: NoticeRequest, images: List<MultipartFile>?) {
+        validateTitleAndContent(dto.title, dto.content)
         val teamId = userService.getCurrentTeamId(userId)
         userService.getCurrentTeamId(userId)
         validateTitleAndContent(dto.title, dto.content)
@@ -99,9 +102,9 @@ class NoticeService(
 
     @Transactional
     fun getNotice(userId: Long, noticeId: Long): NoticeDetailResponse {
+        val teamId = userService.getCurrentTeamId(userId)
         val notice = getNotice(noticeId)
-
-        userService.getCurrentTeamId(userId)
+        validateTeam(notice, teamId)
 
         val writerProfile = userService.getUserProfile(notice.userId)
         val writerName = writerProfile?.name ?: "알 수 없음"
@@ -154,9 +157,11 @@ class NoticeService(
 
     @Transactional
     fun editNotice(userId: Long, noticeId: Long, dto: NoticeRequest, images: List<MultipartFile>?) {
-        val notice = getNotice(noticeId)
-        userService.getCurrentTeamId(userId)
         validateTitleAndContent(dto.title, dto.content)
+        val teamId = userService.getCurrentTeamId(userId)
+
+        val notice = getNotice(noticeId)
+        validateTeam(notice, teamId)
         validateWriter(notice, userId)
 
         val existingAttachments = noticeAttachmentsRepository.findByNoticeNoticeIdOrderByDisplayOrderAsc(noticeId)
@@ -169,12 +174,7 @@ class NoticeService(
         var thumbnailUrl = notice.thumbnailImageUrl
 
         images?.let { multipartFiles ->
-            val oldAttachments = noticeAttachmentsRepository.findByNoticeNoticeIdOrderByDisplayOrderAsc(noticeId)
-            oldAttachments.forEach { attachment ->
-                attachment.postFile.delete()
-                postFilesRepository.save(attachment.postFile)
-            }
-            noticeAttachmentsRepository.deleteByNoticeNoticeId(noticeId)
+            deleteNoticeAttachments(existingAttachments, noticeId)
 
             val uploadedPostFiles = uploadAndSavePostFiles(userId, multipartFiles)
             thumbnailUrl = if (uploadedPostFiles.isNotEmpty()) {
@@ -191,6 +191,21 @@ class NoticeService(
             thumbnailImageUrl = thumbnailUrl
         )
         noticeRepository.save(notice)
+    }
+
+    @Transactional
+    fun deleteNotice(userId: Long, noticeId: Long) {
+        val teamId = userService.getCurrentTeamId(userId)
+        val notice = getNotice(noticeId)
+        validateTeam(notice, teamId)
+        validateWriter(notice, userId)
+
+        val existingAttachments = noticeAttachmentsRepository.findByNoticeNoticeIdOrderByDisplayOrderAsc(noticeId)
+        deleteNoticeAttachments(existingAttachments, noticeId)
+
+        noticeReactionRepository.deleteByNoticeNoticeId(noticeId)
+        postCommentRepository.deleteByPostTypeAndPostId(PostType.NOTICE, noticeId)
+        noticeRepository.delete(notice)
     }
 
     private fun uploadAndSavePostFiles(userId: Long, images: List<MultipartFile>?): List<PostFiles> {
@@ -223,23 +238,12 @@ class NoticeService(
         noticeAttachmentsRepository.saveAll(attachments)
     }
 
-    @Transactional
-    fun deleteNotice(userId: Long, noticeId: Long) {
-        val notice = getNotice(noticeId)
-        userService.getCurrentTeamId(userId)
-
-        validateWriter(notice, userId)
-
-        val attachments = noticeAttachmentsRepository.findByNoticeNoticeIdOrderByDisplayOrderAsc(noticeId)
+    private fun deleteNoticeAttachments(attachments: List<NoticeAttachments>, noticeId: Long) {
         attachments.forEach { attachment ->
             attachment.postFile.delete()
             postFilesRepository.save(attachment.postFile)
         }
-
         noticeAttachmentsRepository.deleteByNoticeNoticeId(noticeId)
-        noticeReactionRepository.deleteByNoticeNoticeId(noticeId)
-        postCommentRepository.deleteByPostTypeAndPostId(PostType.NOTICE, noticeId)
-        noticeRepository.delete(notice)
     }
 
     @Transactional
@@ -342,9 +346,15 @@ class NoticeService(
         return noticeRepository.findById(noticeId).orElseThrow {BusinessException(ErrorCode.POST_NOT_FOUND)}
     }
 
+    private fun validateTeam(notice: Notices, teamId: Long) {
+        if (notice.teamId != teamId) {
+            throw BusinessException(ErrorCode.NOT_TEAM_MEMBER)
+        }
+    }
+
     private fun validateWriter(notice: Notices, userId: Long){
         if (notice.userId != userId) {
-            throw BusinessException(ErrorCode.FORBIDDEN)
+            throw BusinessException(ErrorCode.NOT_AUTHOR)
         }
     }
 }
