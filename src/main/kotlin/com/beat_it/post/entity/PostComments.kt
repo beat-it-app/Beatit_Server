@@ -25,4 +25,15 @@ class PostComments(
     @Column(nullable = false, length = 1000)
     var content: String,
 
-): BaseUpdatedTimeEntity()
+): BaseUpdatedTimeEntity(){
+    companion object {
+        fun createNoticeComment(noticeId: Long, userId: Long, content: String): PostComments {
+            return PostComments(
+                postType = PostType.NOTICE,
+                postId = noticeId,
+                userId = userId,
+                content = content
+            )
+        }
+    }
+}

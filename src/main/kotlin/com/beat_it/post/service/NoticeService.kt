@@ -18,6 +18,8 @@ import com.beat_it.auth.service.UserService
 import com.beat_it.auth.entity.enum.MediaCategory
 import com.beat_it.global.util.DateTimeUtil
 import com.beat_it.global.service.FileService
+import com.beat_it.post.entity.NoticeReactions
+import com.beat_it.post.entity.PostComments
 import com.beat_it.post.entity.enum.NoticeSortType
 import org.springframework.data.domain.PageRequest
 
@@ -80,6 +82,8 @@ class NoticeService(
     fun createNotice(userId: Long, dto: NoticeRequest, images: List<MultipartFile>?) {
         validateTitleAndContent(dto.title, dto.content)
         val teamId = userService.getCurrentTeamId(userId)
+        userService.getCurrentTeamId(userId)
+        validateTitleAndContent(dto.title, dto.content)
 
         val uploadedPostFiles = uploadAndSavePostFiles(userId, images)
         val thumbnailUrl = uploadedPostFiles.firstOrNull()?.cdnUrl
@@ -242,9 +246,99 @@ class NoticeService(
         noticeAttachmentsRepository.deleteByNoticeNoticeId(noticeId)
     }
 
-    fun validateTitleAndContent(title: String, content: String) {
+    @Transactional
+    fun toggleLike(userId: Long, noticeId: Long): Boolean {
+        val notice = getNotice(noticeId)
+        userService.getCurrentTeamId(userId)
+
+        val existingReaction = noticeReactionRepository.findByNoticeNoticeIdAndUserId(noticeId, userId)
+
+        if (existingReaction.isPresent) {
+            val reaction = existingReaction.get()
+            if (reaction.reactionType == ReactionType.LIKE) {
+                noticeReactionRepository.delete(reaction)
+                notice.decreaseLike()
+                noticeRepository.save(notice)
+                return false
+            } else {
+                throw BusinessException(ErrorCode.ALREADY_DISLIKED)
+            }
+        } else {
+            val newReaction = NoticeReactions(
+                notice = notice,
+                userId = userId,
+                reactionType = ReactionType.LIKE
+            )
+            noticeReactionRepository.save(newReaction)
+            notice.increaseLike()
+            noticeRepository.save(notice)
+            return true
+        }
+    }
+
+    @Transactional
+    fun toggleDislike(userId: Long, noticeId: Long): Boolean {
+        val notice = getNotice(noticeId)
+        userService.getCurrentTeamId(userId)
+
+        val existingReaction = noticeReactionRepository.findByNoticeNoticeIdAndUserId(noticeId, userId)
+
+        if (existingReaction.isPresent) {
+            val reaction = existingReaction.get()
+            if (reaction.reactionType == ReactionType.DISLIKE) {
+                noticeReactionRepository.delete(reaction)
+                notice.decreaseDislike()
+                noticeRepository.save(notice)
+                return false
+            } else {
+                throw BusinessException(ErrorCode.ALREADY_LIKED)
+            }
+        } else {
+            val newReaction = NoticeReactions(
+                notice = notice,
+                userId = userId,
+                reactionType = ReactionType.DISLIKE
+            )
+            noticeReactionRepository.save(newReaction)
+            notice.increaseDislike()
+            noticeRepository.save(notice)
+            return true
+        }
+    }
+
+    fun createComment(userId: Long, noticeId: Long, dto: CommentRequest) {
+        val notice = getNotice(noticeId)
+        val temaId = userService.getCurrentTeamId(userId)
+        validateComment(dto.content)
+        validateTeam(notice, temaId)
+        // Fixme: 17:18분에 생성했는데 8:13으로 찍힘. 시간 조정이 좀 필요해보임.
+
+        val comment = PostComments.createNoticeComment(
+            noticeId = noticeId,
+            userId = userId,
+            content = dto.content
+        )
+        postCommentRepository.save(comment)
+
+        notice.increaseComment()
+        noticeRepository.save(notice)
+    }
+
+    private fun validateTeam(notice: Notices, teamId: Long) {
+        if (notice.teamId != teamId) {
+            throw BusinessException(ErrorCode.NOT_TEAM_MEMBER)
+        }
+    }
+
+    private fun validateTitleAndContent(title: String, content: String) {
         if (title.isBlank() || content.isBlank()) {
             throw BusinessException(ErrorCode.TITLE_CONTENT_REQUIRED)
+        }
+    }
+
+    private fun validateComment(comment: String) {
+        if (comment.isBlank()) {
+            throw BusinessException(ErrorCode.INVALID_COMMENT_CONTENT)
         }
     }
 
