@@ -10,6 +10,6 @@ data class CalendarSchedulesResponse(
 data class CalendarSchedule(
     val scheduleId: Long,
     val title: String,
-    val startsAt: OffsetDateTime,
-    val endsAt: OffsetDateTime
+    val startsAt: String,
+    val endsAt: String
 )

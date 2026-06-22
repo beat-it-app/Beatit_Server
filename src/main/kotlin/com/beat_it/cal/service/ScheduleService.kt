@@ -13,6 +13,7 @@ import com.beat_it.cal.entity.Schedule
 import com.beat_it.cal.repository.ScheduleRepository
 import com.beat_it.global.error.BusinessException
 import com.beat_it.global.error.ErrorCode
+import com.beat_it.global.util.DateTimeUtil
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.time.LocalDate
@@ -59,15 +60,16 @@ class ScheduleService(
         return ScheduleCreateResponse(
             scheduleId = savedSchedule.scheduleId!!,
             title = savedSchedule.title,
-            startsAt = savedSchedule.startsAt,
-            endsAt = savedSchedule.endsAt,
-            createdAt = savedSchedule.createdAt
+            startsAt = DateTimeUtil.format(savedSchedule.startsAt),
+            endsAt = DateTimeUtil.format(savedSchedule.endsAt),
+            createdAt = DateTimeUtil.format(savedSchedule.createdAt)
         )
     }
 
     @Transactional
     fun updateSchedule(scheduleId: Long, userId: Long, request: ScheduleUpdateRequest): ScheduleCreateResponse {
 
+        validateScheduleCommon(request.title, request.startsAt, request.endsAt)
         val schedule = findScheduleOrThrow(scheduleId)
 
         validateScheduleOwner(schedule.userId, userId)
@@ -75,8 +77,6 @@ class ScheduleService(
         if (isNotChanged(schedule, request)) {
             throw BusinessException(ErrorCode.CALENDAR_NO_CONTENT_TO_UPDATE)
         }
-
-        validateScheduleCommon(request.title, request.startsAt, request.endsAt)
 
         // TODO: 타 도메인 검증 (모듈 분리 대비)
         // request.locationId?.let { locationService.validateLocation(it) }
@@ -100,16 +100,15 @@ class ScheduleService(
         return ScheduleCreateResponse(
             scheduleId = schedule.scheduleId!!,
             title = schedule.title,
-            startsAt = schedule.startsAt,
-            endsAt = schedule.endsAt,
-            createdAt = schedule.createdAt
+            startsAt = DateTimeUtil.format(schedule.startsAt),
+            endsAt = DateTimeUtil.format(schedule.endsAt),
+            createdAt = DateTimeUtil.format(schedule.createdAt)
         )
     }
 
     @Transactional
     fun deleteSchedule(scheduleId: Long, userId: Long) {
-        val schedule = scheduleRepository.findById(scheduleId)
-            .orElseThrow { BusinessException(ErrorCode.CALENDAR_NOT_FOUND) }
+        val schedule = findScheduleOrThrow(scheduleId)
 
         validateScheduleOwner(schedule.userId, userId)
 
@@ -130,10 +129,10 @@ class ScheduleService(
             locationId = schedule.locationId,
             title = schedule.title,
             content = schedule.content,
-            startsAt = schedule.startsAt,
-            endsAt = schedule.endsAt,
-            createdAt = schedule.createdAt,
-            updatedAt = schedule.updatedAt,
+            startsAt = DateTimeUtil.format(schedule.startsAt),
+            endsAt = DateTimeUtil.format(schedule.endsAt),
+            createdAt = DateTimeUtil.format(schedule.createdAt),
+            updatedAt = DateTimeUtil.format(schedule.updatedAt),
             participants = schedule.participants.map { participant ->
                 ParticipantResponse(
                     scheduleParticipantId = participant.scheduleParticipantId!!,
@@ -159,8 +158,8 @@ class ScheduleService(
             CalendarSchedule(
                 scheduleId = schedule.scheduleId ?: throw BusinessException(ErrorCode.CALENDAR_NOT_FOUND),
                 title = schedule.title,
-                startsAt = schedule.startsAt,
-                endsAt = schedule.endsAt
+                startsAt = DateTimeUtil.format(schedule.startsAt),
+                endsAt = DateTimeUtil.format(schedule.endsAt)
             )
         }
 
@@ -183,8 +182,8 @@ class ScheduleService(
                 scheduleId = schedule.scheduleId ?: throw BusinessException(ErrorCode.CALENDAR_NOT_FOUND),
                 title = schedule.title,
                 content = schedule.content ?: "",
-                startsAt = schedule.startsAt,
-                endsAt = schedule.endsAt,
+                startsAt = DateTimeUtil.format(schedule.startsAt),
+                endsAt = DateTimeUtil.format(schedule.endsAt),
                 locationId = schedule.locationId
             )
         }
@@ -256,10 +255,6 @@ class ScheduleService(
 
         if (month !in 1..12) {
             throw BusinessException(ErrorCode.CALENDAR_INVALID_MONTH)
-        }
-
-        if (date !in 1..31) {
-            throw BusinessException(ErrorCode.CALENDAR_INVALID_DATE)
         }
 
         try {
