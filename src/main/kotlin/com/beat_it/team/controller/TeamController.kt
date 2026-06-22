@@ -16,10 +16,12 @@ import io.swagger.v3.oas.annotations.Operation
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.*
+import java.util.UUID
+import io.swagger.v3.oas.annotations.Parameter
+import io.swagger.v3.oas.annotations.security.SecurityRequirements
 import io.swagger.v3.oas.annotations.tags.Tag
 import org.springframework.security.core.annotation.AuthenticationPrincipal
 import org.springframework.security.core.userdetails.UserDetails
-import java.util.UUID
 
 @Tag(name = "3. TEAM API", description = "팀 생성 및 수정 관련 로직")
 @RestController
@@ -32,10 +34,10 @@ class TeamController(
     @Operation(summary = "팀 생성하기")
     @PostMapping
     fun createTeam(
-        @AuthenticationPrincipal userDetails: UserDetails?,
+        @AuthenticationPrincipal userDetails: UserDetails,
         @RequestBody request: TeamCreateRequest
     ): ResponseEntity<BasicResponse<TeamCreateResponse>> {
-        val userId = userDetails?.username?.toLong()
+        val userId = userDetails.username.toLongOrNull()
             ?: throw BusinessException(ErrorCode.UNAUTHORIZED)
 
         val responseData = teamService.createTeam(userId, request)
@@ -45,15 +47,15 @@ class TeamController(
             .body(BasicResponse.success(responseData, HttpStatus.CREATED, "팀이 성공적으로 생성되었습니다."))
     }
 
-    @Operation(summary = "팀 수정하기")
+
     @PatchMapping
     fun updateTeamDetail(
-        @AuthenticationPrincipal userDetails: UserDetails?,
+        @AuthenticationPrincipal userDetails: UserDetails,
+        @RequestParam("teamPublicId") teamPublicId: UUID, //FIXME : teamService.getTeamDetail(userId) 사용하도록 수정
         @RequestBody request: TeamDetailUpdateRequest,
     ): ResponseEntity<BasicResponse<TeamDetailUpdateResponse>> {
-        val userId = userDetails?.username?.toLong()
+        val userId = userDetails.username.toLongOrNull()
             ?: throw BusinessException(ErrorCode.UNAUTHORIZED)
-
         val responseData = teamService.updateTeamDetail(userId, request)
 
         return ResponseEntity
@@ -61,15 +63,13 @@ class TeamController(
             .body(BasicResponse.success(responseData, HttpStatus.OK, "팀 상세 내용이 성공적으로 수정되었습니다."))
     }
 
-    @Operation(summary = "팀 삭제하기")
-    @DeleteMapping("/{teamPublicId}")
+    @DeleteMapping
     fun deleteTeam(
         @AuthenticationPrincipal userDetails: UserDetails?,
         @PathVariable("teamPublicId") teamPublicId: UUID
     ): ResponseEntity<BasicResponse<Nothing>> {
-        val userId = userDetails?.username?.toLong()
+        val userId = userDetails.username.toLongOrNull()
             ?: throw BusinessException(ErrorCode.UNAUTHORIZED)
-
         teamService.deleteTeam(userId, teamPublicId)
 
         return ResponseEntity
@@ -79,9 +79,9 @@ class TeamController(
 
     @Operation(summary = "팀 페이지 불러오기")
     @GetMapping
-    fun getTeamDetail(@AuthenticationPrincipal userDetails: UserDetails?
-    ): ResponseEntity<BasicResponse<out Any?>> {
-        val userId = userDetails?.username?.toLong()
+    fun getTeamDetail(@AuthenticationPrincipal userDetails: UserDetails
+    ): ResponseEntity<BasicResponse<out Any>> {
+        val userId = userDetails.username.toLongOrNull()
             ?: throw BusinessException(ErrorCode.UNAUTHORIZED)
 
         val teamDetail = teamService.getTeamDetail(userId)
@@ -111,8 +111,11 @@ class TeamController(
         @AuthenticationPrincipal userDetails: UserDetails?,
         @PathVariable(value = "teamPublicId") teamPublicId: UUID,
     ): ResponseEntity<BasicResponse<Nothing>> {
-        val userId = userDetails?.username?.toLong()
+        val userId = userDetails.username.toLongOrNull()
             ?: throw BusinessException(ErrorCode.UNAUTHORIZED)
+
+        val team = teamRepository.findByPublicId(teamPublicId)
+            ?: throw BusinessException(ErrorCode.TEAM_NOT_FOUND)
 
         teamService.selectTeam(userId, teamPublicId)
 
