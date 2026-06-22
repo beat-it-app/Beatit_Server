@@ -29,8 +29,7 @@ class TeamService(
     @Transactional
     fun createTeam(userId: Long, request: TeamCreateRequest): TeamCreateResponse {
         validateCreateRequest(request)
-
-        val user = userService.findUserOrThrow(userId)
+        userService.validateUserExists(userId)
 
         val inviteCode = generateInviteCode()
 
@@ -46,13 +45,13 @@ class TeamService(
 
         val leaderTeamMemberships = TeamMemberships(
             team = savedTeam,
-            userId = user.userId!!,
+            userId = userId,
             teamRole = TeamRole.LEADER,
         )
 
         teamMembershipRepository.save(leaderTeamMemberships)
 
-        userService.updateCurrentTeamId(user.userId!!, savedTeam.teamId!!)
+        userService.updateCurrentTeamId(userId, savedTeam.teamId!!)
 
         return TeamCreateResponse(
             teamId = savedTeam.teamId!!,
@@ -72,14 +71,11 @@ class TeamService(
         request: TeamDetailUpdateRequest
     ): TeamDetailUpdateResponse {
         validateUpdateRequest(request)
-
-        val user = userService.findUserOrThrow(userId)
-        val teamId = user.currentTeamId
-            ?: throw BusinessException(ErrorCode.TEAM_NOT_SELECTED)
+        val teamId = userService.getCurrentTeamId(userId)
 
         val team = findTeamForCommandOrThrow(teamId)
 
-        validateTeamUpdatePermission(team.teamId!!, user.userId!!)
+        validateTeamUpdatePermission(team.teamId!!, userId)
 
         val currentLinks = teamLinksRepository.findAllByTeamTeamId(team.teamId!!)
 
@@ -135,12 +131,12 @@ class TeamService(
         userId: Long,
         teamPublicId: UUID
     ) {
-        val user = userService.findUserOrThrow(userId)
+        userService.validateUserExists(userId)
         val team = findTeamForCommandOrThrow(teamPublicId)
 
-        validateTeamDeletePermission(team.teamId!!, user.userId!!)
+        validateTeamDeletePermission(team.teamId!!, userId)
 
-        userService.clearUserCurrentTeamId(team.teamId!!)
+        userService.clearCurrentTeamIdByTeamId(team.teamId!!)
 
         val activeMemberships = teamMembershipRepository
             .findAllByTeamTeamIdAndLeftAtIsNull(team.teamId!!)
@@ -154,12 +150,12 @@ class TeamService(
 
     @Transactional(readOnly = true)
     fun getTeamDetail(userId: Long): TeamDetailResponse? {
-        val user = userService.findUserOrThrow(userId)
-
-        val teamId = user.currentTeamId
+        val teamId = userService.getCurrentTeamIdOrNull(userId)
             ?: return null
 
         val team = findTeamForCommandOrThrow(teamId)
+
+        validateTeamMember(teamId, userId)
 
         val memberCount = teamMembershipRepository.countByTeamTeamIdAndLeftAtIsNull(team.teamId!!)
 
@@ -204,15 +200,15 @@ class TeamService(
     @Transactional
     fun joinTeam(userId: Long, inviteCode: String?): TeamJoinResponse {
         val normalizedInviteCode = validateAndNormalizeInviteCode(inviteCode)
-        val user = userService.findUserOrThrow(userId)
+        userService.validateUserExists(userId)
 
         val team = findInviteCodeOrThrow(normalizedInviteCode)
 
-        validateNotAlreadyJoined(team.teamId!!, user.userId!!)
+        validateNotAlreadyJoined(team.teamId!!, userId)
 
         val teamMembership = TeamMemberships(
             team = team,
-            userId = user.userId!!,
+            userId = userId,
             teamRole = TeamRole.MEMBER
         )
 
@@ -231,9 +227,9 @@ class TeamService(
 
     @Transactional(readOnly = true)
     fun getUserTeams(userId: Long) : UserTeamListResponse {
-        val user = userService.findUserOrThrow(userId)
+        userService.validateUserExists(userId)
 
-        val memberships = teamMembershipRepository.findAllByUserIdAndLeftAtIsNullAndTeamDeletedAtIsNullOrderByJoinedAtDesc(user.userId!!)
+        val memberships = teamMembershipRepository.findAllByUserIdAndLeftAtIsNullAndTeamDeletedAtIsNullOrderByJoinedAtDesc(userId)
 
         val teams = memberships.map { membership ->
             val team = membership.team
@@ -268,12 +264,12 @@ class TeamService(
 
     @Transactional
     fun selectTeam(userId: Long, teamPublicId: UUID) {
-        val user = userService.findUserOrThrow(userId)
+        userService.validateUserExists(userId)
         val team = findTeamForCommandOrThrow(teamPublicId)
 
-        validateTeamMember(team.teamId!!, user.userId!!)
+        validateTeamMember(team.teamId!!, userId)
 
-        userService.updateCurrentTeamId(user.userId!!, team.teamId!!)
+        userService.updateCurrentTeamId(userId, team.teamId!!)
     }
 
     private fun findInviteCodeOrThrow(inviteCode: String): Teams {
@@ -356,7 +352,7 @@ class TeamService(
 
     private fun findActiveMembershipOrThrow(teamId: Long, userId: Long): TeamMemberships {
         return teamMembershipRepository.findByTeamTeamIdAndUserIdAndLeftAtIsNull(teamId, userId)
-            ?: throw BusinessException(ErrorCode.TEAM_NO_PERMISSION)
+            ?: throw BusinessException(ErrorCode.TEAM_UNAVAILABLE)
     }
 
     private fun validateTeamRole(
