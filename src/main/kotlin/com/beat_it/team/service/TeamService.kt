@@ -222,7 +222,7 @@ class TeamService(
     fun getUserTeams(userId: Long) : UserTeamListResponse {
         val user = findUserOrThrow(userId)
 
-        val memberships = teamMembershipRepository.findAllByUserIdAndLeftAtIsNullAndTeamDeletedAtIsNullOrderByCreatedAtDesc(user.userId!!)
+        val memberships = teamMembershipRepository.findAllByUserIdAndLeftAtIsNullAndTeamDeletedAtIsNullOrderByJoinedAtDesc(user.userId!!)
 
         val teams = memberships.map { membership ->
             val team = membership.team
