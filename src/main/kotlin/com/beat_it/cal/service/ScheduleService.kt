@@ -13,6 +13,7 @@ import com.beat_it.cal.entity.Schedule
 import com.beat_it.cal.repository.ScheduleRepository
 import com.beat_it.global.error.BusinessException
 import com.beat_it.global.error.ErrorCode
+import com.beat_it.global.util.DateTimeUtil
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.time.LocalDate
@@ -59,9 +60,9 @@ class ScheduleService(
         return ScheduleCreateResponse(
             scheduleId = savedSchedule.scheduleId!!,
             title = savedSchedule.title,
-            startsAt = savedSchedule.startsAt,
-            endsAt = savedSchedule.endsAt,
-            createdAt = savedSchedule.createdAt
+            startsAt = DateTimeUtil.format(savedSchedule.startsAt),
+            endsAt = DateTimeUtil.format(savedSchedule.endsAt),
+            createdAt = DateTimeUtil.format(savedSchedule.createdAt)
         )
     }
 
@@ -99,9 +100,9 @@ class ScheduleService(
         return ScheduleCreateResponse(
             scheduleId = schedule.scheduleId!!,
             title = schedule.title,
-            startsAt = schedule.startsAt,
-            endsAt = schedule.endsAt,
-            createdAt = schedule.createdAt
+            startsAt = DateTimeUtil.format(schedule.startsAt),
+            endsAt = DateTimeUtil.format(schedule.endsAt),
+            createdAt = DateTimeUtil.format(schedule.createdAt)
         )
     }
 
@@ -128,10 +129,10 @@ class ScheduleService(
             locationId = schedule.locationId,
             title = schedule.title,
             content = schedule.content,
-            startsAt = schedule.startsAt,
-            endsAt = schedule.endsAt,
-            createdAt = schedule.createdAt,
-            updatedAt = schedule.updatedAt,
+            startsAt = DateTimeUtil.format(schedule.startsAt),
+            endsAt = DateTimeUtil.format(schedule.endsAt),
+            createdAt = DateTimeUtil.format(schedule.createdAt),
+            updatedAt = DateTimeUtil.format(schedule.updatedAt),
             participants = schedule.participants.map { participant ->
                 ParticipantResponse(
                     scheduleParticipantId = participant.scheduleParticipantId!!,
@@ -157,8 +158,8 @@ class ScheduleService(
             CalendarSchedule(
                 scheduleId = schedule.scheduleId ?: throw BusinessException(ErrorCode.CALENDAR_NOT_FOUND),
                 title = schedule.title,
-                startsAt = schedule.startsAt,
-                endsAt = schedule.endsAt
+                startsAt = DateTimeUtil.format(schedule.startsAt),
+                endsAt = DateTimeUtil.format(schedule.endsAt)
             )
         }
 
@@ -181,8 +182,8 @@ class ScheduleService(
                 scheduleId = schedule.scheduleId ?: throw BusinessException(ErrorCode.CALENDAR_NOT_FOUND),
                 title = schedule.title,
                 content = schedule.content ?: "",
-                startsAt = schedule.startsAt,
-                endsAt = schedule.endsAt,
+                startsAt = DateTimeUtil.format(schedule.startsAt),
+                endsAt = DateTimeUtil.format(schedule.endsAt),
                 locationId = schedule.locationId
             )
         }
