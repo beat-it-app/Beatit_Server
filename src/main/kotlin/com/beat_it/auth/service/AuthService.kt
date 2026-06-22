@@ -32,7 +32,6 @@ class AuthService (
 ){
     @Transactional
     fun signUp(dto : SignUpRequest): SignUpResponse {
-        val identifier = dto.identifier ?: throw BusinessException(ErrorCode.MISSING_IDENTIFIER)
         val identifier = dto.identifier
         checkDuplicateIdentifier(identifier)
 
@@ -48,7 +47,7 @@ class AuthService (
         )
         userSettingsRepository.save(userSetting)
 
-        val password = dto.password ?: throw BusinessException(ErrorCode.MISSING_PASSWORD)
+        val password = dto.password
         val encodedPassword = passwordEncoder.encode(password)
 
         val userAuthAccount = UserAuthAccounts.createNormalUser(
