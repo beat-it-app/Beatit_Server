@@ -121,8 +121,8 @@ class NoticeService(
         val reactionDto = NoticeReactionDto(
             likeCount = notice.likeCounter,
             dislikeCount = notice.dislikeCounter,
-            isLiked = isLiked,
-            isDisliked = isDisliked,
+            isLiked = isLiked!!,
+            isDisliked = isDisliked!!,
             commentCount = comments.size
         )
 
@@ -344,12 +344,6 @@ class NoticeService(
 
     private fun getNotice(noticeId: Long): Notices{
         return noticeRepository.findById(noticeId).orElseThrow {BusinessException(ErrorCode.POST_NOT_FOUND)}
-    }
-
-    private fun validateTeam(notice: Notices, teamId: Long) {
-        if (notice.teamId != teamId) {
-            throw BusinessException(ErrorCode.NOT_TEAM_MEMBER)
-        }
     }
 
     private fun validateWriter(notice: Notices, userId: Long){
