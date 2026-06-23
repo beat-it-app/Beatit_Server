@@ -51,4 +51,10 @@ class KafkaConfig {
         factory.setConsumerFactory(consumerFactory())
         return factory
     }
+
+    @Bean
+    fun objectMapper(): com.fasterxml.jackson.databind.ObjectMapper {
+        return com.fasterxml.jackson.databind.ObjectMapper()
+            .registerModule(com.fasterxml.jackson.module.kotlin.KotlinModule.Builder().build())
+    }
 }

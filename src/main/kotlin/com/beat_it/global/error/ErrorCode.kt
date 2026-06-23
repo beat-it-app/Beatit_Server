@@ -64,6 +64,7 @@ enum class ErrorCode(
     // --- 4. 채팅 관련 에러 (CHAT) ---
     CHAT_ROOM_NAME_REQUIRED(HttpStatus.BAD_REQUEST, "CHAT-001", "채팅방 이름은 필수입니다."),
     INVALID_TEAM_PARTICIPANTS(HttpStatus.BAD_REQUEST, "CHAT-002", "팀 내 속해있는 유저만 초대 가능합니다."),
+    CHAT_ROOM_NOT_FOUND(HttpStatus.NOT_FOUND, "CHAT-003", "채팅방을 찾을 수 없습니다."),
     // --- 5. 공지/투표 관련 에러 (POST) ---
     TITLE_CONTENT_REQUIRED(HttpStatus.BAD_REQUEST, "POST-001", "제목과 내용은 필수 입력 사항입니다."),
     POST_NOT_FOUND(HttpStatus.NOT_FOUND, "POST-002", "이미 삭제되었거나 존재하지 않는 공지입니다."),

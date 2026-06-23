@@ -1,24 +1,35 @@
 package com.beat_it.chat.service
 
+import com.beat_it.chat.dto.ChatMessageDetailResponse
+import com.beat_it.chat.dto.ChatMessageRequest
 import com.beat_it.chat.dto.ChatRoomCreateRequest
 import com.beat_it.chat.dto.ChatRoomCreateResponse
 import com.beat_it.chat.entity.ChatMember
+import com.beat_it.chat.entity.ChatMessage
+import com.beat_it.chat.entity.ChatMessageType
 import com.beat_it.chat.entity.ChatRoom
 import com.beat_it.chat.entity.ChatRoomType
 import com.beat_it.chat.event.ChatRoomCreatedEvent
+import com.beat_it.chat.repository.ChatMessageRepository
 import com.beat_it.chat.repository.ChatRepository
 import com.beat_it.global.error.BusinessException
 import com.beat_it.global.error.ErrorCode
+import com.beat_it.global.util.DateTimeUtil
 import com.beat_it.team.service.TeamService
+import com.fasterxml.jackson.databind.ObjectMapper
 import org.springframework.context.ApplicationEventPublisher
+import org.springframework.kafka.core.KafkaTemplate
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 
 @Service
-class ChatRoomService(
+class ChatService(
     private val chatRepository: ChatRepository,
+    private val chatMessageRepository: ChatMessageRepository,
     private val teamService: TeamService,
-    private val applicationEventPublisher: ApplicationEventPublisher
+    private val applicationEventPublisher: ApplicationEventPublisher,
+    private val kafkaTemplate: KafkaTemplate<String, String>,
+    private val objectMapper: ObjectMapper
 ) {
 
     @Transactional
@@ -53,7 +64,6 @@ class ChatRoomService(
         chatRoom.members.addAll(chatMembers)
 
         val savedChatRoom = chatRepository.saveAndFlush(chatRoom)
-        savedChatRoom.members.addAll(chatMembers)
 
         applicationEventPublisher.publishEvent(
             ChatRoomCreatedEvent(
@@ -68,5 +78,33 @@ class ChatRoomService(
             roomName = savedChatRoom.title,
             createdAt = savedChatRoom.createdAt
         )
+    }
+
+    @Transactional
+    fun sendMessage(chatId: Long, senderId: Long, request: ChatMessageRequest): ChatMessageDetailResponse {
+        val chatRoom = chatRepository.findById(chatId)
+            .orElseThrow { BusinessException(ErrorCode.CHAT_ROOM_NOT_FOUND) }
+
+        val chatMessage = ChatMessage(
+            chatRoom = chatRoom,
+            senderId = senderId,
+            content = request.content,
+            type = ChatMessageType.valueOf(request.messageType)
+        )
+        val savedMessage = chatMessageRepository.saveAndFlush(chatMessage)
+
+        val messageDetail = ChatMessageDetailResponse(
+            messageId = savedMessage.id!!,
+            chatId = chatId,
+            senderId = senderId,
+            content = savedMessage.content,
+            messageType = savedMessage.type.name,
+            createdAt = DateTimeUtil.format(savedMessage.createdAt)
+        )
+
+        val payload = objectMapper.writeValueAsString(messageDetail)
+        kafkaTemplate.send("chat-topic", payload)
+
+        return messageDetail
     }
 }
