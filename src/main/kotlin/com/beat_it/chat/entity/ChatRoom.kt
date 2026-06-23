@@ -22,7 +22,7 @@ class ChatRoom(
     @Column(name = "chat_id")
     val id: Long? = null,
 
-    @Column(name = "public_id", nullable = false, columnDefinition = "BINARY(16)")
+    @Column(name = "public_id", nullable = false, unique = true)
     val publicId: UUID = UUID.randomUUID(),
 
     @Column(name = "team_id", nullable = false)
