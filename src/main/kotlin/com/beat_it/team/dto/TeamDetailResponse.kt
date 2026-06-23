@@ -3,17 +3,19 @@ package com.beat_it.team.dto
 import com.beat_it.team.entity.enum.PlatformCode
 import java.time.LocalDate
 import java.time.OffsetDateTime
+import java.util.UUID
 
 data class TeamDetailResponse(
     val teamId: Long? = null,
+    val teamPublicId: UUID,
     val teamImageUrl: String?,
     val teamName: String,
     val description: String?,
     val establishedOn: LocalDate?,
     val inviteCode: String,
     val memberCount: Int,
-    val createdAt: OffsetDateTime,
-    val updatedAt: OffsetDateTime,
+    val createdAt: String,
+    val updatedAt: String?,
     val links: List<LinksResponse>,
     val parts: List<PartsResponse>,
     val archiveCount: Int,

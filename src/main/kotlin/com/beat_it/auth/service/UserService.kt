@@ -2,6 +2,7 @@ package com.beat_it.auth.service
 
 import com.beat_it.auth.entity.AuthFiles
 import com.beat_it.auth.entity.UserProfiles
+import com.beat_it.auth.entity.Users
 import com.beat_it.auth.entity.enum.MediaCategory
 import com.beat_it.auth.repository.AuthFilesRepository
 import com.beat_it.auth.repository.UserProfilesRepository
@@ -9,6 +10,7 @@ import com.beat_it.auth.repository.UserRepository
 import com.beat_it.global.error.BusinessException
 import com.beat_it.global.error.ErrorCode
 import com.beat_it.global.service.FileService
+import org.springframework.data.repository.findByIdOrNull
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import org.springframework.web.multipart.MultipartFile
@@ -64,11 +66,40 @@ class UserService (
         userProfilesRepository.save(userProfile)
     }
 
-    fun getCurrentTeamId(userId: Long): Long{
+    fun getCurrentTeamId(userId: Long): Long {
         val user = userRepository.findById(userId)
             .orElseThrow { BusinessException(ErrorCode.USER_NOT_FOUND) }
 
-        return user.currentTeamId ?: throw BusinessException(ErrorCode.TEAM_NOT_FOUND)
+        return user.currentTeamId
+            ?: throw BusinessException(ErrorCode.TEAM_NOT_SELECTED)
+    }
+
+    @Transactional(readOnly = true)
+    fun validateUserExists(userId: Long) {
+        if (!userRepository.existsById(userId)) {
+            throw BusinessException(ErrorCode.USER_NOT_FOUND)
+        }
+    }
+
+    @Transactional(readOnly = true)
+    fun getCurrentTeamIdOrNull(userId: Long): Long? {
+        val user = userRepository.findById(userId)
+            .orElseThrow { BusinessException(ErrorCode.USER_NOT_FOUND) }
+
+        return user.currentTeamId
+    }
+
+    @Transactional
+    fun updateCurrentTeamId(userId: Long, teamId: Long) {
+        val user = userRepository.findById(userId)
+            .orElseThrow { BusinessException(ErrorCode.USER_NOT_FOUND) }
+
+        user.updateCurrentTeam(teamId)
+    }
+
+    @Transactional
+    fun clearCurrentTeamIdByTeamId(teamId: Long) {
+        userRepository.clearCurrentTeamIdByTeamId(teamId)
     }
 
     fun getUserProfile(userId: Long): UserProfiles? {
