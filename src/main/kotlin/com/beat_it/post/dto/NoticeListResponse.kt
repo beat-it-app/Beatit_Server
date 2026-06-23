@@ -1,7 +1,5 @@
 package com.beat_it.post.dto
 
-import java.time.OffsetDateTime
-
 data class NoticeListResponse(
     val noticeListResponse: List<NoticeItems>
 )

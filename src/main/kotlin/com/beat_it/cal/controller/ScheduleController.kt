@@ -26,12 +26,13 @@ class ScheduleController(
 
     @PostMapping
     fun createSchedule(
-        @AuthenticationPrincipal userDetails: UserDetails?,
+        @AuthenticationPrincipal userDetails: UserDetails,
         @RequestBody request: ScheduleCreateRequest
     ): ResponseEntity<BasicResponse<ScheduleCreateResponse>> {
 
-        val currentUserId = userDetails?.username?.toLong()?: throw BusinessException(ErrorCode.UNAUTHORIZED)
-        val responseData = scheduleService.createSchedule(currentUserId, request)
+        val userId = userDetails.username.toLongOrNull()
+            ?: throw BusinessException(ErrorCode.UNAUTHORIZED)
+        val responseData = scheduleService.createSchedule(userId, request)
 
         return ResponseEntity
             .status(HttpStatus.CREATED)
@@ -40,13 +41,13 @@ class ScheduleController(
 
     @PatchMapping("/{scheduleId}")
     fun updateSchedule(
-        @AuthenticationPrincipal userDetails: UserDetails?,
+        @AuthenticationPrincipal userDetails: UserDetails,
         @PathVariable scheduleId: Long,
         @RequestBody request: ScheduleUpdateRequest
     ): ResponseEntity<BasicResponse<ScheduleCreateResponse>> {
-        val currentUserId = userDetails?.username?.toLong()
+        val userId = userDetails.username.toLongOrNull()
             ?: throw BusinessException(ErrorCode.UNAUTHORIZED)
-        val responseData = scheduleService.updateSchedule(scheduleId, currentUserId, request)
+        val responseData = scheduleService.updateSchedule(scheduleId, userId, request)
         return ResponseEntity
             .status(HttpStatus.OK)
             .body(BasicResponse.success(responseData, HttpStatus.OK, "일정이 수정되었습니다."))
@@ -54,12 +55,12 @@ class ScheduleController(
 
     @DeleteMapping("/{scheduleId}")
     fun deleteSchedule(
-        @AuthenticationPrincipal userDetails: UserDetails?,
+        @AuthenticationPrincipal userDetails: UserDetails,
         @PathVariable scheduleId: Long
     ): ResponseEntity<BasicResponse<Nothing>> {
-        val currentUserId = userDetails?.username?.toLong()
+        val userId = userDetails.username.toLongOrNull()
             ?: throw BusinessException(ErrorCode.UNAUTHORIZED)
-        scheduleService.deleteSchedule(scheduleId, currentUserId)
+        scheduleService.deleteSchedule(scheduleId, userId)
         return ResponseEntity
             .status(HttpStatus.OK)
             .body(BasicResponse.success(HttpStatus.OK, "일정이 성공적으로 삭제되었습니다.")
@@ -68,12 +69,12 @@ class ScheduleController(
 
     @GetMapping("/{scheduleId}")
     fun getScheduleDetail(
-        @AuthenticationPrincipal userDetails: UserDetails?,
+        @AuthenticationPrincipal userDetails: UserDetails,
         @PathVariable scheduleId: Long
     ): ResponseEntity<BasicResponse<ScheduleDetailResponse>> {
-        val currentUserId = userDetails?.username?.toLong()
+        val userId = userDetails.username.toLongOrNull()
             ?: throw BusinessException(ErrorCode.UNAUTHORIZED)
-        val responseData = scheduleService.getScheduleDetail(scheduleId, currentUserId)
+        val responseData = scheduleService.getScheduleDetail(scheduleId, userId)
         return ResponseEntity
             .status(HttpStatus.OK)
             .body(BasicResponse.success(responseData, HttpStatus.OK, "일정 상세 조회에 성공했습니다.")
@@ -82,13 +83,13 @@ class ScheduleController(
 
     @GetMapping("/month")
     fun getCalendarSchedules(
-        @AuthenticationPrincipal userDetails: UserDetails?,
+        @AuthenticationPrincipal userDetails: UserDetails,
         @RequestParam year: Int,
         @RequestParam month: Int
     ): ResponseEntity<BasicResponse<CalendarSchedulesResponse>> {
-        val currentUserId = userDetails?.username?.toLong()
+        val userId = userDetails.username.toLongOrNull()
             ?: throw BusinessException(ErrorCode.UNAUTHORIZED)
-        val responseData = scheduleService.getCalendarSchedules(currentUserId, year, month)
+        val responseData = scheduleService.getCalendarSchedules(userId, year, month)
         return ResponseEntity
             .status(HttpStatus.OK)
             .body(BasicResponse.success(responseData, HttpStatus.OK, "공유 캘린더 범위 조회에 성공했습니다."))
@@ -96,14 +97,14 @@ class ScheduleController(
 
     @GetMapping("/date")
     fun getDateSchedules(
-        @AuthenticationPrincipal userDetails: UserDetails?,
+        @AuthenticationPrincipal userDetails: UserDetails,
         @RequestParam year: Int,
         @RequestParam month: Int,
         @RequestParam date: Int
     ): ResponseEntity<BasicResponse<DateSchedulesResponse>> {
-        val currentUserId = userDetails?.username?.toLong()
+        val userId = userDetails.username.toLongOrNull()
             ?: throw BusinessException(ErrorCode.UNAUTHORIZED)
-        val responseData = scheduleService.getDateSchedules(currentUserId, year, month, date)
+        val responseData = scheduleService.getDateSchedules(userId, year, month, date)
         return ResponseEntity
             .status(HttpStatus.OK)
             .body(BasicResponse.success(responseData, HttpStatus.OK, "선택 날짜 일정 조회에 성공했습니다."))
