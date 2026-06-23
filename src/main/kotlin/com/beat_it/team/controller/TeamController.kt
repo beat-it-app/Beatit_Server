@@ -1,12 +1,15 @@
 package com.beat_it.team.controller
 
+import com.beat_it.global.error.BusinessException
+import com.beat_it.global.error.ErrorCode
 import com.beat_it.team.dto.TeamCreateRequest
 import com.beat_it.team.dto.TeamCreateResponse
-import com.beat_it.team.dto.TeamDetailResponse
 import com.beat_it.team.dto.TeamDetailUpdateRequest
 import com.beat_it.team.dto.TeamDetailUpdateResponse
 import com.beat_it.team.service.TeamService
 import com.beat_it.global.response.BasicResponse
+import com.beat_it.team.repository.TeamRepository
+import io.swagger.v3.oas.annotations.Operation
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.*
@@ -20,62 +23,92 @@ import org.springframework.security.core.userdetails.UserDetails
 @Tag(name = "3. TEAM API", description = "팀 생성 및 수정 관련 로직")
 @RestController
 @RequestMapping("/teams")
-@SecurityRequirements()
 class TeamController(
-    private val teamService: TeamService
+    private val teamService: TeamService,
+    private val teamRepository: TeamRepository
 ) {
 
+    @Operation(summary = "팀 생성하기")
     @PostMapping
     fun createTeam(
-        @AuthenticationPrincipal userDetails: UserDetails?,
-
+        @AuthenticationPrincipal userDetails: UserDetails,
         @RequestBody request: TeamCreateRequest
     ): ResponseEntity<BasicResponse<TeamCreateResponse>> {
-        val userPublicId = UUID.fromString(userDetails?.username)
-        val responseData = teamService.createTeam(userPublicId, request)
+        val userId = userDetails.username.toLongOrNull()
+            ?: throw BusinessException(ErrorCode.UNAUTHORIZED)
+
+        val responseData = teamService.createTeam(userId, request)
 
         return ResponseEntity
             .status(HttpStatus.CREATED)
             .body(BasicResponse.success(responseData, HttpStatus.CREATED, "팀 생성에 성공했습니다."))
     }
 
+
     @PatchMapping
     fun updateTeamDetail(
-        @AuthenticationPrincipal userDetails: UserDetails?,
-        @Parameter(hidden = true)
-        @RequestHeader("X-Team-Public-Id") teamPublicId: UUID,
-
+        @AuthenticationPrincipal userDetails: UserDetails,
+        @RequestParam("teamPublicId") teamPublicId: UUID, //FIXME : teamService.getTeamDetail(userId) 사용하도록 수정
         @RequestBody request: TeamDetailUpdateRequest,
     ): ResponseEntity<BasicResponse<TeamDetailUpdateResponse>> {
-        val userPublicId = UUID.fromString(userDetails?.username)
-        val responseData = teamService.updateTeamDetail(teamPublicId, userPublicId, request)
+        val userId = userDetails.username.toLongOrNull()
+            ?: throw BusinessException(ErrorCode.UNAUTHORIZED)
+        val responseData = teamService.updateTeamDetail(userId, request)
 
         return ResponseEntity.ok(BasicResponse.success(responseData, HttpStatus.OK, "팀 상세 내용이 수정되었습니다."))
     }
 
     @DeleteMapping
     fun deleteTeam(
-        @AuthenticationPrincipal userDetails: UserDetails?,
-        @Parameter(hidden = true)
-        @RequestHeader("X-Team-Public-Id") teamPublicId: UUID,
+        @AuthenticationPrincipal userDetails: UserDetails,
+        @RequestParam("teamPublicId") teamPublicId: UUID, //FIXME : teamService.getTeamDetail(userId) 사용하도록 수정
     ): ResponseEntity<BasicResponse<Nothing>> {
-        val userPublicId = UUID.fromString(userDetails?.username)
-        teamService.deleteTeam(teamPublicId, userPublicId)
+        val userId = userDetails.username.toLongOrNull()
+            ?: throw BusinessException(ErrorCode.UNAUTHORIZED)
+        teamService.deleteTeam(userId, teamPublicId)
 
         return ResponseEntity.ok(
             BasicResponse.success(HttpStatus.OK,"팀이 성공적으로 삭제되었습니다.")
         )
     }
 
+    @Operation(summary = "팀 페이지 불러오기")
     @GetMapping
-    fun getTeamDetail(
-        @Parameter(hidden = true)
-        @RequestHeader("X-Team-Public-Id") teamPublicId: UUID,
-    ): ResponseEntity<BasicResponse<TeamDetailResponse>> {
-        val responseData = teamService.getTeamDetail(teamPublicId)
-        return ResponseEntity.ok(
-            BasicResponse.success(responseData, HttpStatus.OK,"팀 상세 내용 조회에 성공했습니다.")
-        )
+    fun getTeamDetail(@AuthenticationPrincipal userDetails: UserDetails
+    ): ResponseEntity<BasicResponse<out Any>> {
+        val userId = userDetails.username.toLongOrNull()
+            ?: throw BusinessException(ErrorCode.UNAUTHORIZED)
+
+        val teamDetail = teamService.getTeamDetail(userId)
+
+        if (teamDetail != null) {
+            return ResponseEntity.ok(
+                BasicResponse.success(teamDetail, HttpStatus.OK,"팀 상세 내용 조회에 성공했습니다."))
+        }
+
+        val userTeams = teamService.getUserTeams(userId)
+
+        return if (userTeams.teams.isEmpty()) {
+            ResponseEntity.ok(BasicResponse.success(HttpStatus.OK, "소속된 팀이 없습니다. 팀을 생성하거나 초대코드를 입력하세요."))
+        } else {
+            ResponseEntity.ok(BasicResponse.success(userTeams, HttpStatus.OK, "선택된 팀이 없어 소속된 팀 리스트를 반환합니다."))
+        }
+    }
+
+    @Operation(summary = "로그인할 팀 선택하기")
+    @PostMapping("/select")
+    fun selectTeam(@AuthenticationPrincipal userDetails: UserDetails,
+                        @RequestParam("teamPublicId") teamPublicId: UUID //FIXME : teamService.getTeamDetail(userId) 사용하도록 수정
+    ): ResponseEntity<BasicResponse<Nothing>> {
+        val userId = userDetails.username.toLongOrNull()
+            ?: throw BusinessException(ErrorCode.UNAUTHORIZED)
+
+        val team = teamRepository.findByPublicId(teamPublicId)
+            ?: throw BusinessException(ErrorCode.TEAM_NOT_FOUND)
+
+        teamService.selectTeam(userId, teamPublicId)
+
+        return ResponseEntity.ok(BasicResponse.success(HttpStatus.OK, "팀이 성공적으로 선택되었습니다."))
     }
 }
 

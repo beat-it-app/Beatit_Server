@@ -11,7 +11,7 @@ data class DateSchedule(
     val scheduleId: Long,
     val title: String,
     val content: String,
-    val startsAt: OffsetDateTime,
-    val endsAt: OffsetDateTime,
+    val startsAt: String,
+    val endsAt: String,
     val locationId: Long?
 )

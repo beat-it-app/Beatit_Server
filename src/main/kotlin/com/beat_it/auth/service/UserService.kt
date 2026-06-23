@@ -8,49 +8,76 @@ import com.beat_it.auth.repository.UserProfilesRepository
 import com.beat_it.auth.repository.UserRepository
 import com.beat_it.global.error.BusinessException
 import com.beat_it.global.error.ErrorCode
+import com.beat_it.global.service.FileService
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import org.springframework.web.multipart.MultipartFile
-import java.util.UUID
 
 @Service
 class UserService (
     private val userProfilesRepository: UserProfilesRepository,
     private val userRepository: UserRepository,
-    private val authFilesRepository: AuthFilesRepository
+    private val authFilesRepository: AuthFilesRepository,
+    private val fileService: FileService
 ) {
     @Transactional
-    fun createProfile(currentUserId: String, name: String, profileImage: MultipartFile?) {
-        val userUuid = runCatching { UUID.fromString(currentUserId) }
-            .getOrElse { throw BusinessException(ErrorCode.INVALID_USER_ID) }
+    fun createProfile(userId: Long, name: String, profileImage: MultipartFile?) {
+        validateName(name)
 
-        val user = userRepository.findByPublicId(userUuid)
-            ?: throw BusinessException(ErrorCode.USER_NOT_FOUND)
-
-        if (userProfilesRepository.existsByUser_UserId(user.userId)) {
+        if (userProfilesRepository.existsByUser_UserId(userId)) {
             throw BusinessException(ErrorCode.PROFILE_ALREADY_EXISTS)
         }
 
-        if (name.isBlank() || name.length > 10) {
-            throw BusinessException(ErrorCode.INVALID_NAME_FORMAT)
-        }
+        val user = userRepository.findById(userId).orElse(null)
+            ?: throw BusinessException(ErrorCode.USER_NOT_FOUND)
 
-        // TODO : S3 연동 후 프로필 이미지 기능 구현하기
-        val dummyAuthFile = AuthFiles(
-            user = user,
-            originalFileName = profileImage?.originalFilename ?: "default.jpg",
-            storageKey = "dummy/path/default.jpg",
-            cdnUrl = "https://example.com/default-image.jpg",
-            mediaCategory = MediaCategory.IMAGE,
-            isPublic = true
-        )
-        val savedAuthFile = authFilesRepository.save(dummyAuthFile)
+        val savedAuthFile = if (profileImage != null) {
+            val uploadedResult = fileService.uploadFiles(listOf(profileImage), "profile").first()
+            
+            val authFile = AuthFiles(
+                user = user,
+                originalFileName = uploadedResult.originalFileName,
+                storageKey = uploadedResult.storageKey,
+                cdnUrl = uploadedResult.cdnUrl,
+                mediaCategory = MediaCategory.IMAGE,
+                isPublic = true
+            )
+            authFilesRepository.save(authFile)
+        } else {
+            // TODO : S3 연동 후 기본 프로필 이미지 처리 (현재는 더미값)
+            val authFile = AuthFiles(
+                user = user,
+                originalFileName = "default.jpg",
+                storageKey = "dummy/path/default.jpg",
+                cdnUrl = "https://example.com/default-image.jpg",
+                mediaCategory = MediaCategory.IMAGE,
+                isPublic = true
+            )
+            authFilesRepository.save(authFile)
+        }
 
         val userProfile = UserProfiles.create(
             user = user,
             name = name,
-            authFile = savedAuthFile
+            authFile = savedAuthFile!!
         )
         userProfilesRepository.save(userProfile)
+    }
+
+    fun getCurrentTeamId(userId: Long): Long{
+        val user = userRepository.findById(userId)
+            .orElseThrow { BusinessException(ErrorCode.USER_NOT_FOUND) }
+
+        return user.currentTeamId ?: throw BusinessException(ErrorCode.TEAM_NOT_FOUND)
+    }
+
+    fun getUserProfile(userId: Long): UserProfiles? {
+        return userProfilesRepository.findByUserUserId(userId)
+    }
+
+    private fun validateName(name: String) {
+        if (name.isBlank() || name.length > 10) {
+            throw BusinessException(ErrorCode.INVALID_NAME_FORMAT)
+        }
     }
 }
