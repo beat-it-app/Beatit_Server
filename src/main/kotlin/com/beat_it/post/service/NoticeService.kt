@@ -100,7 +100,7 @@ class NoticeService(
         saveNoticeAttachments(savedNotice, uploadedPostFiles, userId)
     }
 
-    @Transactional
+    @Transactional(readOnly = true)
     fun getNotice(userId: Long, noticeId: Long): NoticeDetailResponse {
         val teamId = userService.getCurrentTeamId(userId)
         val notice = getNotice(noticeId)
@@ -129,7 +129,7 @@ class NoticeService(
         // FIXME : n+1 문제가 발생할 수 있음. 검증해볼 것.
         val commentDtos = comments.map { comment ->
             val commentWriterProfile = userService.getUserProfile(comment.userId)
-            NoticeCommentDto(
+            CommentResponse(
                 commentId = comment.commentId!!,
                 writerName = commentWriterProfile?.name ?: "알 수 없음",
                 content = comment.content,
@@ -306,6 +306,7 @@ class NoticeService(
         }
     }
 
+    @Transactional
     fun createComment(userId: Long, noticeId: Long, dto: CommentRequest) {
         val notice = getNotice(noticeId)
         val temaId = userService.getCurrentTeamId(userId)

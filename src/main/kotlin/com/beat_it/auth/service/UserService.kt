@@ -1,5 +1,6 @@
 package com.beat_it.auth.service
 
+import com.beat_it.auth.dto.UserProfileResponse
 import com.beat_it.auth.entity.AuthFiles
 import com.beat_it.auth.entity.UserProfiles
 import com.beat_it.auth.entity.enum.MediaCategory
@@ -59,7 +60,7 @@ class UserService (
         val userProfile = UserProfiles.create(
             user = user,
             name = name,
-            authFile = savedAuthFile!!
+            authFile = savedAuthFile
         )
         userProfilesRepository.save(userProfile)
     }
@@ -73,6 +74,23 @@ class UserService (
 
     fun getUserProfile(userId: Long): UserProfiles? {
         return userProfilesRepository.findByUserUserId(userId)
+    }
+
+    @Transactional(readOnly = true)
+    fun getUserProfiles(userIds: List<Long>): List<UserProfileResponse> {
+        if (userIds.isEmpty()) return emptyList()
+
+        // DB에서 목록을 한 번에 조회
+        val users = userRepository.findByUserIdIn(userIds)
+
+        // 서비스에서 사용하는 DTO(예: UserProfileResponse 등)로 변환하여 반환
+        return users.map { user ->
+            UserProfileResponse(
+                userId = user.userId,
+                name = user.name,
+                profileImageUrl = user.authFile?.cdnUrl
+            )
+        }
     }
 
     private fun validateName(name: String) {
