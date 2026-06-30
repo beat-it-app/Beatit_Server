@@ -5,12 +5,19 @@ import com.beat_it.chat.dto.ChatMessageDetailResponse
 import com.beat_it.chat.dto.ChatMessageRequest
 import com.beat_it.chat.dto.ChatRoomCreateRequest
 import com.beat_it.chat.dto.ChatRoomCreateResponse
+import com.beat_it.chat.dto.ChatRoomUpdateRequest
+import com.beat_it.chat.dto.ChatRoomUpdateResponse
+import com.beat_it.chat.entity.ChatFiles
 import com.beat_it.chat.entity.ChatMember
 import com.beat_it.chat.entity.ChatMessage
+import com.beat_it.chat.entity.ChatMessageFiles
 import com.beat_it.chat.entity.ChatMessageType
 import com.beat_it.chat.entity.ChatRoom
 import com.beat_it.chat.entity.ChatRoomType
+import com.beat_it.chat.entity.MediaCategory
 import com.beat_it.chat.event.ChatRoomCreatedEvent
+import com.beat_it.chat.repository.ChatFilesRepository
+import com.beat_it.chat.repository.ChatMessageFilesRepository
 import com.beat_it.chat.repository.ChatMessageRepository
 import com.beat_it.chat.repository.ChatRepository
 import com.beat_it.global.error.BusinessException
@@ -23,11 +30,14 @@ import org.springframework.context.ApplicationEventPublisher
 import org.springframework.kafka.core.KafkaTemplate
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+import java.time.OffsetDateTime
 
 @Service
 class ChatService(
     private val chatRepository: ChatRepository,
     private val chatMessageRepository: ChatMessageRepository,
+    private val chatFilesRepository: ChatFilesRepository,
+    private val chatMessageFilesRepository: ChatMessageFilesRepository,
     private val teamService: TeamService,
     private val fileService: FileService,
     private val applicationEventPublisher: ApplicationEventPublisher,
@@ -115,8 +125,26 @@ class ChatService(
             throw BusinessException(ErrorCode.INVALID_MESSAGE_TYPE)
         }
 
+        var savedChatFile: ChatFiles? = null
+
         val finalContent = if (request.file != null) {
             val uploadedResult = fileService.uploadFiles(listOf(request.file), "chats/$chatId").first()
+
+            val chatFile = ChatFiles(
+                userId = senderId,
+                originalFileName = uploadedResult.originalFileName,
+                storageKey = uploadedResult.storageKey,
+                cdnUrl = uploadedResult.cdnUrl,
+                mediaCategory = when (type) {
+                    ChatMessageType.IMAGE -> MediaCategory.IMAGE
+                    ChatMessageType.VIDEO -> MediaCategory.VIDEO
+                    ChatMessageType.FILE -> MediaCategory.DOCUMENT
+                    else -> MediaCategory.AUDIO
+                },
+                isPublic = true
+            )
+            savedChatFile = chatFilesRepository.save(chatFile)
+
             uploadedResult.cdnUrl
         } else {
             if (type != ChatMessageType.TEXT) {
@@ -133,6 +161,15 @@ class ChatService(
         )
         val savedMessage = chatMessageRepository.saveAndFlush(chatMessage)
 
+        if (savedChatFile != null) {
+            val chatMessageFile = ChatMessageFiles(
+                userId = senderId,
+                chatMessage = savedMessage,
+                chatFile = savedChatFile
+            )
+            chatMessageFilesRepository.save(chatMessageFile)
+        }
+
         val messageDetail = ChatMessageDetailResponse(
             messageId = savedMessage.id!!,
             chatId = chatId,
@@ -146,5 +183,29 @@ class ChatService(
         kafkaTemplate.send("chat-topic", payload)
 
         return messageDetail
+    }
+
+    @Transactional
+    fun updateChatRoomName(chatId: Long, userId: Long, request: ChatRoomUpdateRequest): ChatRoomUpdateResponse {
+        val chatRoom = chatRepository.findById(chatId)
+            .orElseThrow { BusinessException(ErrorCode.CHAT_ROOM_NOT_FOUND) }
+
+        val isMember = chatRoom.members.any { it.userId == userId }
+        if (!isMember) {
+            throw BusinessException(ErrorCode.FORBIDDEN)
+        }
+
+        if (request.roomName.isBlank()) {
+            throw BusinessException(ErrorCode.CHAT_ROOM_NAME_REQUIRED)
+        }
+
+        chatRoom.title = request.roomName
+        val updatedChatRoom = chatRepository.saveAndFlush(chatRoom)
+
+        return ChatRoomUpdateResponse(
+            chatId = updatedChatRoom.id!!,
+            roomName = updatedChatRoom.title,
+            updatedAt = DateTimeUtil.format(updatedChatRoom.updatedAt)
+        )
     }
 }
