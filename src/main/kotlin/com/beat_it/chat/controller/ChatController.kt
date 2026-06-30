@@ -45,7 +45,7 @@ class ChatController(
             )
     }
 
-    @PostMapping("/chatrooms/{chatId}/messages")
+    @PostMapping("/{chatId}/messages")
     fun sendMessage(
         @AuthenticationPrincipal userDetails: UserDetails?,
         @PathVariable chatId: Long,

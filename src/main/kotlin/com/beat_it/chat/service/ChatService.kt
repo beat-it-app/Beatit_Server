@@ -1,5 +1,6 @@
 package com.beat_it.chat.service
 
+import com.beat_it.auth.service.UserService
 import com.beat_it.chat.dto.ChatMessageDetailResponse
 import com.beat_it.chat.dto.ChatMessageRequest
 import com.beat_it.chat.dto.ChatRoomCreateRequest
@@ -29,13 +30,14 @@ class ChatService(
     private val teamService: TeamService,
     private val applicationEventPublisher: ApplicationEventPublisher,
     private val kafkaTemplate: KafkaTemplate<String, String>,
-    private val objectMapper: ObjectMapper
+    private val objectMapper: ObjectMapper,
+    private val userService: UserService
 ) {
 
     @Transactional
     fun createChatRoom(request: ChatRoomCreateRequest, currentUserId: Long): ChatRoomCreateResponse {
-        //Todo: 팀 id 받아오기
-        val teamId: Long = 1L
+
+        val teamId = userService.getCurrentTeamId(currentUserId)
 
         val allParticipantIds = request.participantIds.toMutableList().apply {
             if (!contains(currentUserId)) add(currentUserId)
@@ -64,6 +66,26 @@ class ChatService(
         chatRoom.members.addAll(chatMembers)
 
         val savedChatRoom = chatRepository.saveAndFlush(chatRoom)
+
+        val firstMessage = ChatMessage(
+            chatRoom = savedChatRoom,
+            senderId = currentUserId,
+            content = request.firstMessageContent,
+            type = ChatMessageType.TEXT
+        )
+        val savedMessage = chatMessageRepository.saveAndFlush(firstMessage)
+
+        val messageDetail = ChatMessageDetailResponse(
+            messageId = savedMessage.id!!,
+            chatId = savedChatRoom.id!!,
+            senderId = currentUserId,
+            content = savedMessage.content,
+            messageType = savedMessage.type.name,
+            createdAt = DateTimeUtil.format(savedMessage.createdAt)
+        )
+
+        val payload = objectMapper.writeValueAsString(messageDetail)
+        kafkaTemplate.send("chat-topic", payload)
 
         applicationEventPublisher.publishEvent(
             ChatRoomCreatedEvent(
