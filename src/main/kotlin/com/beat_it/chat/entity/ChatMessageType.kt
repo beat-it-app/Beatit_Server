@@ -4,7 +4,5 @@ enum class ChatMessageType {
     TEXT,
     IMAGE,
     VIDEO,
-    FILE,
-    SYSTEM,
-    SHARED
+    FILE
 }

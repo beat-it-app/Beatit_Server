@@ -15,6 +15,7 @@ import com.beat_it.chat.repository.ChatMessageRepository
 import com.beat_it.chat.repository.ChatRepository
 import com.beat_it.global.error.BusinessException
 import com.beat_it.global.error.ErrorCode
+import com.beat_it.global.service.FileService
 import com.beat_it.global.util.DateTimeUtil
 import com.beat_it.team.service.TeamService
 import com.fasterxml.jackson.databind.ObjectMapper
@@ -28,6 +29,7 @@ class ChatService(
     private val chatRepository: ChatRepository,
     private val chatMessageRepository: ChatMessageRepository,
     private val teamService: TeamService,
+    private val fileService: FileService,
     private val applicationEventPublisher: ApplicationEventPublisher,
     private val kafkaTemplate: KafkaTemplate<String, String>,
     private val objectMapper: ObjectMapper,
@@ -107,11 +109,27 @@ class ChatService(
         val chatRoom = chatRepository.findById(chatId)
             .orElseThrow { BusinessException(ErrorCode.CHAT_ROOM_NOT_FOUND) }
 
+        val type = try {
+            ChatMessageType.valueOf(request.messageType.uppercase())
+        } catch (e: IllegalArgumentException) {
+            throw BusinessException(ErrorCode.INVALID_MESSAGE_TYPE)
+        }
+
+        val finalContent = if (request.file != null) {
+            val uploadedResult = fileService.uploadFiles(listOf(request.file), "chats/$chatId").first()
+            uploadedResult.cdnUrl
+        } else {
+            if (type != ChatMessageType.TEXT) {
+                throw BusinessException(ErrorCode.FILE_REQUIRED)
+            }
+            request.content ?: throw BusinessException(ErrorCode.CHAT_MESSAGE_REQUIRED)
+        }
+
         val chatMessage = ChatMessage(
             chatRoom = chatRoom,
             senderId = senderId,
-            content = request.content,
-            type = ChatMessageType.valueOf(request.messageType)
+            content = finalContent,
+            type = type
         )
         val savedMessage = chatMessageRepository.saveAndFlush(chatMessage)
 
