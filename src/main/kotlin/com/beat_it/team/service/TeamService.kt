@@ -387,7 +387,7 @@ class TeamService(
         )
     }
 
-    private fun validateTeamMember(teamId: Long, userId: Long) {
+    fun validateTeamMember(teamId: Long, userId: Long) {
         findActiveMembershipOrThrow(teamId, userId)
     }
 
