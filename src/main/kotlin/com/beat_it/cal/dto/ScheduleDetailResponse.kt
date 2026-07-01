@@ -10,10 +10,10 @@ data class ScheduleDetailResponse(
     val locationId: Long?,
     val title: String,
     val content: String?,
-    val startsAt: OffsetDateTime,
-    val endsAt: OffsetDateTime,
-    val createdAt: OffsetDateTime,
-    val updatedAt: OffsetDateTime,
+    val startsAt: String,
+    val endsAt: String,
+    val createdAt: String,
+    val updatedAt: String,
     val participants: List<ParticipantResponse>
 )
 

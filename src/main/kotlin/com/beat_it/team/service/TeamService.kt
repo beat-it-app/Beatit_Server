@@ -1,9 +1,9 @@
 package com.beat_it.team.service
 
-import com.beat_it.auth.entity.Users
-import com.beat_it.auth.repository.UserRepository
+import com.beat_it.auth.service.UserService
 import com.beat_it.global.error.BusinessException
 import com.beat_it.global.error.ErrorCode
+import com.beat_it.global.util.DateTimeUtil
 import com.beat_it.team.dto.*
 import com.beat_it.team.entity.TeamLinks
 import com.beat_it.team.entity.TeamMemberships
@@ -13,14 +13,13 @@ import com.beat_it.team.repository.TeamLinksRepository
 import com.beat_it.team.repository.TeamMembershipRepository
 import com.beat_it.team.repository.TeamPartsRepository
 import com.beat_it.team.repository.TeamRepository
-import org.springframework.data.repository.findByIdOrNull
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.util.UUID
 
 @Service
 class TeamService(
-    private val userRepository: UserRepository,
+    private val userService: UserService,
     private val teamRepository: TeamRepository,
     private val teamLinksRepository: TeamLinksRepository,
     private val teamPartsRepository: TeamPartsRepository,
@@ -29,9 +28,8 @@ class TeamService(
 
     @Transactional
     fun createTeam(userId: Long, request: TeamCreateRequest): TeamCreateResponse {
-        val user = findUserOrThrow(userId)
-
         validateCreateRequest(request)
+        userService.validateUserExists(userId)
 
         val inviteCode = generateInviteCode()
 
@@ -47,22 +45,23 @@ class TeamService(
 
         val leaderTeamMemberships = TeamMemberships(
             team = savedTeam,
-            userId = user.userId!!,
+            userId = userId,
             teamRole = TeamRole.LEADER,
         )
 
         teamMembershipRepository.save(leaderTeamMemberships)
 
-        user.updateCurrentTeam(savedTeam.teamId!!)
+        userService.updateCurrentTeamId(userId, savedTeam.teamId!!)
 
         return TeamCreateResponse(
             teamId = savedTeam.teamId!!,
+            teamPublicId = savedTeam.publicId,
             teamName = savedTeam.teamName,
             description = savedTeam.description,
             inviteCode = savedTeam.inviteCode,
             teamType = savedTeam.teamType,
             teamRole = "LEADER",
-            createdAt = savedTeam.createdAt
+            createdAt =  DateTimeUtil.format(savedTeam.createdAt)
         )
     }
 
@@ -71,16 +70,15 @@ class TeamService(
         userId: Long,
         request: TeamDetailUpdateRequest
     ): TeamDetailUpdateResponse {
-        val user = findUserOrThrow(userId)
-        val teamId = user.currentTeamId
-            ?: throw BusinessException(ErrorCode.TEAM_NOT_SELECTED)
+        validateUpdateRequest(request)
+        val teamId = userService.getCurrentTeamId(userId)
 
         val team = findTeamForCommandOrThrow(teamId)
 
+        validateTeamUpdatePermission(team.teamId!!, userId)
+
         val currentLinks = teamLinksRepository.findAllByTeamTeamId(team.teamId!!)
 
-        validateTeamUpdatePermission(team.teamId!!, user.userId!!)
-        validateUpdateRequest(request)
         validateTeamDetailChanged(team, request, currentLinks)
 
         team.updateTeamDetail(
@@ -119,10 +117,11 @@ class TeamService(
 
         return TeamDetailUpdateResponse(
             teamId = teamId,
+            teamPublicId = team.publicId,
             teamName = team.teamName,
             description = team.description,
             establishedOn = team.establishedOn,
-            updatedAt = team.updatedAt,
+            updatedAt = DateTimeUtil.format(team.updatedAt),
             links = links
         )
     }
@@ -132,13 +131,17 @@ class TeamService(
         userId: Long,
         teamPublicId: UUID
     ) {
-        val user = findUserOrThrow(userId)
+        userService.validateUserExists(userId)
         val team = findTeamForCommandOrThrow(teamPublicId)
 
-        validateTeamDeletePermission(team.teamId!!, user.userId!!)
+        validateTeamDeletePermission(team.teamId!!, userId)
 
-        //FIXME: user.currentTeamId가 teamId와 같은 모든 회원의 currentTeamId도 null 처리해야 함. >> 근데 이경우에는 userRepository를 사용하지 않나요???
-        userRepository.clearCurrentTeamIdByTeamId(team.teamId!!)
+        userService.clearCurrentTeamIdByTeamId(team.teamId!!)
+
+        val activeMemberships = teamMembershipRepository
+            .findAllByTeamTeamIdAndLeftAtIsNull(team.teamId!!)
+
+        activeMemberships.forEach { it.leaveTeam() }
 
         //TODO: 유효기간 관련 처리
 
@@ -147,12 +150,12 @@ class TeamService(
 
     @Transactional(readOnly = true)
     fun getTeamDetail(userId: Long): TeamDetailResponse? {
-        val user = findUserOrThrow(userId)
+        val teamId = userService.getCurrentTeamIdOrNull(userId)
+            ?: return null
 
-        val teamId = user.currentTeamId
-            ?: throw BusinessException(ErrorCode.TEAM_NOT_SELECTED)
+        val team = findTeamForCommandOrThrow(teamId)
 
-        val team = findTeamForCommandOrThrow(teamId);
+        validateTeamMember(teamId, userId)
 
         val memberCount = teamMembershipRepository.countByTeamTeamIdAndLeftAtIsNull(team.teamId!!)
 
@@ -178,14 +181,15 @@ class TeamService(
 
         return TeamDetailResponse(
             teamId = team.teamId,
+            teamPublicId = team.publicId,
             teamImageUrl = team.teamImageUrl,
             teamName = team.teamName,
             description = team.description,
             establishedOn = team.establishedOn,
             inviteCode = team.inviteCode,
             memberCount = memberCount,
-            createdAt = team.createdAt,
-            updatedAt = team.updatedAt,
+            createdAt = DateTimeUtil.format(team.createdAt),
+            updatedAt = DateTimeUtil.format(team.updatedAt),
             links = links,
             parts = parts,
             archiveCount = 0,
@@ -194,44 +198,48 @@ class TeamService(
     }
 
     @Transactional
-    fun joinTeam(userId: Long, inviteCode: String?): JoinTeamResponse {
+    fun joinTeam(userId: Long, inviteCode: String?): TeamJoinResponse {
         val normalizedInviteCode = validateAndNormalizeInviteCode(inviteCode)
-        val user = findUserOrThrow(userId)
+        userService.validateUserExists(userId)
 
         val team = findInviteCodeOrThrow(normalizedInviteCode)
 
-        validateNotAlreadyJoined(team.teamId!!, user.userId!!)
+        validateNotAlreadyJoined(team.teamId!!, userId)
 
         val teamMembership = TeamMemberships(
             team = team,
-            userId = user.userId!!,
+            userId = userId,
             teamRole = TeamRole.MEMBER
         )
 
         val savedMembership = teamMembershipRepository.save(teamMembership)
 
-        return JoinTeamResponse(
+        //TODO: 하은아, 가입하면 currentTeamId를 해당 팀으로 바꿔야 하는지 언니들에게 물어봐
+
+        return TeamJoinResponse(
             teamId = team.teamId!!,
+            teamPublicId = team.publicId,
             teamName = team.teamName,
             teamRole = savedMembership.teamRole,
-            joinedAt = savedMembership.joinedAt
+            joinedAt = DateTimeUtil.format(savedMembership.joinedAt),
         )
     }
 
     @Transactional(readOnly = true)
     fun getUserTeams(userId: Long) : UserTeamListResponse {
-        val user = findUserOrThrow(userId)
+        userService.validateUserExists(userId)
 
-        val memberships = teamMembershipRepository.findAllByUserIdAndLeftAtIsNullAndTeamDeletedAtIsNullOrderByJoinedAtDesc(user.userId!!)
+        val memberships = teamMembershipRepository.findAllByUserIdAndLeftAtIsNullAndTeamDeletedAtIsNullOrderByJoinedAtDesc(userId)
 
         val teams = memberships.map { membership ->
             val team = membership.team
             TeamSimpleInfo(
                 teamId = team.teamId!!,
+                teamPublicId = team.publicId,
                 teamName = team.teamName,
                 teamType = team.teamType,
                 teamImageUrl = team.teamImageUrl,
-                createAt = team.createdAt.toLocalDate()
+                createdAt =  DateTimeUtil.format(team.createdAt)
             )
         }
 
@@ -246,66 +254,37 @@ class TeamService(
 
         return TeamSimpleInfo(
             teamId = team.teamId!!,
+            teamPublicId = team.publicId,
             teamName = team.teamName,
             teamType = team.teamType,
             teamImageUrl = team.teamImageUrl,
-            createAt = team.createdAt.toLocalDate(),
+            createdAt =  DateTimeUtil.format(team.createdAt)
         )
     }
 
     @Transactional
     fun selectTeam(userId: Long, teamPublicId: UUID) {
-        val user = findUserOrThrow(userId)
-        val team = findTeamOrThrow(teamPublicId)
+        userService.validateUserExists(userId)
+        val team = findTeamForCommandOrThrow(teamPublicId)
 
-        teamMembershipRepository.findByTeamTeamIdAndUserIdAndLeftAtIsNull(
-            team.teamId!!,
-            user.userId!!
-        ) ?: throw BusinessException(ErrorCode.TEAM_NO_PERMISSION)
+        validateTeamMember(team.teamId!!, userId)
 
-        user.updateCurrentTeam(team.teamId!!)
-    }
-
-    private fun findUserOrThrow(userId: Long) : Users {
-        return userRepository.findByIdOrNull(userId)
-            ?: throw BusinessException(ErrorCode.USER_NOT_FOUND)
-    }
-
-    private fun findTeamOrThrow(teamId: Long): Teams {
-        return teamRepository.findByTeamIdAndDeletedAtIsNull(teamId)
-            ?: throw BusinessException(ErrorCode.TEAM_NOT_FOUND)
-    }
-
-    private fun findTeamOrThrow(teamPublicId: UUID): Teams {
-        return teamRepository.findByPublicIdAndDeletedAtIsNull(teamPublicId)
-            ?: throw BusinessException(ErrorCode.TEAM_NOT_FOUND)
+        userService.updateCurrentTeamId(userId, team.teamId!!)
     }
 
     private fun findInviteCodeOrThrow(inviteCode: String): Teams {
-        return teamRepository.findByInviteCodeAndDeletedAtIsNull(inviteCode)
+        return teamRepository.findByInviteCode(inviteCode)
             ?: throw BusinessException(ErrorCode.TEAM_INVITE_CODE_NOT_FOUND)
     }
 
     private fun findTeamForCommandOrThrow(teamId: Long): Teams {
-        val team = teamRepository.findByTeamId(teamId)
-            ?: throw BusinessException(ErrorCode.TEAM_NOT_FOUND)
-
-        if (team.deletedAt != null) {
-            throw BusinessException(ErrorCode.TEAM_PENDING_DELETION)
-        }
-
-        return team
+        return teamRepository.findByTeamId(teamId)
+            ?: throw BusinessException(ErrorCode.TEAM_UNAVAILABLE)
     }
 
     private fun findTeamForCommandOrThrow(teamPublicId: UUID): Teams {
-        val team = teamRepository.findByPublicIdAndDeletedAtIsNull(teamPublicId)
-            ?: throw BusinessException(ErrorCode.TEAM_NOT_FOUND)
-
-        if (team.deletedAt != null) {
-            throw BusinessException(ErrorCode.TEAM_PENDING_DELETION)
-        }
-
-        return team
+        return teamRepository.findByPublicId(teamPublicId)
+            ?: throw BusinessException(ErrorCode.TEAM_UNAVAILABLE)
     }
 
     private fun validateCreateRequest(request: TeamCreateRequest) {
@@ -325,6 +304,10 @@ class TeamService(
     private fun validateUpdateRequest(request: TeamDetailUpdateRequest) {
         if (request.teamName != null && request.teamName.isBlank()) {
             throw BusinessException(ErrorCode.TEAM_NAME_REQUIRED)
+        }
+
+        if ((request.teamName?.length ?: 0) > 100) {
+            throw BusinessException(ErrorCode.TEAM_NAME_TOO_LONG)
         }
 
         if ((request.description?.length ?: 0) > 500) {
@@ -367,22 +350,45 @@ class TeamService(
         return current == requested
     }
 
+    private fun findActiveMembershipOrThrow(teamId: Long, userId: Long): TeamMemberships {
+        return teamMembershipRepository.findByTeamTeamIdAndUserIdAndLeftAtIsNull(teamId, userId)
+            ?: throw BusinessException(ErrorCode.TEAM_UNAVAILABLE)
+    }
 
+    private fun validateTeamRole(
+        teamId: Long,
+        userId: Long,
+        roleErrorCode: ErrorCode,
+        vararg allowedRoles: TeamRole
+    ) {
+        val membership = findActiveMembershipOrThrow(teamId, userId)
 
-    private fun validateTeamUpdatePermission(teamId: Long, userId: Long) {
-        // TODO: TeamMemberRepository가 생기면 여기서 LEADER 또는 MANAGER인지 확인
-        val membership = teamMembershipRepository.findByTeamTeamIdAndUserIdAndLeftAtIsNull(teamId, userId) ?: throw BusinessException(ErrorCode.TEAM_NO_PERMISSION)
-        if (membership.teamRole != TeamRole.LEADER && membership.teamRole != TeamRole.MANAGER) {
-            throw BusinessException(ErrorCode.TEAM_NO_PERMISSION)
+        if (membership.teamRole !in allowedRoles) {
+            throw BusinessException(roleErrorCode)
         }
     }
 
+    private fun validateTeamUpdatePermission(teamId: Long, userId: Long) {
+        validateTeamRole(
+            teamId = teamId,
+            userId = userId,
+            roleErrorCode = ErrorCode.TEAM_NO_UPDATE_PERMISSION,
+            TeamRole.LEADER,
+            TeamRole.MANAGER
+        )
+    }
+
     private fun validateTeamDeletePermission(teamId: Long, userId: Long) {
-        // TODO: 팀 삭제 권한 검증
-        val membership = teamMembershipRepository.findByTeamTeamIdAndUserIdAndLeftAtIsNull(teamId, userId) ?: throw BusinessException(ErrorCode.TEAM_NO_PERMISSION)
-        if (membership.teamRole != TeamRole.LEADER) {
-            throw BusinessException(ErrorCode.TEAM_NO_PERMISSION)
-        }
+        validateTeamRole(
+            teamId = teamId,
+            userId = userId,
+            roleErrorCode = ErrorCode.TEAM_NO_DELETE_PERMISSION,
+            TeamRole.LEADER
+        )
+    }
+
+    fun validateTeamMember(teamId: Long, userId: Long) {
+        findActiveMembershipOrThrow(teamId, userId)
     }
 
     private fun validateAndNormalizeInviteCode(inviteCode: String?): String {

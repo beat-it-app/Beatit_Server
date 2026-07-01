@@ -1,5 +1,6 @@
 package com.beat_it.cal.service
 
+import com.beat_it.auth.service.UserService
 import com.beat_it.cal.dto.CalendarSchedule
 import com.beat_it.cal.dto.CalendarSchedulesResponse
 import com.beat_it.cal.dto.DateSchedule
@@ -13,6 +14,8 @@ import com.beat_it.cal.entity.Schedule
 import com.beat_it.cal.repository.ScheduleRepository
 import com.beat_it.global.error.BusinessException
 import com.beat_it.global.error.ErrorCode
+import com.beat_it.global.util.DateTimeUtil
+import com.beat_it.team.service.TeamService
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.time.LocalDate
@@ -22,10 +25,10 @@ import java.time.ZoneOffset
 
 @Service
 class ScheduleService(
-    private val scheduleRepository: ScheduleRepository
-    // private val teamService: TeamService,
-    // private val locationService: LocationService,
-    // private val memberService: MemberService
+    private val scheduleRepository: ScheduleRepository,
+    private val teamService: TeamService,
+    private val userService: UserService,
+    // private val locationService: LocationService
 ) {
 
     @Transactional
@@ -33,14 +36,12 @@ class ScheduleService(
 
         validateScheduleCommon(request.title, request.startsAt, request.endsAt)
 
-        // TODO: 타 도메인 검증 (모듈 분리 대비)
-        // teamService.validateTeam(1L)
-        // request.locationId?.let { locationService.validateLocation(it) }
+        val currentTeamId = userService.getCurrentTeamId(userId)
 
-
+        teamService.validateTeamMember(currentTeamId, userId)
 
         val schedule = Schedule(
-            teamId = 1L,
+            teamId = currentTeamId,
             userId = userId,
             title = request.title!!,
             content = request.content,
@@ -50,24 +51,37 @@ class ScheduleService(
         )
 
         request.participantUserIds.forEach { participantUserId ->
-            // memberService.validateMember(participantUserId)
+            teamService.validateTeamMember(currentTeamId, participantUserId)
             schedule.addParticipant(participantUserId)
         }
+
+        //TODO: 여러명 검증 함수 추후 변경
+//        val isValidTeamMembers = teamService.validateMembersInTeam(currentTeamId, request.participantUserIds)
+//        if (!isValidTeamMembers) {
+//            throw BusinessException(ErrorCode.INVALID_TEAM_PARTICIPANTS)
+//        }
+//
+//        request.participantUserIds.forEach { participantUserId ->
+//            schedule.addParticipant(participantUserId)
+//        }
+
+
 
         val savedSchedule = scheduleRepository.save(schedule)
 
         return ScheduleCreateResponse(
             scheduleId = savedSchedule.scheduleId!!,
             title = savedSchedule.title,
-            startsAt = savedSchedule.startsAt,
-            endsAt = savedSchedule.endsAt,
-            createdAt = savedSchedule.createdAt
+            startsAt = DateTimeUtil.format(savedSchedule.startsAt),
+            endsAt = DateTimeUtil.format(savedSchedule.endsAt),
+            createdAt = DateTimeUtil.format(savedSchedule.createdAt)
         )
     }
 
     @Transactional
     fun updateSchedule(scheduleId: Long, userId: Long, request: ScheduleUpdateRequest): ScheduleCreateResponse {
 
+        validateScheduleCommon(request.title, request.startsAt, request.endsAt)
         val schedule = findScheduleOrThrow(scheduleId)
 
         validateScheduleOwner(schedule.userId, userId)
@@ -76,11 +90,26 @@ class ScheduleService(
             throw BusinessException(ErrorCode.CALENDAR_NO_CONTENT_TO_UPDATE)
         }
 
-        validateScheduleCommon(request.title, request.startsAt, request.endsAt)
+        request.participantUserIds?.let { newIds ->
+            schedule.participants.clear()
+            newIds.forEach { participantId ->
+                teamService.validateTeamMember(schedule.teamId, participantId) // 팀 소속 검증
+                schedule.addParticipant(participantId)
+            }
+        }
 
-        // TODO: 타 도메인 검증 (모듈 분리 대비)
-        // request.locationId?.let { locationService.validateLocation(it) }
-        // request.participantUserIds?.let { memberService.validateMembers(it) }
+        //TODO: 여러명 검증 함수 추후 변경
+//        request.participantUserIds?.let { newIds ->
+//            val isValidTeamMembers = teamService.validateMembersInTeam(schedule.teamId, newIds)
+//            if (!isValidTeamMembers) {
+//                throw BusinessException(ErrorCode.INVALID_TEAM_PARTICIPANTS)
+//            }
+//
+//            schedule.participants.clear()
+//            newIds.forEach { participantId ->
+//                schedule.addParticipant(participantId)
+//            }
+//        }
 
         schedule.update(
             title = request.title!!,
@@ -90,26 +119,18 @@ class ScheduleService(
             endsAt = request.endsAt!!
         )
 
-        request.participantUserIds?.let { newIds ->
-            schedule.participants.clear()
-            newIds.forEach { participantId ->
-                schedule.addParticipant(participantId)
-            }
-        }
-
         return ScheduleCreateResponse(
             scheduleId = schedule.scheduleId!!,
             title = schedule.title,
-            startsAt = schedule.startsAt,
-            endsAt = schedule.endsAt,
-            createdAt = schedule.createdAt
+            startsAt = DateTimeUtil.format(schedule.startsAt),
+            endsAt = DateTimeUtil.format(schedule.endsAt),
+            createdAt = DateTimeUtil.format(schedule.createdAt)
         )
     }
 
     @Transactional
     fun deleteSchedule(scheduleId: Long, userId: Long) {
-        val schedule = scheduleRepository.findById(scheduleId)
-            .orElseThrow { BusinessException(ErrorCode.CALENDAR_NOT_FOUND) }
+        val schedule = findScheduleOrThrow(scheduleId)
 
         validateScheduleOwner(schedule.userId, userId)
 
@@ -120,8 +141,8 @@ class ScheduleService(
     fun getScheduleDetail(scheduleId: Long, userId: Long): ScheduleDetailResponse {
         val schedule = findScheduleOrThrow(scheduleId)
 
-        //TODO: 현재 내가 있는 팀 소속이 무엇인지 어떻게 넘겨받을 것인지
-        //validateScheduleTeam(schedule.teamId, currentTeamId)
+        val currentTeamId = userService.getCurrentTeamId(userId)
+        validateScheduleTeam(schedule.teamId, currentTeamId)
 
         return ScheduleDetailResponse(
             scheduleId = schedule.scheduleId!!,
@@ -130,10 +151,10 @@ class ScheduleService(
             locationId = schedule.locationId,
             title = schedule.title,
             content = schedule.content,
-            startsAt = schedule.startsAt,
-            endsAt = schedule.endsAt,
-            createdAt = schedule.createdAt,
-            updatedAt = schedule.updatedAt,
+            startsAt = DateTimeUtil.format(schedule.startsAt),
+            endsAt = DateTimeUtil.format(schedule.endsAt),
+            createdAt = DateTimeUtil.format(schedule.createdAt),
+            updatedAt = DateTimeUtil.format(schedule.updatedAt),
             participants = schedule.participants.map { participant ->
                 ParticipantResponse(
                     scheduleParticipantId = participant.scheduleParticipantId!!,
@@ -159,8 +180,8 @@ class ScheduleService(
             CalendarSchedule(
                 scheduleId = schedule.scheduleId ?: throw BusinessException(ErrorCode.CALENDAR_NOT_FOUND),
                 title = schedule.title,
-                startsAt = schedule.startsAt,
-                endsAt = schedule.endsAt
+                startsAt = DateTimeUtil.format(schedule.startsAt),
+                endsAt = DateTimeUtil.format(schedule.endsAt)
             )
         }
 
@@ -183,8 +204,8 @@ class ScheduleService(
                 scheduleId = schedule.scheduleId ?: throw BusinessException(ErrorCode.CALENDAR_NOT_FOUND),
                 title = schedule.title,
                 content = schedule.content ?: "",
-                startsAt = schedule.startsAt,
-                endsAt = schedule.endsAt,
+                startsAt = DateTimeUtil.format(schedule.startsAt),
+                endsAt = DateTimeUtil.format(schedule.endsAt),
                 locationId = schedule.locationId
             )
         }
@@ -256,10 +277,6 @@ class ScheduleService(
 
         if (month !in 1..12) {
             throw BusinessException(ErrorCode.CALENDAR_INVALID_MONTH)
-        }
-
-        if (date !in 1..31) {
-            throw BusinessException(ErrorCode.CALENDAR_INVALID_DATE)
         }
 
         try {
