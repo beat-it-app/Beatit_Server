@@ -1,46 +1,35 @@
 package com.beat_it.team.service
 
-import com.beat_it.auth.entity.Users
-import com.beat_it.auth.repository.UserRepository
+import com.beat_it.auth.service.UserService
 import com.beat_it.global.error.BusinessException
 import com.beat_it.global.error.ErrorCode
 import com.beat_it.team.dto.*
-import com.beat_it.team.entity.ArchiveComments
 import com.beat_it.team.entity.Archives
-import com.beat_it.team.entity.TeamLinks
-import com.beat_it.team.entity.TeamMemberships
 import com.beat_it.team.entity.Teams
-import com.beat_it.team.entity.enum.TeamRole
 import com.beat_it.team.repository.ArchiveCommentsRepository
 import com.beat_it.team.repository.ArchiveReactionsRepository
 import com.beat_it.team.repository.ArchiveRepository
 import com.beat_it.team.repository.TeamRepository
-import org.springframework.data.repository.findByIdOrNull
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
-import java.time.OffsetDateTime
 
 @Service
 class ArchiveService(
-    private val userRepository: UserRepository,
-    private val teamRepository: TeamRepository,
     private val archiveRepository: ArchiveRepository,
     private val archiveCommentsRepository: ArchiveCommentsRepository,
     private val archiveReactionsRepository: ArchiveReactionsRepository,
+    private val userService: UserService,
+    private val teamService: TeamService,
 ) {
 
     @Transactional
     fun createArchive(userId: Long, request: ArchiveCreateRequest): ArchiveCreateResponse {
-        val user = findUserOrThrow(userId)
-
-        val teamId = user.currentTeamId
-            ?: throw BusinessException(ErrorCode.TEAM_NOT_FOUND)
-        val team = findTeamOrThrow(teamId)
-
         validateCreateRequest(request)
 
+        val team = findCurrentTeamForArchiveOrThrow(userId)
+
         val archive = Archives(
-            authorId = user.userId!!,
+            authorId = userId,
             team = team,
             title = request.title,
             placeName = request.placeName,
@@ -65,10 +54,10 @@ class ArchiveService(
 
     @Transactional
     fun getArchiveDetail(userId: Long, archiveId: Long): ArchiveDetailResponse {
-        val user = findUserOrThrow(userId)
+        val team = findCurrentTeamForArchiveOrThrow(userId)
         val archive = findArchiveOrThrow(archiveId)
 
-        validateArchiveBelongsToCurrentTeam(user, archive)
+        validateArchiveBelongsToCurrentTeam(team, archive)
 
         return ArchiveDetailResponse(
             archiveId = archive.archiveId!!,
@@ -87,13 +76,13 @@ class ArchiveService(
 
     @Transactional
     fun updateArchive(userId: Long, archiveId: Long, request: ArchiveUpdateRequest): ArchiveUpdateResponse {
-        val user = findUserOrThrow(userId)
+        validateUpdateRequest(request)
+
+        val team = findCurrentTeamForArchiveOrThrow(userId)
         val archive = findArchiveOrThrow(archiveId)
 
-        validateArchiveBelongsToCurrentTeam(user, archive)
-        validateArchiveUpdatePermission(user.userId!!, archive.archiveId!!)
-
-        validateUpdateRequest(request)
+        validateArchiveBelongsToCurrentTeam(team, archive)
+        validateArchiveUpdatePermission(userId, archive)
         validateArchiveChanged(archive, request)
 
         archive.updateArchive(
@@ -117,11 +106,11 @@ class ArchiveService(
 
     @Transactional
     fun deleteArchive(userId: Long, archiveId: Long) {
-        val user = findUserOrThrow(userId)
+        val team = findCurrentTeamForArchiveOrThrow(userId)
         val archive = findArchiveOrThrow(archiveId)
 
-        validateArchiveBelongsToCurrentTeam(user, archive)
-        validateArchiveUpdatePermission(user.userId!!, archive.archiveId!!)
+        validateArchiveBelongsToCurrentTeam(team, archive)
+        validateArchiveDeletePermission(userId, archive)
 
         archiveCommentsRepository.deleteByArchiveArchiveId(archiveId)
         archiveReactionsRepository.deleteByArchiveArchiveId(archiveId)
@@ -129,44 +118,51 @@ class ArchiveService(
         archiveRepository.delete(archive)
     }
 
-
-    private fun findUserOrThrow(userId: Long) : Users {
-        return userRepository.findByIdOrNull(userId)
-            ?: throw BusinessException(ErrorCode.USER_NOT_FOUND)
-    }
-
-
-    //FIXME: 팀 검증에서는 TEAM에서만 가지고 오기
-     fun findTeamOrThrow(teamId: Long): Teams {
-        return teamRepository.findByTeamIdAndDeletedAtIsNull(teamId)
-            ?: throw BusinessException(ErrorCode.TEAM_NOT_FOUND)
-    }
-
-    private fun findArchiveOrThrow(archiveId: Long) : Archives {
+    private fun findArchiveOrThrow(archiveId: Long): Archives {
         return archiveRepository.findByArchiveId(archiveId)
-            ?: throw BusinessException()
+            ?: throw BusinessException(ErrorCode.ARCHIVE_NOT_FOUND)
     }
 
-    private fun validateArchiveBelongsToCurrentTeam(user: Users, archive: Archives) {
-        val currentTeamId = user.currentTeamId
-            ?: throw BusinessException(ErrorCode.TEAM_NOT_FOUND)
+    private fun findCurrentTeamForArchiveOrThrow(userId: Long) : Teams {
+        userService.validateUserExists(userId)
 
-        if (archive.team.teamId != currentTeamId) {
-            throw BusinessException(ErrorCode.TEAM_NOT_FOUND)
+        val teamId = userService.getCurrentTeamId(userId)
+        val team = teamService.findTeamForCommandOrThrow(teamId)
+
+        teamService.validateTeamMember(teamId, userId)
+
+        return team
+    }
+
+    private fun validateArchiveBelongsToCurrentTeam(team: Teams, archive: Archives) {
+        if (archive.team.teamId != team.teamId) {
+            throw BusinessException(ErrorCode.ARCHIVE_NO_PERMISSION)
+        }
+    }
+
+    private fun validateArchiveUpdatePermission(userId: Long, archive: Archives) {
+        if (archive.authorId != userId) {
+            throw BusinessException(ErrorCode.ARCHIVE_NO_UPDATE_PERMISSION)
+        }
+    }
+
+    private fun validateArchiveDeletePermission(userId: Long, archive: Archives) {
+        if (archive.authorId != userId) {
+            throw BusinessException(ErrorCode.ARCHIVE_NO_DELETE_PERMISSION)
         }
     }
 
     private fun validateCreateRequest(request: ArchiveCreateRequest) {
         if (request.title.isBlank()) {
-            throw BusinessException(ErrorCode.TEAM_NAME_REQUIRED)
+            throw BusinessException(ErrorCode.ARCHIVE_TITLE_REQUIRED)
         }
 
         if (request.title.length > 100) {
-            throw BusinessException(ErrorCode.TEAM_NAME_TOO_LONG)
+            throw BusinessException(ErrorCode.ARCHIVE_TITLE_TOO_LONG)
         }
 
         if ((request.description?.length ?: 0) > 500) {
-            throw BusinessException(ErrorCode.TEAM_DESCRIPTION_TOO_LONG)
+            throw BusinessException(ErrorCode.ARCHIVE_DESCRIPTION_TOO_LONG)
         }
     }
 
@@ -196,17 +192,7 @@ class ArchiveService(
                     (request.archiveImageUrl != null && request.archiveImageUrl != archive.archiveImageUrl)
 
         if (!isAnyFieldChanged) {
-            throw BusinessException()
+            throw BusinessException(ErrorCode.ARCHIVE_NO_CONTENT_TO_UPDATE)
         }
     }
-
-
-    private fun validateArchiveUpdatePermission(userId: Long, archiveId: Long) {
-        // TODO: 팀 삭제 권한 검증
-        val archive = archiveRepository.findByArchiveId(archiveId) ?: throw BusinessException()
-        if (archive.authorId != userId) {
-            throw BusinessException()
-        }
-    }
-
 }

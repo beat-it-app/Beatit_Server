@@ -59,10 +59,9 @@ enum class ErrorCode(
     TEAM_NOT_SELECTED(HttpStatus.BAD_REQUEST, "TEAM-012", "현재 선택된 팀이 없습니다. 팀을 먼저 선택해주세요."),
     TEAM_NO_DELETE_PERMISSION(HttpStatus.FORBIDDEN, "TEAM-013", "팀 삭제 권한이 없습니다."),
 
-
     // --- 연습실 관련 에러 (Archive) ---
     ARCHIVE_NO_CONTENT_TO_UPDATE(HttpStatus.BAD_REQUEST, "ARCHIVE-001", "연습실에 대해 변경할 내용이 없습니다."),
-    ARCHIVE_NO_PERMISSION(HttpStatus.FORBIDDEN, "ARCHIVE-002", "연습실 조회 권한이 없습니다."),
+    ARCHIVE_NO_PERMISSION(HttpStatus.FORBIDDEN, "ARCHIVE-002", "현재 팀에서 접근할 수 없는 연습실입니다."),
     ARCHIVE_NOT_FOUND(HttpStatus.NOT_FOUND, "ARCHIVE-003", "연습실을 찾을 수 없습니다."),
     ARCHIVE_TITLE_REQUIRED(HttpStatus.BAD_REQUEST, "ARCHIVE-004", "연습실 제목은 필수입니다."),
     ARCHIVE_TITLE_TOO_LONG(HttpStatus.BAD_REQUEST, "ARCHIVE-005", "연습실 제목은 100자 이하여야 합니다."),
@@ -72,6 +71,7 @@ enum class ErrorCode(
     ARCHIVE_LOCATION_REQUIRED(HttpStatus.BAD_REQUEST, "ARCHIVE-009", "연습실 위치 정보는 필수입니다."),
     ARCHIVE_PLACE_NAME_TOO_LONG(HttpStatus.BAD_REQUEST, "ARCHIVE-010", "연습실 장소명은 100자 이하여야 합니다."),
     ARCHIVE_IMAGE_URL_TOO_LONG(HttpStatus.BAD_REQUEST, "ARCHIVE-011", "연습실 이미지 URL은 500자 이하여야 합니다."),
+
 
     // --- 5. 공지/투표 관련 에러 (POST) ---
     TITLE_CONTENT_REQUIRED(HttpStatus.BAD_REQUEST, "POST-001", "제목과 내용은 필수 입력 사항입니다."),

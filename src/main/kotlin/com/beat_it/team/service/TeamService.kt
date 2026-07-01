@@ -280,12 +280,12 @@ class TeamService(
             ?: throw BusinessException(ErrorCode.TEAM_INVITE_CODE_NOT_FOUND)
     }
 
-    private fun findTeamForCommandOrThrow(teamId: Long): Teams {
+    fun findTeamForCommandOrThrow(teamId: Long): Teams {
         return teamRepository.findByTeamId(teamId)
             ?: throw BusinessException(ErrorCode.TEAM_UNAVAILABLE)
     }
 
-    private fun findTeamForCommandOrThrow(teamPublicId: UUID): Teams {
+    fun findTeamForCommandOrThrow(teamPublicId: UUID): Teams {
         return teamRepository.findByPublicId(teamPublicId)
             ?: throw BusinessException(ErrorCode.TEAM_UNAVAILABLE)
     }
@@ -390,7 +390,7 @@ class TeamService(
         )
     }
 
-    private fun validateTeamMember(teamId: Long, userId: Long) {
+    fun validateTeamMember(teamId: Long, userId: Long) {
         findActiveMembershipOrThrow(teamId, userId)
     }
 
