@@ -113,9 +113,6 @@ class TeamController(
         val userId = userDetails.username.toLongOrNull()
             ?: throw BusinessException(ErrorCode.UNAUTHORIZED)
 
-        val team = teamRepository.findByPublicId(teamPublicId)
-            ?: throw BusinessException(ErrorCode.TEAM_UNAVAILABLE)
-
         teamService.selectTeam(userId, teamPublicId)
 
         return ResponseEntity
