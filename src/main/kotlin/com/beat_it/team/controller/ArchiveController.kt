@@ -54,7 +54,9 @@ class ArchiveController(
 
         val responseData = archiveService.updateArchive(userId, archiveId, request)
 
-        return ResponseEntity.ok(BasicResponse.success(responseData, HttpStatus.OK, "연습실 상세 내용이 수정되었습니다."))
+        return ResponseEntity
+            .status(HttpStatus.OK)
+            .body(BasicResponse.success(responseData, HttpStatus.OK, "연습실 상세 내용이 수정되었습니다."))
     }
 
     @Operation(summary = "연습실 삭제하기")
@@ -68,7 +70,9 @@ class ArchiveController(
 
         archiveService.deleteArchive(userId, archiveId)
 
-        return ResponseEntity.ok(BasicResponse.success(HttpStatus.OK,"연습실이 성공적으로 삭제되었습니다."))
+        return ResponseEntity
+            .status(HttpStatus.OK)
+            .body(BasicResponse.success(HttpStatus.OK, "연습실이 성공적으로 삭제되었습니다."))
     }
 
     @Operation(summary = "연습실 상세 확인하기")
@@ -82,9 +86,11 @@ class ArchiveController(
 
         val archiveDetail = archiveService.getArchiveDetail(userId, archiveId)
 
-        return ResponseEntity.ok(
-            BasicResponse.success(archiveDetail, HttpStatus.OK,"연습실 상세 내용 조회에 성공했습니다."))
+        return ResponseEntity
+            .status(HttpStatus.OK)
+            .body(BasicResponse.success(archiveDetail, HttpStatus.OK, "연습실 상세 내용 조회에 성공했습니다."))
     }
+
 
 //    @Operation(summary = "연습실 목록 확인하기")
 //    @GetMapping
@@ -93,9 +99,9 @@ class ArchiveController(
 //    ): ResponseEntity<BasicResponse<UserTeamListResponse>> {
 //        val userId = userDetails?.username?.toLong()
 //            ?: throw BusinessException(ErrorCode.UNAUTHORIZED)
-//
+
 //        val responseData = archiveService.getTeamArchives(userId)
-//
+
 //        return ResponseEntity.ok(
 //            BasicResponse.success(responseData, HttpStatus.OK, "나의 팀 리스트 조회에 성공했습니다.")
 //        )
