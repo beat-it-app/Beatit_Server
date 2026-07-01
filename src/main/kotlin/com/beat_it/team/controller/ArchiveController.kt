@@ -29,10 +29,10 @@ class ArchiveController(
     @Operation(summary = "연습실 생성하기")
     @PostMapping
     fun createArchive(
-        @AuthenticationPrincipal userDetails: UserDetails?,
+        @AuthenticationPrincipal userDetails: UserDetails,
         @RequestBody request: ArchiveCreateRequest
     ): ResponseEntity<BasicResponse<ArchiveCreateResponse>> {
-        val userId = userDetails?.username?.toLong()
+        val userId = userDetails.username.toLongOrNull()
             ?: throw BusinessException(ErrorCode.UNAUTHORIZED)
 
         val responseData = archiveService.createArchive(userId, request)
@@ -45,11 +45,11 @@ class ArchiveController(
     @Operation(summary = "연습실 수정하기")
     @PatchMapping("/{archiveId}")
     fun updateArchive(
-        @AuthenticationPrincipal userDetails: UserDetails?,
+        @AuthenticationPrincipal userDetails: UserDetails,
         @PathVariable("archiveId") archiveId: Long,
         @RequestBody request: ArchiveUpdateRequest,
     ): ResponseEntity<BasicResponse<ArchiveUpdateResponse>> {
-        val userId = userDetails?.username?.toLong()
+        val userId = userDetails.username.toLongOrNull()
             ?: throw BusinessException(ErrorCode.UNAUTHORIZED)
 
         val responseData = archiveService.updateArchive(userId, archiveId, request)
@@ -62,10 +62,10 @@ class ArchiveController(
     @Operation(summary = "연습실 삭제하기")
     @DeleteMapping("/{archiveId}")
     fun deleteArchive(
-        @AuthenticationPrincipal userDetails: UserDetails?,
+        @AuthenticationPrincipal userDetails: UserDetails,
         @PathVariable("archiveId") archiveId: Long
     ): ResponseEntity<BasicResponse<Nothing>> {
-        val userId = userDetails?.username?.toLong()
+        val userId = userDetails.username.toLongOrNull()
             ?: throw BusinessException(ErrorCode.UNAUTHORIZED)
 
         archiveService.deleteArchive(userId, archiveId)
@@ -78,10 +78,10 @@ class ArchiveController(
     @Operation(summary = "연습실 상세 확인하기")
     @GetMapping("/{archiveId}")
     fun getArchiveDetail(
-        @AuthenticationPrincipal userDetails: UserDetails?,
+        @AuthenticationPrincipal userDetails: UserDetails,
         @PathVariable("archiveId") archiveId: Long
     ): ResponseEntity<BasicResponse<ArchiveDetailResponse>> {
-        val userId = userDetails?.username?.toLong()
+        val userId = userDetails.username.toLongOrNull()
             ?: throw BusinessException(ErrorCode.UNAUTHORIZED)
 
         val archiveDetail = archiveService.getArchiveDetail(userId, archiveId)
