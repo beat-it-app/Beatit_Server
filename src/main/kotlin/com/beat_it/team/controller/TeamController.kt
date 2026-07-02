@@ -9,6 +9,8 @@ import com.beat_it.team.dto.TeamDetailUpdateResponse
 import com.beat_it.team.service.TeamService
 import com.beat_it.global.response.BasicResponse
 import com.beat_it.team.dto.TeamJoinResponse
+import com.beat_it.team.dto.TeamManageRequest
+import com.beat_it.team.dto.TeamManageResponse
 import com.beat_it.team.dto.TeamSimpleInfo
 import com.beat_it.team.dto.UserTeamListResponse
 import com.beat_it.team.repository.TeamRepository
@@ -166,6 +168,23 @@ class TeamController(
         return ResponseEntity
             .status(HttpStatus.OK)
             .body(BasicResponse.success(responseData, HttpStatus.OK, "팀 초대 링크 조회에 성공했습니다."))
+    }
+
+    @Operation(summary = "멤버 권한 바꾸기")
+    @PostMapping("/members/{userPublicId}")
+    fun postManageMember(
+        @AuthenticationPrincipal userDetails: UserDetails,
+        @PathVariable userPublicId: UUID,
+        @RequestBody request: TeamManageRequest,
+    ): ResponseEntity<BasicResponse<TeamManageResponse>> {
+        val userId = userDetails.username.toLongOrNull()
+            ?: throw BusinessException(ErrorCode.UNAUTHORIZED)
+
+        val responseData = teamService.updateMemberRole(request, userId, userPublicId)
+
+        return ResponseEntity
+            .status(HttpStatus.OK)
+            .body(BasicResponse.success(responseData, HttpStatus.OK, "멤버 권한이 성공적으로 변경되었습니다."))
     }
 }
 
