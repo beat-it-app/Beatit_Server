@@ -11,6 +11,7 @@ import com.beat_it.global.response.BasicResponse
 import com.beat_it.team.dto.TeamJoinResponse
 import com.beat_it.team.dto.TeamManageRequest
 import com.beat_it.team.dto.TeamManageResponse
+import com.beat_it.team.dto.TeamMemberListResponse
 import com.beat_it.team.dto.TeamSimpleInfo
 import com.beat_it.team.dto.UserTeamListResponse
 import com.beat_it.team.repository.TeamRepository
@@ -168,6 +169,21 @@ class TeamController(
         return ResponseEntity
             .status(HttpStatus.OK)
             .body(BasicResponse.success(responseData, HttpStatus.OK, "팀 초대 링크 조회에 성공했습니다."))
+    }
+
+    @Operation(summary = "멤버 목록 확인하기")
+    @GetMapping("/members")
+    fun getMembers(
+        @AuthenticationPrincipal userDetails: UserDetails,
+    ): ResponseEntity<BasicResponse<TeamMemberListResponse>>{
+        val userId = userDetails.username.toLongOrNull()
+            ?: throw BusinessException(ErrorCode.UNAUTHORIZED)
+
+        val responseData = teamService.getTeamMembers(userId)
+
+        return ResponseEntity
+            .status(HttpStatus.OK)
+            .body(BasicResponse.success(responseData, HttpStatus.OK, "팀 멤버 목록 조회에 성공했습니다."))
     }
 
     @Operation(summary = "멤버 권한 바꾸기")

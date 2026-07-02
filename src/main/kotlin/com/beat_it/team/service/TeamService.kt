@@ -305,6 +305,25 @@ class TeamService(
         }
     }
 
+    @Transactional(readOnly = true)
+    fun getTeamMembers(userId: Long): TeamMemberListResponse {
+        userService.validateUserExists(userId)
+
+        val teamId = userService.getCurrentTeamId(userId)
+        validateTeamMember(teamId, userId)
+
+        val memberships = teamMembershipRepository
+            .findAllByTeamTeamIdAndLeftAtIsNull(teamId)
+
+        val members = memberships.map { membership ->
+            createTeamMemberInfo(membership)
+        }
+
+        return TeamMemberListResponse(
+            members = members
+        )
+    }
+
     private fun findInviteCodeOrThrow(inviteCode: String): Teams {
         return teamRepository.findByInviteCode(inviteCode)
             ?: throw BusinessException(ErrorCode.TEAM_INVITE_CODE_NOT_FOUND)
@@ -438,8 +457,8 @@ class TeamService(
 
         return TeamManageResponse(
             updatedMembers = listOf(
-                createRoleChangedMember(targetMembership),
-                createRoleChangedMember(requesterMembership),
+                createTeamMemberInfo(targetMembership),
+                createTeamMemberInfo(requesterMembership),
             )
         )
     }
@@ -459,7 +478,7 @@ class TeamService(
 
         return TeamManageResponse(
             updatedMembers = listOf(
-                createRoleChangedMember(targetMembership)
+                createTeamMemberInfo(targetMembership)
             )
         )
     }
@@ -501,12 +520,17 @@ class TeamService(
         }
     }
 
-    private fun createRoleChangedMember(
+    private fun createTeamMemberInfo(
         membership: TeamMemberships
-    ): TeamRoleChangedMember {
-        return TeamRoleChangedMember(
-            userId = membership.userId,
-            updatedRole = membership.teamRole,
+    ): TeamMemberInfo  {
+        val userInfo = userService.getUserSimpleInfo(membership.userId)
+
+        return TeamMemberInfo(
+            userId = userInfo.userId,
+            userPublicId = userInfo.userPublicId,
+            userName = userInfo.userName,
+            profileImageUrl = userInfo.profileImageUrl,
+            teamRole = membership.teamRole,
         )
     }
 
