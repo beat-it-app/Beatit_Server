@@ -272,6 +272,39 @@ class TeamService(
         userService.updateCurrentTeamId(userId, team.teamId!!)
     }
 
+    @Transactional
+    fun updateMemberRole(request: TeamManageRequest, userId: Long, userPublicId: UUID): TeamManageResponse {
+        // 유저가 실제 존재하는 유저인지 확인
+        userService.validateUserExists(userId)
+
+        // 요청한 유저가 어떤 팀에 속해있는지 확인 후, 팀 존재 검증
+        val teamId = userService.getCurrentTeamId(userId)
+        findTeamForCommandOrThrow(teamId)
+
+        // 팀의 역할을 미리 파악하기 위해 membership 가지고 옴. > 요청자의 role에 따라 허용되는 변경 범위가 달라짐.
+        val requesterMembership = findActiveMembershipOrThrow(teamId, userId)
+
+        // 바꾸기를 원하는 타겟 유저 id를 public에서 변경 > target membership도 가지고 오기
+        val targetUserId = userService.findUserId(userPublicId)
+        val targetMembership = findActiveMembershipOrThrow(teamId, targetUserId)
+
+        // 바꾸고 싶은 역할이 Leader인지, Manager인지 확인해야 함.
+        return when (request.targetRole) {
+            // 바꾼 역할이 Leader면, 요청자가 대표인지도 확인한 뒤, 대표에서 운영진으로 변경되는 로직이 필요.
+            TeamRole.LEADER -> changeLeader(
+                requesterMembership = requesterMembership,
+                targetMembership = targetMembership
+            )
+
+            TeamRole.MANAGER,
+            TeamRole.MEMBER -> changeManagerRole(
+                requesterMembership = requesterMembership,
+                targetMembership = targetMembership,
+                targetRole = request.targetRole
+            )
+        }
+    }
+
     private fun findInviteCodeOrThrow(inviteCode: String): Teams {
         return teamRepository.findByInviteCode(inviteCode)
             ?: throw BusinessException(ErrorCode.TEAM_INVITE_CODE_NOT_FOUND)
@@ -389,6 +422,92 @@ class TeamService(
 
     private fun validateTeamMember(teamId: Long, userId: Long) {
         findActiveMembershipOrThrow(teamId, userId)
+    }
+
+    private fun changeLeader(
+        requesterMembership: TeamMemberships,
+        targetMembership: TeamMemberships
+    ): TeamManageResponse {
+        validateLeaderChangePermission(
+            requesterMembership = requesterMembership,
+            targetMembership = targetMembership
+        )
+
+        requesterMembership.updateTeamRole(TeamRole.MANAGER)
+        targetMembership.updateTeamRole(TeamRole.LEADER)
+
+        return TeamManageResponse(
+            updatedMembers = listOf(
+                createRoleChangedMember(targetMembership),
+                createRoleChangedMember(requesterMembership),
+            )
+        )
+    }
+
+    private fun changeManagerRole(
+        requesterMembership: TeamMemberships,
+        targetMembership: TeamMemberships,
+        targetRole: TeamRole
+    ): TeamManageResponse {
+        validateManagerRoleChangePermission(
+            requesterMembership = requesterMembership,
+            targetMembership = targetMembership,
+            targetRole = targetRole
+        )
+
+        targetMembership.updateTeamRole(targetRole)
+
+        return TeamManageResponse(
+            updatedMembers = listOf(
+                createRoleChangedMember(targetMembership)
+            )
+        )
+    }
+
+    private fun validateLeaderChangePermission(
+        requesterMembership: TeamMemberships,
+        targetMembership: TeamMemberships
+    ) {
+        if (requesterMembership.teamRole != TeamRole.LEADER) {
+            throw BusinessException(ErrorCode.TEAM_NO_UPDATE_PERMISSION)
+        }
+
+        if (requesterMembership.userId == targetMembership.userId) {
+            throw BusinessException(ErrorCode.TEAM_NO_CONTENT_TO_UPDATE)
+        }
+
+        if (targetMembership.teamRole == TeamRole.LEADER) {
+            throw BusinessException(ErrorCode.TEAM_NO_CONTENT_TO_UPDATE)
+        }
+    }
+
+    private fun validateManagerRoleChangePermission(
+        requesterMembership: TeamMemberships,
+        targetMembership: TeamMemberships,
+        targetRole: TeamRole
+    ) {
+        if (requesterMembership.teamRole != TeamRole.LEADER &&
+            requesterMembership.teamRole != TeamRole.MANAGER
+        ) {
+            throw BusinessException(ErrorCode.TEAM_NO_UPDATE_PERMISSION)
+        }
+
+        if (targetMembership.teamRole == TeamRole.LEADER) {
+            throw BusinessException(ErrorCode.TEAM_NO_UPDATE_PERMISSION)
+        }
+
+        if (targetMembership.teamRole == targetRole) {
+            throw BusinessException(ErrorCode.TEAM_NO_CONTENT_TO_UPDATE)
+        }
+    }
+
+    private fun createRoleChangedMember(
+        membership: TeamMemberships
+    ): TeamRoleChangedMember {
+        return TeamRoleChangedMember(
+            userId = membership.userId,
+            updatedRole = membership.teamRole,
+        )
     }
 
     private fun validateAndNormalizeInviteCode(inviteCode: String?): String {
