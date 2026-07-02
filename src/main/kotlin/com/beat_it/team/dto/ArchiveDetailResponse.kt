@@ -12,8 +12,8 @@ data class ArchiveDetailResponse(
     val likeCount: Int,
     val dislikeCount: Int,
     val commentCount: Int,
-    val createdAt: OffsetDateTime,
-    val updatedAt: OffsetDateTime,
+    val createdAt: String,
+    val updatedAt: String,
 )
 
 data class LocationResponse(

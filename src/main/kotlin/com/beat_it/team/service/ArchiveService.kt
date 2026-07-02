@@ -48,7 +48,7 @@ class ArchiveService(
             title = savedArchive.title,
             placeName = savedArchive.placeName,
             locationId = savedArchive.locationId,
-            createdAt = savedArchive.createdAt,
+            createdAt = DateTimeUtil.format(savedArchive.createdAt),
         )
     }
 
@@ -69,8 +69,8 @@ class ArchiveService(
             likeCount = archive.likeCount,
             dislikeCount = archive.dislikeCount,
             commentCount = archive.commentCount,
-            createdAt = archive.createdAt,
-            updatedAt = archive.updatedAt,
+            createdAt = DateTimeUtil.format(archive.createdAt),
+            updatedAt = DateTimeUtil.format(archive.updatedAt),
         )
     }
 
@@ -100,7 +100,7 @@ class ArchiveService(
             placeName = archive.placeName,
             locationId = archive.locationId,
             archiveImageUrl = archive.archiveImageUrl,
-            updatedAt = archive.updatedAt,
+            updatedAt = DateTimeUtil.format(archive.updatedAt),
         )
     }
 

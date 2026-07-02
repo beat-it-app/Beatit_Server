@@ -9,5 +9,5 @@ data class ArchiveCreateResponse(
     val title: String,
     val placeName: String?,
     val locationId: Long,
-    val createdAt: OffsetDateTime,
+    val createdAt: String,
 )

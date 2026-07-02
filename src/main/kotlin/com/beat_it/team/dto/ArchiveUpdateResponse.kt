@@ -11,5 +11,5 @@ data class ArchiveUpdateResponse(
     val locationId: Long? = null,
     val description: String? = null,
     val archiveImageUrl: String? = null,
-    val updatedAt: OffsetDateTime,
+    val updatedAt: String,
 )
