@@ -3,6 +3,7 @@ package com.beat_it.team.service
 import com.beat_it.auth.service.UserService
 import com.beat_it.global.error.BusinessException
 import com.beat_it.global.error.ErrorCode
+import com.beat_it.global.util.DateTimeUtil
 import com.beat_it.team.dto.*
 import com.beat_it.team.entity.Archives
 import com.beat_it.team.entity.Teams
@@ -141,13 +142,13 @@ class ArchiveService(
     }
 
     private fun validateArchiveUpdatePermission(userId: Long, archive: Archives) {
-        if (archive.authorId != userId) {
+        if (archive.writerId != userId) {
             throw BusinessException(ErrorCode.ARCHIVE_NO_UPDATE_PERMISSION)
         }
     }
 
     private fun validateArchiveDeletePermission(userId: Long, archive: Archives) {
-        if (archive.authorId != userId) {
+        if (archive.writerId != userId) {
             throw BusinessException(ErrorCode.ARCHIVE_NO_DELETE_PERMISSION)
         }
     }
