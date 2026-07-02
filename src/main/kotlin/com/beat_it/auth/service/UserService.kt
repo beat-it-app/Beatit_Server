@@ -1,5 +1,6 @@
 package com.beat_it.auth.service
 
+import com.beat_it.auth.dto.UserSimpleInfo
 import com.beat_it.auth.entity.AuthFiles
 import com.beat_it.auth.entity.UserProfiles
 import com.beat_it.auth.entity.Users
@@ -73,6 +74,21 @@ class UserService (
 
         return user.currentTeamId
             ?: throw BusinessException(ErrorCode.TEAM_NOT_SELECTED)
+    }
+
+    @Transactional(readOnly = true)
+    fun getUserSimpleInfo(userId: Long): UserSimpleInfo {
+        val user = userRepository.findById(userId)
+            .orElseThrow { BusinessException(ErrorCode.USER_NOT_FOUND) }
+
+        val profile = getUserProfile(userId)
+
+        return UserSimpleInfo(
+            userId = user.userId!!,
+            userPublicId = user.publicId,
+            userName = profile?.name ?: "이름 없음",
+            profileImageUrl = profile?.authFile?.cdnUrl,
+        )
     }
 
     @Transactional(readOnly = true)
