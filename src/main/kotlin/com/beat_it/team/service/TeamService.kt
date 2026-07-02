@@ -28,7 +28,7 @@ class TeamService(
 
     @Transactional
     fun createTeam(userId: Long, request: TeamCreateRequest): TeamCreateResponse {
-        validateTeamRequest(request.teamName, request.description)
+        validateCreateRequest(request)
         userService.validateUserExists(userId)
 
         val inviteCode = generateInviteCode()
@@ -73,7 +73,7 @@ class TeamService(
         userId: Long,
         request: TeamDetailUpdateRequest
     ): TeamDetailUpdateResponse {
-        validateTeamRequest(request.teamName, request.description)
+        validateUpdateRequest(request)
         val teamId = userService.getCurrentTeamId(userId)
 
         val team = findTeamForCommandOrThrow(teamId)
@@ -290,57 +290,33 @@ class TeamService(
             ?: throw BusinessException(ErrorCode.TEAM_UNAVAILABLE)
     }
 
-    private fun validateTeamRequest(
-        teamName: String,
-        description: String,
-    ) {
-        validateTeamName(teamName)
-        validateDescription(description)
-    }
-
-    private fun validateTeamName(teamName: String) {
-        if (teamName.isBlank()) {
-            throw BusinessException(ErrorCode.ARCHIVE_TITLE_REQUIRED)
+    private fun validateCreateRequest(request: TeamCreateRequest) {
+        if (request.teamName.isBlank()) {
+            throw BusinessException(ErrorCode.TEAM_NAME_REQUIRED)
         }
 
-        if (teamName.length > 100) {
-            throw BusinessException(ErrorCode.ARCHIVE_TITLE_TOO_LONG)
+        if (request.teamName.length > 100) {
+            throw BusinessException(ErrorCode.TEAM_NAME_TOO_LONG)
+        }
+
+        if ((request.description?.length ?: 0) > 500) {
+            throw BusinessException(ErrorCode.TEAM_DESCRIPTION_TOO_LONG)
         }
     }
 
-    private fun validateDescription(description: String) {
-        if ((description.length ?: 0) > 500) {
-            throw BusinessException(ErrorCode.ARCHIVE_DESCRIPTION_TOO_LONG)
+    private fun validateUpdateRequest(request: TeamDetailUpdateRequest) {
+        if (request.teamName != null && request.teamName.isBlank()) {
+            throw BusinessException(ErrorCode.TEAM_NAME_REQUIRED)
+        }
+
+        if ((request.teamName?.length ?: 0) > 100) {
+            throw BusinessException(ErrorCode.TEAM_NAME_TOO_LONG)
+        }
+
+        if ((request.description?.length ?: 0) > 500) {
+            throw BusinessException(ErrorCode.TEAM_DESCRIPTION_TOO_LONG)
         }
     }
-
-//    private fun validateCreateRequest(request: TeamCreateRequest) {
-//        if (request.teamName.isBlank()) {
-//            throw BusinessException(ErrorCode.TEAM_NAME_REQUIRED)
-//        }
-//
-//        if (request.teamName.length > 100) {
-//            throw BusinessException(ErrorCode.TEAM_NAME_TOO_LONG)
-//        }
-//
-//        if ((request.description?.length ?: 0) > 500) {
-//            throw BusinessException(ErrorCode.TEAM_DESCRIPTION_TOO_LONG)
-//        }
-//    }
-//
-//    private fun validateUpdateRequest(request: TeamDetailUpdateRequest) {
-//        if (request.teamName != null && request.teamName.isBlank()) {
-//            throw BusinessException(ErrorCode.TEAM_NAME_REQUIRED)
-//        }
-//
-//        if ((request.teamName?.length ?: 0) > 100) {
-//            throw BusinessException(ErrorCode.TEAM_NAME_TOO_LONG)
-//        }
-//
-//        if ((request.description?.length ?: 0) > 500) {
-//            throw BusinessException(ErrorCode.TEAM_DESCRIPTION_TOO_LONG)
-//        }
-//    }
 
     private fun validateTeamDetailChanged(
         team: Teams,
