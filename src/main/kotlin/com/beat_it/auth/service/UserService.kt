@@ -14,6 +14,7 @@ import org.springframework.data.repository.findByIdOrNull
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import org.springframework.web.multipart.MultipartFile
+import java.util.UUID
 
 @Service
 class UserService (
@@ -79,6 +80,12 @@ class UserService (
         if (!userRepository.existsById(userId)) {
             throw BusinessException(ErrorCode.USER_NOT_FOUND)
         }
+    }
+
+    @Transactional(readOnly = true)
+    fun findUserId(userPublicId: UUID): Long {
+        return userRepository.findByPublicId(userPublicId)?.userId
+            ?: throw BusinessException(ErrorCode.USER_NOT_FOUND)
     }
 
     @Transactional(readOnly = true)
