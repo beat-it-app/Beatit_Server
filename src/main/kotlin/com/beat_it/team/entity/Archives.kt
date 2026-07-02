@@ -27,7 +27,7 @@ class Archives(
     val team: Teams,
 
     @Column(name = "user_id", nullable = false)
-    val authorId: Long,
+    val writerId: Long,
 
     //TODO: Location id 추가할 것.
     @Column(name = "location_id", nullable = false)

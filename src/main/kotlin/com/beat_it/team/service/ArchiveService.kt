@@ -29,7 +29,7 @@ class ArchiveService(
         val team = findCurrentTeamForArchiveOrThrow(userId)
 
         val archive = Archives(
-            authorId = userId,
+            writerId = userId,
             team = team,
             title = request.title,
             placeName = request.placeName,
