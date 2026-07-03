@@ -154,29 +154,27 @@ class ArchiveService(
     }
 
     private fun validateCreateRequest(request: ArchiveCreateRequest) {
-        if (request.title.isBlank()) {
-            throw BusinessException(ErrorCode.ARCHIVE_TITLE_REQUIRED)
-        }
-
-        if (request.title.length > 100) {
-            throw BusinessException(ErrorCode.ARCHIVE_TITLE_TOO_LONG)
-        }
-
-        if ((request.description?.length ?: 0) > 500) {
-            throw BusinessException(ErrorCode.ARCHIVE_DESCRIPTION_TOO_LONG)
-        }
+        validateTitle(request.title)
+        validateDescription(request.description)
     }
 
     private fun validateUpdateRequest(request: ArchiveUpdateRequest) {
-        if (request.title != null && request.title.isBlank()) {
+        request.title?.let { validateTitle(it) }
+        validateDescription(request.description)
+    }
+
+    private fun validateTitle(title: String) {
+        if (title.isBlank()) {
             throw BusinessException(ErrorCode.ARCHIVE_TITLE_REQUIRED)
         }
 
-        if (request.title != null && request.title.length > 100) {
+        if (title.length > 100) {
             throw BusinessException(ErrorCode.ARCHIVE_TITLE_TOO_LONG)
         }
+    }
 
-        if ((request.description?.length ?: 0) > 500) {
+    private fun validateDescription(description: String?) {
+        if ((description?.length ?: 0) > 500) {
             throw BusinessException(ErrorCode.ARCHIVE_DESCRIPTION_TOO_LONG)
         }
     }
