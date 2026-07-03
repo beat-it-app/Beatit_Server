@@ -59,7 +59,7 @@ enum class ErrorCode(
     TEAM_NOT_SELECTED(HttpStatus.BAD_REQUEST, "TEAM-012", "현재 선택된 팀이 없습니다. 팀을 먼저 선택해주세요."),
     TEAM_NO_DELETE_PERMISSION(HttpStatus.FORBIDDEN, "TEAM-013", "팀 삭제 권한이 없습니다."),
 
-    // --- 연습실 관련 에러 (Archive) ---
+    // --- 4. 연습실 관련 에러 (Archive) ---
     ARCHIVE_NO_CONTENT_TO_UPDATE(HttpStatus.BAD_REQUEST, "ARCHIVE-001", "연습실에 대해 변경할 내용이 없습니다."),
     ARCHIVE_NO_PERMISSION(HttpStatus.FORBIDDEN, "ARCHIVE-002", "현재 팀에서 접근할 수 없는 연습실입니다."),
     ARCHIVE_NOT_FOUND(HttpStatus.NOT_FOUND, "ARCHIVE-003", "연습실을 찾을 수 없습니다."),
