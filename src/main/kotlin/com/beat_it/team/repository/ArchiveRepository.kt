@@ -8,5 +8,4 @@ import org.springframework.stereotype.Repository
 interface ArchiveRepository : JpaRepository<Archives, Long> {
     fun findByArchiveId(archiveId: Long): Archives?
 
-    fun findByArchiveIdOrNull(archiveId: Long): Archives?
 }

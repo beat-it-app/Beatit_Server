@@ -60,12 +60,14 @@ class Archives(
         description: String?,
         placeName: String?,
         locationId: Long?,
-        archiveImageUrl: String?,
     ) {
         title?.let { this.title = it }
         description?.let { this.description = it }
         placeName?.let { this.placeName = it }
         locationId?.let { this.locationId = it }
-        archiveImageUrl?.let { this.archiveImageUrl = it }
+    }
+
+    fun updateArchiveImageUrl(archiveImageUrl: String?) {
+        this.archiveImageUrl = archiveImageUrl
     }
 }

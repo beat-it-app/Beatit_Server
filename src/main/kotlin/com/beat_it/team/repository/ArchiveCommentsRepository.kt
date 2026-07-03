@@ -7,7 +7,7 @@ import org.springframework.stereotype.Repository
 
 @Repository
 interface ArchiveCommentsRepository : JpaRepository<ArchiveComments, Long> {
-    fun findByArchiveId(archiveId: Long): Archives?
+//    fun findByArchiveId(archiveId: Long): Archives?
 
     fun deleteByArchiveArchiveId(archiveId: Long): Int
 

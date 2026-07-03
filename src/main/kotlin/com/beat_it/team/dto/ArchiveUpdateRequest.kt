@@ -12,5 +12,4 @@ data class ArchiveUpdateRequest(
     val placeName: String? = null,
     val locationId: Long? = null,
     val description: String? = null,
-    val archiveImageUrl: String? = null,
 )

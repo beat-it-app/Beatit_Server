@@ -14,25 +14,39 @@ import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.*
 import io.swagger.v3.oas.annotations.tags.Tag
+import org.springframework.http.MediaType
 import org.springframework.security.core.annotation.AuthenticationPrincipal
 import org.springframework.security.core.userdetails.UserDetails
+import org.springframework.web.multipart.MultipartFile
+import tools.jackson.databind.ObjectMapper
 
 @Tag(name = "3-2. TEAM ARCHIVE API", description = "팀 연습실 수정 및 생성 관리 로직")
 @RestController
 @RequestMapping("/teams/archives")
 class ArchiveController(
     private val archiveService: ArchiveService,
+    private val objectMapper: ObjectMapper,
 ) {
     @Operation(summary = "연습실 생성하기")
-    @PostMapping
+    @PostMapping(consumes = [MediaType.MULTIPART_FORM_DATA_VALUE])
     fun createArchive(
         @AuthenticationPrincipal userDetails: UserDetails,
-        @RequestBody request: ArchiveCreateRequest
+        @RequestParam("request") requestJson: String,
+        @RequestPart(value = "archiveImage", required = false) archiveImage: MultipartFile?
     ): ResponseEntity<BasicResponse<ArchiveCreateResponse>> {
         val userId = userDetails.username.toLongOrNull()
             ?: throw BusinessException(ErrorCode.UNAUTHORIZED)
 
-        val responseData = archiveService.createArchive(userId, request)
+        val request = objectMapper.readValue(
+            requestJson,
+            ArchiveCreateRequest::class.java,
+        )
+
+        val responseData = archiveService.createArchive(
+            userId = userId,
+            request = request,
+            archiveImage = archiveImage,
+        )
 
         return ResponseEntity
             .status(HttpStatus.CREATED)
@@ -40,16 +54,35 @@ class ArchiveController(
     }
 
     @Operation(summary = "연습실 수정하기")
-    @PatchMapping("/{archiveId}")
+    @PatchMapping(
+        "/{archiveId}",
+        consumes = [MediaType.MULTIPART_FORM_DATA_VALUE],
+    )
     fun updateArchive(
         @AuthenticationPrincipal userDetails: UserDetails,
-        @PathVariable("archiveId") archiveId: Long,
-        @RequestBody request: ArchiveUpdateRequest,
+        @PathVariable archiveId: Long,
+        @RequestParam(value = "request", required = false) requestJson: String?,
+        @RequestPart(value = "archiveImage", required = false) archiveImage: MultipartFile?,
     ): ResponseEntity<BasicResponse<ArchiveUpdateResponse>> {
         val userId = userDetails.username.toLongOrNull()
             ?: throw BusinessException(ErrorCode.UNAUTHORIZED)
 
-        val responseData = archiveService.updateArchive(userId, archiveId, request)
+        val request = requestJson
+            ?.takeIf { it.isNotBlank() }
+            ?.let {
+                objectMapper.readValue(
+                    it,
+                    ArchiveUpdateRequest::class.java,
+                )
+            }
+            ?: ArchiveUpdateRequest()
+
+        val responseData = archiveService.updateArchive(
+            userId = userId,
+            archiveId = archiveId,
+            request = request,
+            archiveImage = archiveImage,
+        )
 
         return ResponseEntity
             .status(HttpStatus.OK)
@@ -60,7 +93,7 @@ class ArchiveController(
     @DeleteMapping("/{archiveId}")
     fun deleteArchive(
         @AuthenticationPrincipal userDetails: UserDetails,
-        @PathVariable("archiveId") archiveId: Long
+        @PathVariable archiveId: Long
     ): ResponseEntity<BasicResponse<Nothing>> {
         val userId = userDetails.username.toLongOrNull()
             ?: throw BusinessException(ErrorCode.UNAUTHORIZED)
@@ -76,7 +109,7 @@ class ArchiveController(
     @GetMapping("/{archiveId}")
     fun getArchiveDetail(
         @AuthenticationPrincipal userDetails: UserDetails,
-        @PathVariable("archiveId") archiveId: Long
+        @PathVariable archiveId: Long
     ): ResponseEntity<BasicResponse<ArchiveDetailResponse>> {
         val userId = userDetails.username.toLongOrNull()
             ?: throw BusinessException(ErrorCode.UNAUTHORIZED)

@@ -1,18 +1,23 @@
 package com.beat_it.team.service
 
+import com.beat_it.auth.entity.enum.MediaCategory
 import com.beat_it.auth.service.UserService
 import com.beat_it.global.error.BusinessException
 import com.beat_it.global.error.ErrorCode
+import com.beat_it.global.service.FileService
 import com.beat_it.global.util.DateTimeUtil
 import com.beat_it.team.dto.*
 import com.beat_it.team.entity.Archives
+import com.beat_it.team.entity.ArchivesFiles
 import com.beat_it.team.entity.Teams
 import com.beat_it.team.repository.ArchiveCommentsRepository
 import com.beat_it.team.repository.ArchiveReactionsRepository
 import com.beat_it.team.repository.ArchiveRepository
+import com.beat_it.team.repository.ArchivesFilesRepository
 import com.beat_it.team.repository.TeamRepository
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+import org.springframework.web.multipart.MultipartFile
 
 @Service
 class ArchiveService(
@@ -21,10 +26,16 @@ class ArchiveService(
     private val archiveReactionsRepository: ArchiveReactionsRepository,
     private val userService: UserService,
     private val teamService: TeamService,
+    private val fileService: FileService,
+    private val archivesFilesRepository: ArchivesFilesRepository,
 ) {
 
     @Transactional
-    fun createArchive(userId: Long, request: ArchiveCreateRequest): ArchiveCreateResponse {
+    fun createArchive(
+        userId: Long,
+        request: ArchiveCreateRequest,
+        archiveImage: MultipartFile?,
+    ): ArchiveCreateResponse {
         validateCreateRequest(request)
 
         val team = findCurrentTeamForArchiveOrThrow(userId)
@@ -36,7 +47,7 @@ class ArchiveService(
             placeName = request.placeName,
             locationId = request.locationId,
             description = request.description,
-            archiveImageUrl = request.archiveImageUrl,
+            archiveImageUrl = null,
             likeCount = 0,
             dislikeCount = 0,
             commentCount = 0,
@@ -44,11 +55,20 @@ class ArchiveService(
 
         val savedArchive = archiveRepository.save(archive)
 
+        val savedArchiveFile = saveArchiveImage(
+            archive = savedArchive,
+            userId = userId,
+            archiveImage = archiveImage,
+        )
+
+        savedArchive.updateArchiveImageUrl(savedArchiveFile.cdnUrl)
+
         return ArchiveCreateResponse(
             archiveId = savedArchive.archiveId!!,
             title = savedArchive.title,
             placeName = savedArchive.placeName,
             locationId = savedArchive.locationId,
+            archiveImageUrl = savedArchive.archiveImageUrl,
             createdAt = DateTimeUtil.format(savedArchive.createdAt),
         )
     }
@@ -76,7 +96,12 @@ class ArchiveService(
     }
 
     @Transactional
-    fun updateArchive(userId: Long, archiveId: Long, request: ArchiveUpdateRequest): ArchiveUpdateResponse {
+    fun updateArchive(
+        userId: Long,
+        archiveId: Long,
+        request: ArchiveUpdateRequest,
+        archiveImage: MultipartFile?,
+    ): ArchiveUpdateResponse {
         validateUpdateRequest(request)
 
         val team = findCurrentTeamForArchiveOrThrow(userId)
@@ -84,14 +109,23 @@ class ArchiveService(
 
         validateArchiveBelongsToCurrentTeam(team, archive)
         validateArchiveUpdatePermission(userId, archive)
-        validateArchiveChanged(archive, request)
+        validateArchiveChanged(
+            archive = archive,
+            request = request,
+            archiveImage = archiveImage,
+        )
 
         archive.updateArchive(
             title = request.title,
             description = request.description,
             placeName = request.placeName,
             locationId = request.locationId,
-            archiveImageUrl = request.archiveImageUrl,
+        )
+
+        updateArchiveImageIfExists(
+            archive = archive,
+            userId = userId,
+            archiveImage = archiveImage,
         )
 
         return ArchiveUpdateResponse(
@@ -115,8 +149,64 @@ class ArchiveService(
 
         archiveCommentsRepository.deleteByArchiveArchiveId(archiveId)
         archiveReactionsRepository.deleteByArchiveArchiveId(archiveId)
+        archivesFilesRepository.deleteAllByArchiveArchiveId(archiveId)
 
         archiveRepository.delete(archive)
+    }
+
+    private fun saveArchiveImage(
+        archive: Archives,
+        userId: Long,
+        archiveImage: MultipartFile?,
+    ): ArchivesFiles {
+        val archiveFile = if (archiveImage != null && !archiveImage.isEmpty) {
+            // TODO : S3 연동 전 임시 처리. S3 붙으면 fileService.uploadFiles 로직으로 교체.
+            ArchivesFiles(
+                archive = archive,
+                userId = userId,
+                originalFileName = archiveImage.originalFilename ?: "archive-image.jpg",
+                storageKey = "dummy/path/archive-image.jpg",
+                cdnUrl = "https://example.com/default-archive-image.jpg",
+                mimeType = archiveImage.contentType,
+                mediaCategory = MediaCategory.IMAGE,
+                fileSizeBytes = archiveImage.size,
+                isPublic = true,
+            )
+        } else {
+            ArchivesFiles(
+                archive = archive,
+                userId = userId,
+                originalFileName = "default-archive.jpg",
+                storageKey = "dummy/path/default-archive.jpg",
+                cdnUrl = "https://example.com/default-archive-image.jpg",
+                mimeType = "image/jpeg",
+                mediaCategory = MediaCategory.IMAGE,
+                fileSizeBytes = 0L,
+                isPublic = true,
+            )
+        }
+
+        return archivesFilesRepository.save(archiveFile)
+    }
+
+    private fun updateArchiveImageIfExists(
+        archive: Archives,
+        userId: Long,
+        archiveImage: MultipartFile?,
+    ) {
+        if (archiveImage == null || archiveImage.isEmpty) {
+            return
+        }
+
+        archivesFilesRepository.deleteAllByArchiveArchiveId(archive.archiveId!!)
+
+        val savedArchiveFile = saveArchiveImage(
+            archive = archive,
+            userId = userId,
+            archiveImage = archiveImage,
+        )
+
+        archive.updateArchiveImageUrl(savedArchiveFile.cdnUrl)
     }
 
     private fun findArchiveOrThrow(archiveId: Long): Archives {
@@ -178,17 +268,20 @@ class ArchiveService(
             throw BusinessException(ErrorCode.ARCHIVE_DESCRIPTION_TOO_LONG)
         }
     }
-    
+
     private fun validateArchiveChanged(
         archive: Archives,
         request: ArchiveUpdateRequest,
+        archiveImage: MultipartFile?,
     ) {
+        val isImageChanged = archiveImage != null && !archiveImage.isEmpty
+
         val isAnyFieldChanged =
             (request.title != null && request.title != archive.title) ||
                     (request.description != null && request.description != archive.description) ||
                     (request.placeName != null && request.placeName != archive.placeName) ||
                     (request.locationId != null && request.locationId != archive.locationId) ||
-                    (request.archiveImageUrl != null && request.archiveImageUrl != archive.archiveImageUrl)
+                    isImageChanged
 
         if (!isAnyFieldChanged) {
             throw BusinessException(ErrorCode.ARCHIVE_NO_CONTENT_TO_UPDATE)

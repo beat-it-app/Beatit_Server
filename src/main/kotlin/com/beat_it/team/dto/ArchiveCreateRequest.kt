@@ -9,8 +9,7 @@ import java.time.OffsetDateTime
 
 data class ArchiveCreateRequest(
     val title: String,
-    val placeName: String?,
+    val placeName: String? = null,
     val locationId: Long,
-    val description: String?,
-    val archiveImageUrl: String?,
+    val description: String? = null,
 )
