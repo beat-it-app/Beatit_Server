@@ -36,7 +36,8 @@ class ArchiveService(
         request: ArchiveCreateRequest,
         archiveImage: MultipartFile?,
     ): ArchiveCreateResponse {
-        validateCreateRequest(request)
+        validateTitle(request.title)
+        validateDescription(request.description)
 
         val team = findCurrentTeamForArchiveOrThrow(userId)
 
@@ -102,7 +103,8 @@ class ArchiveService(
         request: ArchiveUpdateRequest,
         archiveImage: MultipartFile?,
     ): ArchiveUpdateResponse {
-        validateUpdateRequest(request)
+        request.title?.let { validateTitle(it) }
+        validateDescription(request.description)
 
         val team = findCurrentTeamForArchiveOrThrow(userId)
         val archive = findArchiveOrThrow(archiveId)
@@ -241,16 +243,6 @@ class ArchiveService(
         if (archive.writerId != userId) {
             throw BusinessException(ErrorCode.ARCHIVE_NO_DELETE_PERMISSION)
         }
-    }
-
-    private fun validateCreateRequest(request: ArchiveCreateRequest) {
-        validateTitle(request.title)
-        validateDescription(request.description)
-    }
-
-    private fun validateUpdateRequest(request: ArchiveUpdateRequest) {
-        request.title?.let { validateTitle(it) }
-        validateDescription(request.description)
     }
 
     private fun validateTitle(title: String) {
