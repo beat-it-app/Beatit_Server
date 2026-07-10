@@ -335,6 +335,29 @@ class NoticeService(
         noticeRepository.save(notice)
     }
 
+    @Transactional
+    fun deleteComment(userId: Long, noticeId: Long, commentId: Long) {
+        val teamId = userService.getCurrentTeamId(userId)
+        val notice = getNotice(noticeId)
+        validateTeam(notice, teamId)
+
+        val comment = postCommentRepository.findById(commentId)
+            .orElseThrow { BusinessException(ErrorCode.RESOURCE_NOT_FOUND) }
+
+        if (comment.postType != PostType.NOTICE || comment.postId != noticeId) {
+            throw BusinessException(ErrorCode.RESOURCE_NOT_FOUND)
+        }
+
+        if (comment.userId != userId && notice.userId != userId) {
+            throw BusinessException(ErrorCode.NOT_AUTHOR)
+        }
+
+        postCommentRepository.delete(comment)
+
+        notice.decreaseComment()
+        noticeRepository.save(notice)
+    }
+
     private fun validateTeam(notice: Notices, teamId: Long) {
         if (notice.teamId != teamId) {
             throw BusinessException(ErrorCode.NOT_TEAM_MEMBER)
