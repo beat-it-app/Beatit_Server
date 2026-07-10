@@ -47,6 +47,10 @@ class Polls(
     var commentCounter: Int
 
 ): BaseUpdatedTimeEntity() {
+    @OneToMany(mappedBy = "poll", cascade = [CascadeType.ALL], orphanRemoval = true)
+    @OrderBy("displayOrder ASC")
+    var pollOptions: List<PollOptions> = listOf()
+
     fun increaseComment() {
         this.commentCounter++
     }

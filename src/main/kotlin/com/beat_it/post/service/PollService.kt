@@ -4,16 +4,9 @@ import com.beat_it.auth.service.UserService
 import com.beat_it.global.error.BusinessException
 import com.beat_it.global.error.ErrorCode
 import com.beat_it.global.util.DateTimeUtil
-import com.beat_it.post.dto.CommentRequest
-import com.beat_it.post.dto.CommentResponse
-import com.beat_it.post.dto.DateItemResponse
-import com.beat_it.post.dto.LocationItemResponse
-import com.beat_it.post.dto.MusicItemResponse
-import com.beat_it.post.dto.PollDetailResponse
-import com.beat_it.post.dto.PollItems
-import com.beat_it.post.dto.PollListResponse
-import com.beat_it.post.dto.PollRequest
-import com.beat_it.post.dto.TextItemResponse
+import com.beat_it.post.dto.*
+import com.beat_it.post.entity.PollOptions
+import com.beat_it.post.entity.PollVotes
 import com.beat_it.post.entity.Polls
 import com.beat_it.post.entity.PostComments
 import com.beat_it.post.entity.enum.PollType
@@ -22,8 +15,10 @@ import com.beat_it.post.repository.PollRepository
 import com.beat_it.post.repository.PollVoteRepository
 import com.beat_it.post.repository.PostCommentRepository
 import org.springframework.transaction.annotation.Transactional
+import org.springframework.data.domain.Page
 import org.springframework.data.domain.PageRequest
 import org.springframework.stereotype.Service
+import java.time.OffsetDateTime
 
 @Service
 class PollService(
@@ -37,15 +32,18 @@ class PollService(
         val teamId = userService.getCurrentTeamId(userId)
         val pageRequest = PageRequest.of(page, size)
 
-        val polls = pollRepository.getPolls(teamId, pageRequest)
+        val pollsPage = pollRepository.getPolls(teamId, pageRequest)
+        val polls = pollsPage.content
 
         if (polls.isEmpty()) {
-            return PollListResponse(pollListResponse = emptyList())
+            return PollListResponse(
+                pollListResponse = emptyList(),
+                totalCount = pollsPage.totalElements.toInt(),
+                hasNext = pollsPage.hasNext()
+            )
         }
 
-        // N+1 문제 해결: 현재 가져온 pollId 목록 추출
         val pollIds = polls.map { it.pollId }.filterNotNull()
-
         val votedPollIds = pollRepository.findVotedPollIdsByUserIdAndPollIds(userId, pollIds).toSet()
 
         val pollItems = polls.map { poll ->
@@ -53,68 +51,94 @@ class PollService(
                 pollId = poll.pollId!!,
                 teamId = teamId,
                 title = poll.title,
-                closeAt = DateTimeUtil.format(poll.closesAt!!),
+                // 💡 수정 1: poll.closesAt은 Nullable(?), DateTimeUtil.format 함수는 Non-Null을 기대하므로 엘비스 처리
+                closeAt = poll.closesAt?.let { DateTimeUtil.format(it) } ?: "",
                 pollCount = poll.pollCount,
                 isVoted = votedPollIds.contains(poll.pollId)
             )
         }
-        return PollListResponse(pollListResponse = pollItems)
+        return PollListResponse(
+            pollListResponse = pollItems,
+            totalCount = pollsPage.totalElements.toInt(),
+            hasNext = pollsPage.hasNext()
+        )
     }
 
     @Transactional
     fun postPoll(userId: Long, request: PollRequest){
+        val teamId = userService.getCurrentTeamId(userId)
 
+        val poll = Polls.postPoll(
+            userId = userId,
+            teamId = teamId,
+            title = request.title,
+            content = request.content,
+            pollType = request.pollType,
+            allowMultipleChoice = request.allowMultipleChoice ?: false,
+            isAnonymous = request.isAnonymous ?: false,
+            closesAt = request.closesAt,
+            remindBeforeClose = request.remindBeforeClose ?: false
+        )
+
+        val options = request.pollList.mapIndexed { index, item ->
+            val text = when (item) {
+                is TextItem -> item.content
+                is DateItem -> item.date?.let { DateTimeUtil.format(it) } ?: ""
+                is MusicItem -> item.music
+                is LocationItem -> item.location
+                else -> ""
+            }
+            PollOptions(
+                poll = poll,
+                optionText = text,
+                displayOrder = index
+            )
+        }
+
+        poll.pollOptions = options
+        pollRepository.save(poll)
     }
 
     @Transactional(readOnly = true)
     fun getPoll(userId: Long, pollId: Long): PollDetailResponse {
         val teamId = userService.getCurrentTeamId(userId)
-        val poll = getPoll(pollId) // Polls 엔티티 조회
+        val poll = getPoll(pollId)
         validateTeam(poll, teamId)
 
-        // 1. 투표 작성자 정보 조회
         val writerProfile = userService.getUserProfile(poll.userId)
         val writerName = writerProfile?.name ?: "알 수 없음"
 
-        // 2. [PollVotes 반영] 로그인한 유저가 투표한 옵션 ID 목록 가져오기 (Set으로 만들어 O(1) 검색 최적화)
         val myVotedOptionIds = pollVoteRepository.findVotedOptionIdsByUserIdAndPollId(userId, pollId).toSet()
 
-        // 3. [PollVotes 반영] 전체 옵션별 투표 수 집계 (N+1 방지하기 위해 Map으로 일괄 변환)
-        // 결과 예시: { 1L (옵션ID): 5 (투표수), 2L: 3 }
         val voteCountsMap = pollVoteRepository.countVotesByPollId(pollId)
             .associate { row -> row[0] as Long to (row[1] as Long).toInt() }
 
-        // 4. 투표 옵션 리스트 DTO 변환 (Polls 엔티티 내부의 pollOptions 목록을 순회한다고 가정)
         val pollItemResponses = poll.pollOptions.map { option ->
             val optionId = option.pollOptionId!!
-            val voteCount = voteCountsMap[optionId] ?: 0 // 집계된 개수가 없으면 0개
-            val isVoted = myVotedOptionIds.contains(optionId) // 내가 선택했는지 여부
+            val voteCount = voteCountsMap[optionId] ?: 0
+            val isVoted = myVotedOptionIds.contains(optionId)
 
-            // pollType에 따른 다형성 매핑 (엔티티의 실제 필드명에 맞춰 수정 필요)
             when (poll.pollType) {
                 PollType.TEXT -> TextItemResponse(
                     itemId = optionId, voteCount = voteCount, isVoted = isVoted,
-                    content = option.content ?: ""
+                    content = option.optionText
                 )
                 PollType.DATE -> DateItemResponse(
                     itemId = optionId, voteCount = voteCount, isVoted = isVoted,
-                    date = DateTimeUtil.format(option.date)
+                    date = option.optionText
                 )
                 PollType.MUSIC -> MusicItemResponse(
                     itemId = optionId, voteCount = voteCount, isVoted = isVoted,
-                    music = option.music ?: ""
+                    music = option.optionText
                 )
                 PollType.LOCATION -> LocationItemResponse(
                     itemId = optionId, voteCount = voteCount, isVoted = isVoted,
-                    location = option.location ?: ""
+                    location = option.optionText
                 )
             }
         }
 
-        // 5. 댓글 목록 조회 및 작성자 정보 맵핑 (이전과 동일)
         val comments = postCommentRepository.findByPostTypeAndPostIdOrderByCreatedAtAsc(PostType.POLL, pollId)
-        val commenterIds = comments.map { it.userId }.distinct()
-        val commenterProfilesMap = userService.getUserProfiles(commenterIds).associateBy { it.userId }
 
         val commentDtos = comments.map { comment ->
             val commentWriterProfile = userService.getUserProfile(comment.userId)
@@ -129,18 +153,17 @@ class PollService(
             )
         }
 
-        // 6. 최종 응답 조립
         return PollDetailResponse(
-            pollId = poll.pollId,
+            pollId = poll.pollId!!,
             title = poll.title,
             content = poll.content,
             pollType = poll.pollType,
-            allowMultipleChoice = poll.allowMultipleChoice ?: false,
-            isAnonymous = poll.isAnonymous ?: false,
-            closesAt = DateTimeUtil.format(poll.closesAt),
-            remindBeforeClose = DateTimeUtil.format(poll.remindBeforeClose),
+            allowMultipleChoice = poll.allowMultipleChoice,
+            isAnonymous = poll.isAnonymous,
+            closesAt = poll.closesAt?.let { DateTimeUtil.format(it) },
+            remindBeforeClose = if (poll.remindBeforeClose) "REMIND" else "NONE",
             writerName = writerName,
-            writerProfileImageUrl = writerProfile?.authFile?.cdnUrl,
+            writerProfileImageUrl = writerProfile?.authFile?.cdnUrl ?: "",
             createdAt = DateTimeUtil.format(poll.createdAt),
             updatedAt = DateTimeUtil.format(poll.updatedAt),
             pollItems = pollItemResponses,
@@ -151,13 +174,60 @@ class PollService(
     }
 
     @Transactional
-    fun votePoll(userId: Long, request: PollRequest){
+    fun votePoll(userId: Long, pollId: Long, request: VoteRequest){
+        val teamId = userService.getCurrentTeamId(userId)
+        val poll = getPoll(pollId)
+        validateTeam(poll, teamId)
 
+        if (poll.closesAt != null && OffsetDateTime.now().isAfter(poll.closesAt)) {
+            throw BusinessException(ErrorCode.POLL_CLOSED)
+        }
+
+        if (!poll.allowMultipleChoice && request.optionIds.size > 1) {
+            throw BusinessException(ErrorCode.POLL_MULTIPLE_CHOICE_NOT_ALLOWED)
+        }
+
+        val pollOptionMap = poll.pollOptions.associateBy { it.pollOptionId }
+        val targetOptions = request.optionIds.map { optionId ->
+            pollOptionMap[optionId] ?: throw BusinessException(ErrorCode.POLL_OPTION_NOT_FOUND)
+        }
+
+        pollVoteRepository.deleteByUserIdAndPollId(userId, pollId)
+
+        val newVotes = targetOptions.map { option ->
+            PollVotes(
+                poll = poll,
+                pollOption = option,
+                userId = userId
+            )
+        }
+        pollVoteRepository.saveAll(newVotes)
+
+        pollVoteRepository.flush()
+
+        val participantCount = pollVoteRepository.countUniqueParticipantsByPollId(pollId).toInt()
+        poll.pollCount = participantCount
+
+        val voteCountsMap = pollVoteRepository.countVotesByPollId(pollId)
+            .associate { row -> row[0] as Long to (row[1] as Long).toInt() }
+
+        poll.pollOptions.forEach { option ->
+            option.optionCount = voteCountsMap[option.pollOptionId] ?: 0
+        }
+
+        pollRepository.save(poll)
     }
 
     @Transactional
     fun deletePoll(userId: Long, pollId: Long){
         val teamId = userService.getCurrentTeamId(userId)
+        val poll = getPoll(pollId)
+        validateTeam(poll, teamId)
+        validateWriter(poll, userId)
+
+        pollVoteRepository.deleteByPollId(pollId)
+        postCommentRepository.deleteByPostTypeAndPostId(PostType.POLL, pollId)
+        pollRepository.delete(poll)
     }
 
     @Transactional
@@ -166,7 +236,6 @@ class PollService(
         val temaId = userService.getCurrentTeamId(userId)
         validateComment(request.content)
         validateTeam(poll, temaId)
-        // Fixme: 17:18분에 생성했는데 8:13으로 찍힘. 시간 조정이 좀 필요해보임.
 
         val comment = PostComments.createNoticeComment(
             noticeId = pollId,

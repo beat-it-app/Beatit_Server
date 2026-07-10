@@ -3,8 +3,7 @@ package com.beat_it.post.controller
 import com.beat_it.global.error.BusinessException
 import com.beat_it.global.error.ErrorCode
 import com.beat_it.global.response.BasicResponse
-import com.beat_it.post.dto.PollListResponse
-import com.beat_it.post.dto.PollRequest
+import com.beat_it.post.dto.*
 import com.beat_it.post.service.PollService
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.tags.Tag
@@ -12,11 +11,7 @@ import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.security.core.annotation.AuthenticationPrincipal
 import org.springframework.security.core.userdetails.UserDetails
-import org.springframework.web.bind.annotation.GetMapping
-import org.springframework.web.bind.annotation.PostMapping
-import org.springframework.web.bind.annotation.RequestBody
-import org.springframework.web.bind.annotation.RequestMapping
-import org.springframework.web.bind.annotation.RestController
+import org.springframework.web.bind.annotation.*
 
 @Tag(name = "5-2. (POST) POLL API", description = "투표 관련 로직")
 @RestController
@@ -52,5 +47,54 @@ class PollController (
         return ResponseEntity
             .status(HttpStatus.CREATED)
             .body(BasicResponse.success(HttpStatus.CREATED, "투표를 성공적으로 생성했습니다."))
+    }
+
+    @Operation(summary = "투표 상세 보기")
+    @GetMapping("/{pollId}")
+    fun getPoll(
+        @AuthenticationPrincipal userDetails: UserDetails,
+        @PathVariable pollId: Long
+    ): ResponseEntity<BasicResponse<PollDetailResponse>> {
+        val userId = userDetails.username.toLongOrNull()
+            ?: throw BusinessException(ErrorCode.UNAUTHORIZED)
+
+        val response = pollService.getPoll(userId, pollId)
+
+        return ResponseEntity
+            .status(HttpStatus.OK)
+            .body(BasicResponse.success(response, HttpStatus.OK, "투표 상세 정보를 성공적으로 불러왔습니다."))
+    }
+
+    @Operation(summary = "투표 하기")
+    @PostMapping("/{pollId}/vote")
+    fun votePoll(
+        @AuthenticationPrincipal userDetails: UserDetails,
+        @PathVariable pollId: Long,
+        @RequestBody request: VoteRequest
+    ): ResponseEntity<BasicResponse<Nothing>> {
+        val userId = userDetails.username.toLongOrNull()
+            ?: throw BusinessException(ErrorCode.UNAUTHORIZED)
+
+        pollService.votePoll(userId, pollId, request)
+
+        return ResponseEntity
+            .status(HttpStatus.OK)
+            .body(BasicResponse.success(HttpStatus.OK, "성공적으로 투표하였습니다."))
+    }
+
+    @Operation(summary = "투표 삭제하기 - 작성자만 가능")
+    @DeleteMapping("/{pollId}")
+    fun deletePoll(
+        @AuthenticationPrincipal userDetails: UserDetails,
+        @PathVariable pollId: Long
+    ): ResponseEntity<BasicResponse<Nothing>> {
+        val userId = userDetails.username.toLongOrNull()
+            ?: throw BusinessException(ErrorCode.UNAUTHORIZED)
+
+        pollService.deletePoll(userId, pollId)
+
+        return ResponseEntity
+            .status(HttpStatus.OK)
+            .body(BasicResponse.success(HttpStatus.OK, "투표가 성공적으로 삭제되었습니다."))
     }
 }

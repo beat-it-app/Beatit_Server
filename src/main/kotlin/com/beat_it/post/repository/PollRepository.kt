@@ -1,6 +1,7 @@
 package com.beat_it.post.repository
 
 import com.beat_it.post.entity.Polls // 실제 엔티티 패키지 경로에 맞게 지정
+import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
 import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.data.jpa.repository.Query
@@ -12,7 +13,7 @@ interface PollRepository : JpaRepository<Polls, Long> {
     fun getPolls(
         @Param("teamId") teamId: Long,
         pageable: Pageable
-    ): List<Polls>
+    ): Page<Polls>
 
     @Query("SELECT v.poll.pollId FROM PollVotes v WHERE v.userId = :userId AND v.poll.pollId IN :pollIds")
     fun findVotedPollIdsByUserIdAndPollIds(
