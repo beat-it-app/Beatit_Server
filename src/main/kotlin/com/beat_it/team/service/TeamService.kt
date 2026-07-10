@@ -426,4 +426,11 @@ class TeamService(
             .take(6)
             .uppercase()
     }
+
+    fun validateMembersInTeam(teamId: Long, userIds: List<Long>): Boolean {
+        if (userIds.isEmpty()) return false
+        val activeMembers = teamMembershipRepository.findAllByTeamTeamIdAndUserIdInAndLeftAtIsNull(teamId, userIds)
+        val uniqueUserIdsCount = userIds.distinct().size
+        return activeMembers.size == uniqueUserIdsCount
+    }
 }
