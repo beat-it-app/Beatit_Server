@@ -21,6 +21,7 @@ import com.beat_it.global.service.FileService
 import com.beat_it.post.entity.NoticeReactions
 import com.beat_it.post.entity.PostComments
 import com.beat_it.post.entity.enum.NoticeSortType
+import org.springframework.data.domain.Page
 import org.springframework.data.domain.PageRequest
 
 @Service
@@ -46,10 +47,15 @@ class NoticeService(
         val pageRequest = PageRequest.of(0, 10, sort)
 
         val searchKeyword = keyword ?: ""
-        val notices = noticeRepository.searchNotices(teamId, searchKeyword, pageRequest)
+        val noticesPage = noticeRepository.searchNotices(teamId, searchKeyword, pageRequest)
+        val notices = noticesPage.content
 
         if (notices.isEmpty()) {
-            return NoticeListResponse(noticeListResponse = emptyList())
+            return NoticeListResponse(
+                noticeListResponse = emptyList(),
+                totalCount = noticesPage.totalElements.toInt(),
+                hasNext = noticesPage.hasNext()
+            )
         }
 
         val noticeItems = notices.map { notice ->
@@ -75,7 +81,11 @@ class NoticeService(
             )
         }
 
-        return NoticeListResponse(noticeListResponse = noticeItems)
+        return NoticeListResponse(
+            noticeListResponse = noticeItems,
+            totalCount = noticesPage.totalElements.toInt(),
+            hasNext = noticesPage.hasNext()
+        )
     }
 
     @Transactional
