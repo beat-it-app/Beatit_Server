@@ -1,5 +1,6 @@
 package com.beat_it.chat.entity
 
+import com.beat_it.chat.entity.enum.ChatRoomType
 import com.beat_it.global.entity.BaseUpdatedTimeEntity
 import jakarta.persistence.CascadeType
 import jakarta.persistence.Column
@@ -20,7 +21,7 @@ class ChatRoom(
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "chat_id")
-    val id: Long? = null,
+    val chatId: Long? = null,
 
     @Column(name = "public_id", nullable = false, unique = true)
     val publicId: UUID = UUID.randomUUID(),
@@ -41,7 +42,7 @@ class ChatRoom(
     @Column(name = "last_message_content", length = 255)
     var lastMessageContent: String? = null,
 
-) : BaseUpdatedTimeEntity() {
+    ) : BaseUpdatedTimeEntity() {
 
     @OneToMany(mappedBy = "chatRoom", cascade = [CascadeType.ALL], orphanRemoval = true)
     val members: MutableList<ChatMember> = mutableListOf()

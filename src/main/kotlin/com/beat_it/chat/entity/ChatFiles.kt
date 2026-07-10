@@ -2,9 +2,6 @@ package com.beat_it.chat.entity
 
 import com.beat_it.global.entity.BaseCreatedTimeEntity
 import jakarta.persistence.*
-import java.time.LocalDateTime
-import java.time.OffsetDateTime
-
 enum class MediaCategory {
     IMAGE, AUDIO, VIDEO, DOCUMENT
 }
@@ -14,8 +11,8 @@ enum class MediaCategory {
 class ChatFiles(
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "chatfiles_id")
-    val id: Long? = null,
+    @Column(name = "chat_files_id")
+    val chatFilesId: Long? = null,
 
     @Column(name = "user_id", nullable = false)
     val userId: Long,
@@ -48,6 +45,4 @@ class ChatFiles(
     @Column(name = "is_public", nullable = false)
     var isPublic: Boolean = false,
 
-    @Column(name = "deleted_at")
-    var deletedAt: OffsetDateTime? = null
 ) : BaseCreatedTimeEntity()

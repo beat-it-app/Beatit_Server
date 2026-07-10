@@ -30,11 +30,11 @@ class ChatController(
 
     @PostMapping
     fun createChatRoom(
-        @AuthenticationPrincipal userDetails: UserDetails?,
+        @AuthenticationPrincipal userDetails: UserDetails,
         @RequestBody request: ChatRoomCreateRequest
     ): ResponseEntity<BasicResponse<ChatRoomCreateResponse>> {
 
-        val currentUserId = userDetails?.username?.toLongOrNull()
+        val currentUserId = userDetails.username.toLongOrNull()
             ?: throw BusinessException(ErrorCode.UNAUTHORIZED)
 
         val responseData = chatService.createChatRoom(request, currentUserId)
@@ -52,12 +52,12 @@ class ChatController(
 
     @PostMapping("/{chatId}/messages", consumes = [MediaType.MULTIPART_FORM_DATA_VALUE])
     fun sendMessage(
-        @AuthenticationPrincipal userDetails: UserDetails?,
+        @AuthenticationPrincipal userDetails: UserDetails,
         @PathVariable chatId: Long,
         @ModelAttribute request: ChatMessageRequest,
     ): ResponseEntity<Any> {
 
-        val currentUserId = userDetails?.username?.toLongOrNull()
+        val currentUserId = userDetails.username.toLongOrNull()
             ?: throw BusinessException(ErrorCode.UNAUTHORIZED)
 
         val savedMessageDetail = chatService.sendMessage(chatId, currentUserId, request)
@@ -75,12 +75,12 @@ class ChatController(
 
     @PatchMapping("/{chatId}")
     fun updateChatRoomName(
-        @AuthenticationPrincipal userDetails: UserDetails?,
+        @AuthenticationPrincipal userDetails: UserDetails,
         @PathVariable chatId: Long,
         @RequestBody request: ChatRoomUpdateRequest
     ): ResponseEntity<BasicResponse<ChatRoomUpdateResponse>> {
 
-        val currentUserId = userDetails?.username?.toLongOrNull()
+        val currentUserId = userDetails.username.toLongOrNull()
             ?: throw BusinessException(ErrorCode.UNAUTHORIZED)
 
         val responseData = chatService.updateChatRoomName(chatId, currentUserId, request)

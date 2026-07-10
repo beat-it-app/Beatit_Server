@@ -13,7 +13,7 @@ import com.beat_it.chat.entity.ChatMessage
 import com.beat_it.chat.entity.ChatMessageFiles
 import com.beat_it.chat.entity.ChatMessageType
 import com.beat_it.chat.entity.ChatRoom
-import com.beat_it.chat.entity.ChatRoomType
+import com.beat_it.chat.entity.enum.ChatRoomType
 import com.beat_it.chat.entity.MediaCategory
 import com.beat_it.chat.event.ChatRoomCreatedEvent
 import com.beat_it.chat.repository.ChatFilesRepository
@@ -88,8 +88,8 @@ class ChatService(
         val savedMessage = chatMessageRepository.saveAndFlush(firstMessage)
 
         val messageDetail = ChatMessageDetailResponse(
-            messageId = savedMessage.id!!,
-            chatId = savedChatRoom.id!!,
+            messageId = savedMessage.chatMessageId!!,
+            chatId = savedChatRoom.chatId!!,
             senderId = currentUserId,
             content = savedMessage.content,
             messageType = savedMessage.type.name,
@@ -101,16 +101,16 @@ class ChatService(
 
         applicationEventPublisher.publishEvent(
             ChatRoomCreatedEvent(
-                chatId = savedChatRoom.id!!,
+                chatId = savedChatRoom.chatId!!,
                 roomName = savedChatRoom.title,
                 participantIds = allParticipantIds
             )
         )
 
-        return ChatRoomCreateResponse.of(
-            chatId = savedChatRoom.id!!,
+        return ChatRoomCreateResponse(
+            chatId = savedChatRoom.chatId!!,
             roomName = savedChatRoom.title,
-            createdAt = savedChatRoom.createdAt
+            createdAt = DateTimeUtil.format(savedChatRoom.createdAt)
         )
     }
 
@@ -171,7 +171,7 @@ class ChatService(
         }
 
         val messageDetail = ChatMessageDetailResponse(
-            messageId = savedMessage.id!!,
+            messageId = savedMessage.chatMessageId!!,
             chatId = chatId,
             senderId = senderId,
             content = savedMessage.content,
@@ -203,7 +203,7 @@ class ChatService(
         val updatedChatRoom = chatRepository.saveAndFlush(chatRoom)
 
         return ChatRoomUpdateResponse(
-            chatId = updatedChatRoom.id!!,
+            chatId = updatedChatRoom.chatId!!,
             roomName = updatedChatRoom.title,
             updatedAt = DateTimeUtil.format(updatedChatRoom.updatedAt)
         )

@@ -10,7 +10,7 @@ class ChatMessageFiles(
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "chat_message_file_id")
-    val id: Long? = null,
+    val chatMessageFileId: Long? = null,
 
     @Column(name = "user_id", nullable = false)
     val userId: Long,
@@ -20,7 +20,7 @@ class ChatMessageFiles(
     val chatMessage: ChatMessage,
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "chatfiles_id", nullable = false)
+    @JoinColumn(name = "chat_files_id", nullable = false)
     val chatFile: ChatFiles
 
 ) : BaseCreatedTimeEntity()

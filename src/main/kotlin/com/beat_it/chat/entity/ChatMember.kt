@@ -9,7 +9,7 @@ class ChatMember(
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "chat_member_id")
-    val id: Long? = null,
+    val chatMemberId: Long? = null,
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "chat_id", nullable = false)
