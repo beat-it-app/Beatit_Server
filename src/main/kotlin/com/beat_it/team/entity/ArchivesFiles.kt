@@ -57,7 +57,4 @@ class ArchivesFiles(
 
     @Column(name = "is_public", nullable = false)
     var isPublic: Boolean = false,
-
-    @Column(name = "deleted_at")
-    var deletedAt: OffsetDateTime? = null,
 ) : BaseCreatedTimeEntity()
