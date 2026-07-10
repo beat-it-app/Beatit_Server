@@ -81,12 +81,10 @@ class PollService(
         )
 
         val options = request.pollList.mapIndexed { index, item ->
-            val text = when (item) {
-                is TextItem -> item.content
-                is DateItem -> item.date?.let { DateTimeUtil.format(it) } ?: ""
-                is MusicItem -> item.music
-                is LocationItem -> item.location
-                else -> ""
+            val text = when (request.pollType) {
+                PollType.TEXT -> item.content ?: ""
+                PollType.MUSIC -> item.music ?: ""
+                PollType.LOCATION -> item.location ?: ""
             }
             PollOptions(
                 poll = poll,
@@ -122,10 +120,6 @@ class PollService(
                 PollType.TEXT -> TextItemResponse(
                     itemId = optionId, voteCount = voteCount, isVoted = isVoted,
                     content = option.optionText
-                )
-                PollType.DATE -> DateItemResponse(
-                    itemId = optionId, voteCount = voteCount, isVoted = isVoted,
-                    date = option.optionText
                 )
                 PollType.MUSIC -> MusicItemResponse(
                     itemId = optionId, voteCount = voteCount, isVoted = isVoted,

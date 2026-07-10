@@ -32,7 +32,6 @@ data class PollDetailResponse(
 )
 @JsonSubTypes(
     JsonSubTypes.Type(value = TextItemResponse::class, name = "TEXT"),
-    JsonSubTypes.Type(value = DateItemResponse::class, name = "DATE"),
     JsonSubTypes.Type(value = MusicItemResponse::class, name = "MUSIC"),
     JsonSubTypes.Type(value = LocationItemResponse::class, name = "LOCATION")
 )
@@ -47,13 +46,6 @@ data class TextItemResponse(
     override val voteCount: Int,
     override val isVoted: Boolean,
     val content: String
-) : PollItemResponse
-
-data class DateItemResponse(
-    override val itemId: Long,
-    override val voteCount: Int,
-    override val isVoted: Boolean,
-    val date: String // 포맷팅된 날짜 문자열 혹은 OffsetDateTime
 ) : PollItemResponse
 
 data class MusicItemResponse(
