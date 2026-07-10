@@ -58,8 +58,14 @@ enum class ErrorCode(
     NOT_TEAM_MEMBER(HttpStatus.FORBIDDEN, "TEAM-011", "해당 팀의 멤버가 아닙니다."),
     TEAM_NOT_SELECTED(HttpStatus.BAD_REQUEST, "TEAM-012", "현재 선택된 팀이 없습니다. 팀을 먼저 선택해주세요."),
     TEAM_NO_DELETE_PERMISSION(HttpStatus.FORBIDDEN, "TEAM-013", "팀 삭제 권한이 없습니다."),
-
-
+    
+    // --- 4. 채팅 관련 에러 (CHAT) ---
+    CHAT_ROOM_NAME_REQUIRED(HttpStatus.BAD_REQUEST, "CHAT-001", "채팅방 이름은 필수입니다."),
+    INVALID_TEAM_PARTICIPANTS(HttpStatus.BAD_REQUEST, "CHAT-002", "팀 내 속해있는 유저만 초대 가능합니다."),
+    CHAT_ROOM_NOT_FOUND(HttpStatus.NOT_FOUND, "CHAT-003", "채팅방을 찾을 수 없습니다."),
+    INVALID_MESSAGE_TYPE(HttpStatus.BAD_REQUEST, "CHAT-004", "올바르지 않은 채팅 메시지 타입입니다."),
+    CHAT_MESSAGE_REQUIRED(HttpStatus.BAD_REQUEST, "CHAT-005", "텍스트 메시지 내용은 필수입니다."),
+    
     // --- 5. 공지/투표 관련 에러 (POST) ---
     TITLE_CONTENT_REQUIRED(HttpStatus.BAD_REQUEST, "POST-001", "제목과 내용은 필수 입력 사항입니다."),
     POST_NOT_FOUND(HttpStatus.NOT_FOUND, "POST-002", "이미 삭제되었거나 존재하지 않는 공지입니다."),
@@ -79,6 +85,7 @@ enum class ErrorCode(
     INVALID_FILE_EXTENSION(HttpStatus.BAD_REQUEST, "FILE-002", "지원하지 않는 파일 확장자입니다."),
     FILE_SIZE_EXCEEDED(HttpStatus.BAD_REQUEST, "FILE-003", "파일 용량이 제한을 초과했습니다."),
     FILE_UPLOAD_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "FILE-004", "서버 오류로 인해 파일 업로드에 실패했습니다."),
+    FILE_REQUIRED(HttpStatus.BAD_REQUEST, "FILE-005", "미디어 타입 전송 시 파일 첨부는 필수입니다."),
 
     // --- 멤버 관련 에러 ---
     MEMBER_NOT_FOUND(HttpStatus.NOT_FOUND, "MEMBER-001", "참여 사용자를 찾을 수 없습니다."),

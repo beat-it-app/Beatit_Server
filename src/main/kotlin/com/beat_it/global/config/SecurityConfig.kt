@@ -45,6 +45,7 @@ class SecurityConfig(
                     .requestMatchers("/auth/**").permitAll()
                     .requestMatchers("/teams/**").permitAll()
                     .requestMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()
+                    .requestMatchers("/ws/chat/**").permitAll()
                     .anyRequest().authenticated()
             }
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter::class.java)
