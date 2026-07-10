@@ -11,7 +11,6 @@ import com.beat_it.global.response.BasicResponse
 import com.beat_it.team.dto.TeamJoinResponse
 import com.beat_it.team.dto.TeamSimpleInfo
 import com.beat_it.team.dto.UserTeamListResponse
-import com.beat_it.team.repository.TeamRepository
 import io.swagger.v3.oas.annotations.Operation
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
@@ -23,12 +22,11 @@ import io.swagger.v3.oas.annotations.tags.Tag
 import org.springframework.security.core.annotation.AuthenticationPrincipal
 import org.springframework.security.core.userdetails.UserDetails
 
-@Tag(name = "3. TEAM API", description = "팀 생성 및 수정 관련 로직")
+@Tag(name = "3-1. TEAM API", description = "팀 생성 및 수정 관련 로직")
 @RestController
 @RequestMapping("/teams")
 class TeamController(
     private val teamService: TeamService,
-    private val teamRepository: TeamRepository
 ) {
 
     @Operation(summary = "팀 생성하기")
@@ -114,9 +112,6 @@ class TeamController(
     ): ResponseEntity<BasicResponse<Nothing>> {
         val userId = userDetails.username.toLongOrNull()
             ?: throw BusinessException(ErrorCode.UNAUTHORIZED)
-
-        val team = teamRepository.findByPublicId(teamPublicId)
-            ?: throw BusinessException(ErrorCode.TEAM_UNAVAILABLE)
 
         teamService.selectTeam(userId, teamPublicId)
 

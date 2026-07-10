@@ -5,7 +5,7 @@ import com.beat_it.team.entity.enum.TeamType
 import java.time.LocalDate
 
 data class TeamDetailUpdateRequest(
-    val teamName: String? = null,
+    val teamName: String,
     val description: String? = null,
     val teamType: TeamType? = null,
     val establishedOn: LocalDate? = null,
