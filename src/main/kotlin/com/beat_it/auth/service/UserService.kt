@@ -3,7 +3,6 @@ package com.beat_it.auth.service
 import com.beat_it.auth.dto.UserProfileResponse
 import com.beat_it.auth.entity.AuthFiles
 import com.beat_it.auth.entity.UserProfiles
-import com.beat_it.auth.entity.Users
 import com.beat_it.auth.entity.enum.MediaCategory
 import com.beat_it.auth.repository.AuthFilesRepository
 import com.beat_it.auth.repository.UserProfilesRepository
@@ -11,7 +10,6 @@ import com.beat_it.auth.repository.UserRepository
 import com.beat_it.global.error.BusinessException
 import com.beat_it.global.error.ErrorCode
 import com.beat_it.global.service.FileService
-import org.springframework.data.repository.findByIdOrNull
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import org.springframework.web.multipart.MultipartFile
@@ -111,15 +109,12 @@ class UserService (
     fun getUserProfiles(userIds: List<Long>): List<UserProfileResponse> {
         if (userIds.isEmpty()) return emptyList()
 
-        // DB에서 목록을 한 번에 조회
-        val users = userRepository.findByUserIdIn(userIds)
-
-        // 서비스에서 사용하는 DTO(예: UserProfileResponse 등)로 변환하여 반환
-        return users.map { user ->
+        val profiles = userProfilesRepository.findByUserUserIdIn(userIds)
+        return profiles.map { profile ->
             UserProfileResponse(
-                userId = user.userId,
-                name = user.name,
-                profileImageUrl = user.authFile?.cdnUrl
+                userId = profile.user?.userId ?: 0L,
+                name = profile.name,
+                profileImageUrl = profile.authFile.cdnUrl
             )
         }
     }
