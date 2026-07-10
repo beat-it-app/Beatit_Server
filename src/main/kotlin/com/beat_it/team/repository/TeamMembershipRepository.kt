@@ -30,4 +30,9 @@ interface TeamMembershipRepository : JpaRepository<TeamMemberships, Long> {
     fun findAllByUserIdAndLeftAtIsNull(
         userId: Long,
     ): List<TeamMemberships>
+
+    fun findAllByTeamTeamIdAndUserIdInAndLeftAtIsNull(
+        teamId: Long,
+        userIds: List<Long>
+    ): List<TeamMemberships>
 }
