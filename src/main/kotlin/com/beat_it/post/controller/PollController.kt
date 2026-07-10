@@ -97,4 +97,38 @@ class PollController (
             .status(HttpStatus.OK)
             .body(BasicResponse.success(HttpStatus.OK, "투표가 성공적으로 삭제되었습니다."))
     }
+
+    @Operation(summary = "투표 댓글 작성하기")
+    @PostMapping("/{pollId}/comments")
+    fun createComment(
+        @AuthenticationPrincipal userDetails: UserDetails,
+        @PathVariable pollId: Long,
+        @RequestBody request: CommentRequest
+    ): ResponseEntity<BasicResponse<Nothing>> {
+        val userId = userDetails.username.toLongOrNull()
+            ?: throw BusinessException(ErrorCode.UNAUTHORIZED)
+
+        pollService.createComment(userId, pollId, request)
+
+        return ResponseEntity
+            .status(HttpStatus.OK)
+            .body(BasicResponse.success(HttpStatus.OK, "댓글이 성공적으로 등록되었습니다."))
+    }
+
+    @Operation(summary = "투표 댓글 삭제하기 - 댓글 작성자 혹은 투표 작성자만 가능")
+    @DeleteMapping("/{pollId}/comments/{commentId}")
+    fun deleteComment(
+        @AuthenticationPrincipal userDetails: UserDetails,
+        @PathVariable pollId: Long,
+        @PathVariable commentId: Long
+    ): ResponseEntity<BasicResponse<Nothing>> {
+        val userId = userDetails.username.toLongOrNull()
+            ?: throw BusinessException(ErrorCode.UNAUTHORIZED)
+
+        pollService.deleteComment(userId, pollId, commentId)
+
+        return ResponseEntity
+            .status(HttpStatus.OK)
+            .body(BasicResponse.success(HttpStatus.OK, "댓글이 성공적으로 삭제되었습니다."))
+    }
 }

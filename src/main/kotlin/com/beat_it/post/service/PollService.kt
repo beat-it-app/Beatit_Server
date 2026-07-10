@@ -227,12 +227,12 @@ class PollService(
     @Transactional
     fun createComment(userId: Long, pollId: Long, request: CommentRequest) {
         val poll = getPoll(pollId)
-        val temaId = userService.getCurrentTeamId(userId)
+        val teamId = userService.getCurrentTeamId(userId)
         validateComment(request.content)
-        validateTeam(poll, temaId)
+        validateTeam(poll, teamId)
 
-        val comment = PostComments.createNoticeComment(
-            noticeId = pollId,
+        val comment = PostComments.createPollComment(
+            pollId = pollId,
             userId = userId,
             content = request.content
         )
@@ -243,8 +243,26 @@ class PollService(
     }
 
     @Transactional
-    fun deleteComment(userId: Long, pollId: Long){
+    fun deleteComment(userId: Long, pollId: Long, commentId: Long){
         val teamId = userService.getCurrentTeamId(userId)
+        val poll = getPoll(pollId)
+        validateTeam(poll, teamId)
+
+        val comment = postCommentRepository.findById(commentId)
+            .orElseThrow { BusinessException(ErrorCode.RESOURCE_NOT_FOUND) }
+
+        if (comment.postType != PostType.POLL || comment.postId != pollId) {
+            throw BusinessException(ErrorCode.RESOURCE_NOT_FOUND)
+        }
+
+        if (comment.userId != userId && poll.userId != userId) {
+            throw BusinessException(ErrorCode.NOT_AUTHOR)
+        }
+
+        postCommentRepository.delete(comment)
+
+        poll.decreaseComment()
+        pollRepository.save(poll)
     }
 
     private fun getPoll(pollId: Long): Polls{
