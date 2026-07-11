@@ -38,6 +38,7 @@ class TeamService(
             description = request.description,
             teamType = request.teamType,
             establishedOn = request.establishedOn,
+            teamImageUrl = request.teamImageUrl,
             inviteCode = inviteCode
         )
 
@@ -58,8 +59,10 @@ class TeamService(
             teamPublicId = savedTeam.publicId,
             teamName = savedTeam.teamName,
             description = savedTeam.description,
-            inviteCode = savedTeam.inviteCode,
             teamType = savedTeam.teamType,
+            teamImageUrl = savedTeam.teamImageUrl,
+            establishedOn = savedTeam.establishedOn,
+            inviteCode = savedTeam.inviteCode,
             teamRole = "LEADER",
             createdAt =  DateTimeUtil.format(savedTeam.createdAt)
         )
@@ -329,12 +332,12 @@ class TeamService(
             ?: throw BusinessException(ErrorCode.TEAM_INVITE_CODE_NOT_FOUND)
     }
 
-    private fun findTeamForCommandOrThrow(teamId: Long): Teams {
+    fun findTeamForCommandOrThrow(teamId: Long): Teams {
         return teamRepository.findByTeamId(teamId)
             ?: throw BusinessException(ErrorCode.TEAM_UNAVAILABLE)
     }
 
-    private fun findTeamForCommandOrThrow(teamPublicId: UUID): Teams {
+    fun findTeamForCommandOrThrow(teamPublicId: UUID): Teams {
         return teamRepository.findByPublicId(teamPublicId)
             ?: throw BusinessException(ErrorCode.TEAM_UNAVAILABLE)
     }
@@ -565,5 +568,12 @@ class TeamService(
             .replace("-", "")
             .take(6)
             .uppercase()
+    }
+
+    fun validateMembersInTeam(teamId: Long, userIds: List<Long>): Boolean {
+        if (userIds.isEmpty()) return false
+        val activeMembers = teamMembershipRepository.findAllByTeamTeamIdAndUserIdInAndLeftAtIsNull(teamId, userIds)
+        val uniqueUserIdsCount = userIds.distinct().size
+        return activeMembers.size == uniqueUserIdsCount
     }
 }

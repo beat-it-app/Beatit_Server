@@ -1,21 +1,34 @@
-package com.beat_it.auth.entity
+package com.beat_it.team.entity
 
-import jakarta.persistence.*
 import com.beat_it.auth.entity.enum.MediaCategory
 import com.beat_it.global.entity.BaseCreatedTimeEntity
+import jakarta.persistence.Column
+import jakarta.persistence.Entity
+import jakarta.persistence.EnumType
+import jakarta.persistence.Enumerated
+import jakarta.persistence.FetchType
+import jakarta.persistence.GeneratedValue
+import jakarta.persistence.GenerationType
+import jakarta.persistence.Id
+import jakarta.persistence.JoinColumn
+import jakarta.persistence.ManyToOne
+import jakarta.persistence.Table
 import java.time.OffsetDateTime
 
 @Entity
-@Table(name = "auth_files")
-class AuthFiles(
+@Table(name = "archives_files")
+class ArchivesFiles(
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "authfiles_id")
-    val authFileId: Long? = null,
+    @Column(name = "archive_file_id", nullable = false)
+    val archiveFileId: Long? = null,
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_id", nullable = false)
-    val user: Users, // FK 설정
+    @JoinColumn(name = "archive_id", nullable = false)
+    val archive: Archives,
+
+    @Column(name = "user_id", nullable = false)
+    val userId: Long,
 
     @Column(name = "original_file_name", nullable = false, length = 255)
     var originalFileName: String,
@@ -44,5 +57,4 @@ class AuthFiles(
 
     @Column(name = "is_public", nullable = false)
     var isPublic: Boolean = false,
-
 ) : BaseCreatedTimeEntity()
