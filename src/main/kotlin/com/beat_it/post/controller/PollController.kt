@@ -66,7 +66,7 @@ class PollController (
     }
 
     @Operation(summary = "투표 하기")
-    @PostMapping("/{pollId}/vote")
+    @PostMapping("/{pollId}/votes")
     fun votePoll(
         @AuthenticationPrincipal userDetails: UserDetails,
         @PathVariable pollId: Long,
