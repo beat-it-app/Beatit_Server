@@ -64,6 +64,7 @@ class PollService(
 
     @Transactional
     fun postPoll(userId: Long, request: PollRequest){
+        validateCreatePoll(request)
         val teamId = userService.getCurrentTeamId(userId)
 
         val poll = Polls.postPoll(
@@ -175,12 +176,14 @@ class PollService(
             throw BusinessException(ErrorCode.POLL_CLOSED)
         }
 
-        if (!poll.allowMultipleChoice && request.optionIds.size > 1) {
+        val distinctOptionIds = request.optionIds.distinct()
+
+        if (!poll.allowMultipleChoice && distinctOptionIds.size > 1) {
             throw BusinessException(ErrorCode.POLL_MULTIPLE_CHOICE_NOT_ALLOWED)
         }
 
         val pollOptionMap = poll.pollOptions.associateBy { it.pollOptionId }
-        val targetOptions = request.optionIds.map { optionId ->
+        val targetOptions = distinctOptionIds.map { optionId ->
             pollOptionMap[optionId] ?: throw BusinessException(ErrorCode.POLL_OPTION_NOT_FOUND)
         }
 
@@ -249,13 +252,8 @@ class PollService(
         val comment = postCommentRepository.findById(commentId)
             .orElseThrow { BusinessException(ErrorCode.RESOURCE_NOT_FOUND) }
 
-        if (comment.postType != PostType.POLL || comment.postId != pollId) {
-            throw BusinessException(ErrorCode.RESOURCE_NOT_FOUND)
-        }
-
-        if (comment.userId != userId && poll.userId != userId) {
-            throw BusinessException(ErrorCode.NOT_AUTHOR)
-        }
+        validateCommentBelongsToPost(comment, PostType.POLL, pollId)
+        validateCommentDeletePermission(comment, userId, poll.userId)
 
         postCommentRepository.delete(comment)
 
@@ -273,6 +271,28 @@ class PollService(
         }
     }
 
+    private fun validateCreatePoll(request: PollRequest) {
+        if (request.title.isBlank()) {
+            throw BusinessException(ErrorCode.TITLE_CONTENT_REQUIRED)
+        }
+        if (request.pollList.size < 2) {
+            throw BusinessException(ErrorCode.INVALID_REQUEST_BODY)
+        }
+        request.pollList.forEach { item ->
+            val text = when (request.pollType) {
+                PollType.TEXT -> item.content
+                PollType.MUSIC -> item.music
+                PollType.LOCATION -> item.location
+            }
+            if (text.isNullOrBlank()) {
+                throw BusinessException(ErrorCode.INVALID_REQUEST_BODY)
+            }
+        }
+        if (request.closeAt != null && OffsetDateTime.now().isAfter(request.closeAt)) {
+            throw BusinessException(ErrorCode.CALENDAR_INVALID_TIME_RANGE)
+        }
+    }
+
     private fun validateWriter(poll: Polls, userId: Long){
         if (poll.userId != userId) {
             throw BusinessException(ErrorCode.NOT_AUTHOR)
@@ -282,6 +302,18 @@ class PollService(
     private fun validateComment(comment: String) {
         if (comment.isBlank()) {
             throw BusinessException(ErrorCode.INVALID_COMMENT_CONTENT)
+        }
+    }
+
+    private fun validateCommentBelongsToPost(comment: PostComments, postType: PostType, postId: Long) {
+        if (comment.postType != postType || comment.postId != postId) {
+            throw BusinessException(ErrorCode.RESOURCE_NOT_FOUND)
+        }
+    }
+
+    private fun validateCommentDeletePermission(comment: PostComments, userId: Long, postOwnerId: Long) {
+        if (comment.userId != userId && postOwnerId != userId) {
+            throw BusinessException(ErrorCode.NOT_AUTHOR)
         }
     }
 }

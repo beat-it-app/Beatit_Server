@@ -90,7 +90,6 @@ class NoticeService(
 
     @Transactional
     fun createNotice(userId: Long, dto: NoticeRequest, images: List<MultipartFile>?) {
-        validateTitleAndContent(dto.title, dto.content)
         val teamId = userService.getCurrentTeamId(userId)
         userService.getCurrentTeamId(userId)
         validateTitleAndContent(dto.title, dto.content)
@@ -344,13 +343,8 @@ class NoticeService(
         val comment = postCommentRepository.findById(commentId)
             .orElseThrow { BusinessException(ErrorCode.RESOURCE_NOT_FOUND) }
 
-        if (comment.postType != PostType.NOTICE || comment.postId != noticeId) {
-            throw BusinessException(ErrorCode.RESOURCE_NOT_FOUND)
-        }
-
-        if (comment.userId != userId && notice.userId != userId) {
-            throw BusinessException(ErrorCode.NOT_AUTHOR)
-        }
+        validateCommentBelongsToPost(comment, PostType.NOTICE, noticeId)
+        validateCommentDeletePermission(comment, userId, notice.userId)
 
         postCommentRepository.delete(comment)
 
@@ -382,6 +376,18 @@ class NoticeService(
 
     private fun validateWriter(notice: Notices, userId: Long){
         if (notice.userId != userId) {
+            throw BusinessException(ErrorCode.NOT_AUTHOR)
+        }
+    }
+
+    private fun validateCommentBelongsToPost(comment: PostComments, postType: PostType, postId: Long) {
+        if (comment.postType != postType || comment.postId != postId) {
+            throw BusinessException(ErrorCode.RESOURCE_NOT_FOUND)
+        }
+    }
+
+    private fun validateCommentDeletePermission(comment: PostComments, userId: Long, postOwnerId: Long) {
+        if (comment.userId != userId && postOwnerId != userId) {
             throw BusinessException(ErrorCode.NOT_AUTHOR)
         }
     }
