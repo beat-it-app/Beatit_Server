@@ -50,7 +50,7 @@ class PollService(
                 pollId = poll.pollId!!,
                 teamId = teamId,
                 title = poll.title,
-                closeAt = poll.closesAt?.let { DateTimeUtil.format(it) } ?: "",
+                closeAt = poll.closeAt?.let { DateTimeUtil.format(it) } ?: "",
                 pollCount = poll.pollCount,
                 isVoted = votedPollIds.contains(poll.pollId)
             )
@@ -74,7 +74,7 @@ class PollService(
             pollType = request.pollType,
             allowMultipleChoice = request.allowMultipleChoice ?: false,
             isAnonymous = request.isAnonymous ?: false,
-            closesAt = request.closesAt,
+            closeAt = request.closeAt,
             remindBeforeClose = request.remindBeforeClose ?: false
         )
 
@@ -152,7 +152,7 @@ class PollService(
             pollType = poll.pollType,
             allowMultipleChoice = poll.allowMultipleChoice,
             isAnonymous = poll.isAnonymous,
-            closesAt = poll.closesAt?.let { DateTimeUtil.format(it) },
+            closeAt = poll.closeAt?.let { DateTimeUtil.format(it) },
             remindBeforeClose = if (poll.remindBeforeClose) "REMIND" else "NONE",
             writerName = writerName,
             writerProfileImageUrl = writerProfile?.authFile?.cdnUrl ?: "",
@@ -171,7 +171,7 @@ class PollService(
         val poll = getPoll(pollId)
         validateTeam(poll, teamId)
 
-        if (poll.closesAt != null && OffsetDateTime.now().isAfter(poll.closesAt)) {
+        if (poll.closeAt != null && OffsetDateTime.now().isAfter(poll.closeAt)) {
             throw BusinessException(ErrorCode.POLL_CLOSED)
         }
 

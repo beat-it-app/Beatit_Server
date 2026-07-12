@@ -11,7 +11,7 @@ data class PollRequest(
     val allowMultipleChoice: Boolean?,
     val isAnonymous: Boolean?,
     val remindBeforeClose: Boolean?,
-    val closesAt: OffsetDateTime?
+    val closeAt: OffsetDateTime?
 )
 
 data class PollItemRequest(

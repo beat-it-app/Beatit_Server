@@ -38,7 +38,7 @@ class Polls(
     var remindBeforeClose: Boolean,
 
     @Column(name = "close_at")
-    var closesAt: OffsetDateTime? = null,
+    var closeAt: OffsetDateTime? = null,
 
     @Column(name = "poll_count")
     var pollCount: Int,
@@ -61,7 +61,7 @@ class Polls(
     companion object {
         fun postPoll(userId: Long, teamId: Long, title: String, content: String?,
                      pollType: PollType, allowMultipleChoice: Boolean, isAnonymous: Boolean,
-                     closesAt: OffsetDateTime?, remindBeforeClose: Boolean): Polls {
+                     closeAt: OffsetDateTime?, remindBeforeClose: Boolean): Polls {
             return Polls(
                 userId = userId,
                 teamId = teamId,
@@ -71,7 +71,7 @@ class Polls(
                 allowMultipleChoice = allowMultipleChoice,
                 isAnonymous = isAnonymous,
                 remindBeforeClose = remindBeforeClose,
-                closesAt = closesAt,
+                closeAt = closeAt,
                 pollCount = 0,
                 commentCounter = 0
             )

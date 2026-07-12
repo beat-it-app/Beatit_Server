@@ -11,7 +11,7 @@ data class PollDetailResponse(
     val pollType: PollType,
     val allowMultipleChoice: Boolean,
     val isAnonymous: Boolean,
-    val closesAt: String?,
+    val closeAt: String?,
     val remindBeforeClose: String?,
     val writerName: String,
     val writerProfileImageUrl: String,
