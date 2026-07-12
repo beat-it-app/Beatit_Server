@@ -36,9 +36,9 @@ data class PollDetailResponse(
     JsonSubTypes.Type(value = LocationItemResponse::class, name = "LOCATION")
 )
 interface PollItemResponse {
-    val itemId: Long       // 투표할 때 어떤 항목을 찍었는지 ID가 필요합니다.
-    val voteCount: Int     // 이 항목의 총 득표수
-    val isVoted: Boolean   // 현재 로그인한 유저가 이 항목에 투표했는지 여부
+    val itemId: Long
+    val voteCount: Int
+    val isVoted: Boolean
 }
 
 data class TextItemResponse(

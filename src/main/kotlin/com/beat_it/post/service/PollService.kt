@@ -15,7 +15,6 @@ import com.beat_it.post.repository.PollRepository
 import com.beat_it.post.repository.PollVoteRepository
 import com.beat_it.post.repository.PostCommentRepository
 import org.springframework.transaction.annotation.Transactional
-import org.springframework.data.domain.Page
 import org.springframework.data.domain.PageRequest
 import org.springframework.stereotype.Service
 import java.time.OffsetDateTime
@@ -51,7 +50,6 @@ class PollService(
                 pollId = poll.pollId!!,
                 teamId = teamId,
                 title = poll.title,
-                // 💡 수정 1: poll.closesAt은 Nullable(?), DateTimeUtil.format 함수는 Non-Null을 기대하므로 엘비스 처리
                 closeAt = poll.closesAt?.let { DateTimeUtil.format(it) } ?: "",
                 pollCount = poll.pollCount,
                 isVoted = votedPollIds.contains(poll.pollId)

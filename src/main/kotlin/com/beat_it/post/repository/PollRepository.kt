@@ -1,6 +1,6 @@
 package com.beat_it.post.repository
 
-import com.beat_it.post.entity.Polls // 실제 엔티티 패키지 경로에 맞게 지정
+import com.beat_it.post.entity.Polls
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
 import org.springframework.data.jpa.repository.JpaRepository
