@@ -1,4 +1,4 @@
-package com.beat_it.post.entity
+package com.beat_it.post.entity.poll
 
 import jakarta.persistence.*
 import org.hibernate.annotations.JdbcTypeCode

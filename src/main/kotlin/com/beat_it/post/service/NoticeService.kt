@@ -3,8 +3,8 @@ package com.beat_it.post.service
 import com.beat_it.global.error.BusinessException
 import com.beat_it.global.error.ErrorCode
 import com.beat_it.post.dto.*
-import com.beat_it.post.entity.NoticeAttachments
-import com.beat_it.post.entity.Notices
+import com.beat_it.post.entity.notice.NoticeAttachments
+import com.beat_it.post.entity.notice.Notices
 import com.beat_it.post.entity.enum.FileType
 import com.beat_it.post.entity.enum.PostType
 import com.beat_it.post.entity.enum.ReactionType
@@ -18,10 +18,17 @@ import com.beat_it.auth.service.UserService
 import com.beat_it.auth.entity.enum.MediaCategory
 import com.beat_it.global.util.DateTimeUtil
 import com.beat_it.global.service.FileService
-import com.beat_it.post.entity.NoticeReactions
+import com.beat_it.post.dto.notice.NoticeDetailResponse
+import com.beat_it.post.dto.notice.NoticeItems
+import com.beat_it.post.dto.notice.NoticeListResponse
+import com.beat_it.post.dto.notice.NoticeReactionDto
+import com.beat_it.post.dto.notice.NoticeRequest
+import com.beat_it.post.entity.notice.NoticeReactions
 import com.beat_it.post.entity.PostComments
 import com.beat_it.post.entity.enum.NoticeSortType
-import org.springframework.data.domain.Page
+import com.beat_it.post.repository.notice.NoticeAttachmentsRepository
+import com.beat_it.post.repository.notice.NoticeReactionRepository
+import com.beat_it.post.repository.notice.NoticeRepository
 import org.springframework.data.domain.PageRequest
 
 @Service

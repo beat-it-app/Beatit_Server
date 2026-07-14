@@ -1,5 +1,6 @@
-package com.beat_it.post.dto
+package com.beat_it.post.dto.poll
 
+import com.beat_it.post.dto.CommentResponse
 import com.beat_it.post.entity.enum.PollType
 import com.fasterxml.jackson.annotation.JsonSubTypes
 import com.fasterxml.jackson.annotation.JsonTypeInfo

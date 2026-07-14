@@ -1,6 +1,6 @@
-package com.beat_it.post.repository
+package com.beat_it.post.repository.poll
 
-import com.beat_it.post.entity.PollVotes
+import com.beat_it.post.entity.poll.PollVotes
 import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.data.jpa.repository.Modifying
 import org.springframework.data.jpa.repository.Query
