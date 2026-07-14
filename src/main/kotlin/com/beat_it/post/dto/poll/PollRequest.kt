@@ -1,4 +1,4 @@
-package com.beat_it.post.dto
+package com.beat_it.post.dto.poll
 
 import com.beat_it.post.entity.enum.PollType
 import java.time.OffsetDateTime

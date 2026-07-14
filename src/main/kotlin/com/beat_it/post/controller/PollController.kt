@@ -4,6 +4,10 @@ import com.beat_it.global.error.BusinessException
 import com.beat_it.global.error.ErrorCode
 import com.beat_it.global.response.BasicResponse
 import com.beat_it.post.dto.*
+import com.beat_it.post.dto.poll.PollDetailResponse
+import com.beat_it.post.dto.poll.PollListResponse
+import com.beat_it.post.dto.poll.PollRequest
+import com.beat_it.post.dto.poll.VoteRequest
 import com.beat_it.post.service.PollService
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.tags.Tag

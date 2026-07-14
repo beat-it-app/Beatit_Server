@@ -5,14 +5,22 @@ import com.beat_it.global.error.BusinessException
 import com.beat_it.global.error.ErrorCode
 import com.beat_it.global.util.DateTimeUtil
 import com.beat_it.post.dto.*
-import com.beat_it.post.entity.PollOptions
-import com.beat_it.post.entity.PollVotes
-import com.beat_it.post.entity.Polls
+import com.beat_it.post.dto.poll.LocationItemResponse
+import com.beat_it.post.dto.poll.MusicItemResponse
+import com.beat_it.post.dto.poll.PollDetailResponse
+import com.beat_it.post.dto.poll.PollItems
+import com.beat_it.post.dto.poll.PollListResponse
+import com.beat_it.post.dto.poll.PollRequest
+import com.beat_it.post.dto.poll.TextItemResponse
+import com.beat_it.post.dto.poll.VoteRequest
+import com.beat_it.post.entity.poll.PollOptions
+import com.beat_it.post.entity.poll.PollVotes
+import com.beat_it.post.entity.poll.Polls
 import com.beat_it.post.entity.PostComments
 import com.beat_it.post.entity.enum.PollType
 import com.beat_it.post.entity.enum.PostType
-import com.beat_it.post.repository.PollRepository
-import com.beat_it.post.repository.PollVoteRepository
+import com.beat_it.post.repository.poll.PollRepository
+import com.beat_it.post.repository.poll.PollVoteRepository
 import com.beat_it.post.repository.PostCommentRepository
 import org.springframework.transaction.annotation.Transactional
 import org.springframework.data.domain.PageRequest
@@ -27,7 +35,7 @@ class PollService(
     private val pollVoteRepository: PollVoteRepository,
 ) {
     @Transactional(readOnly = true)
-    fun getPollList(userId: Long, page: Int = 0, size: Int = 10): PollListResponse{
+    fun getPollList(userId: Long, page: Int = 0, size: Int = 10): PollListResponse {
         val teamId = userService.getCurrentTeamId(userId)
         val pageRequest = PageRequest.of(page, size)
 

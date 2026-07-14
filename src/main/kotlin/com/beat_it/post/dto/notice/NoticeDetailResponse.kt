@@ -1,4 +1,6 @@
-package com.beat_it.post.dto
+package com.beat_it.post.dto.notice
+
+import com.beat_it.post.dto.CommentResponse
 
 data class NoticeDetailResponse(
     val noticeId: Long,

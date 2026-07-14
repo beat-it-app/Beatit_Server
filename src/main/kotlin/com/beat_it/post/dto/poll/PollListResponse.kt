@@ -1,4 +1,4 @@
-package com.beat_it.post.dto
+package com.beat_it.post.dto.poll
 
 data class PollListResponse(
     val pollListResponse: List<PollItems>,

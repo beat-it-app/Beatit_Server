@@ -1,6 +1,6 @@
-package com.beat_it.post.repository
+package com.beat_it.post.repository.notice
 
-import com.beat_it.post.entity.Notices
+import com.beat_it.post.entity.notice.Notices
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
 import org.springframework.data.jpa.repository.JpaRepository

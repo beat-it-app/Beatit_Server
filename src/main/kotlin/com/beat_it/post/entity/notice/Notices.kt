@@ -1,4 +1,4 @@
-package com.beat_it.post.entity
+package com.beat_it.post.entity.notice
 
 import com.beat_it.global.entity.BaseUpdatedTimeEntity
 import jakarta.persistence.*

@@ -4,9 +4,9 @@ import com.beat_it.global.error.BusinessException
 import com.beat_it.global.error.ErrorCode
 import com.beat_it.global.response.BasicResponse
 import com.beat_it.post.dto.CommentRequest
-import com.beat_it.post.dto.NoticeRequest
-import com.beat_it.post.dto.NoticeDetailResponse
-import com.beat_it.post.dto.NoticeListResponse
+import com.beat_it.post.dto.notice.NoticeRequest
+import com.beat_it.post.dto.notice.NoticeDetailResponse
+import com.beat_it.post.dto.notice.NoticeListResponse
 import com.beat_it.post.entity.enum.NoticeSortType
 import com.beat_it.post.service.NoticeService
 import io.swagger.v3.oas.annotations.Operation
