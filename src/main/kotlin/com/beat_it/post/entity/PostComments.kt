@@ -35,5 +35,14 @@ class PostComments(
                 content = content
             )
         }
+
+        fun createPollComment(pollId: Long, userId: Long, content: String): PostComments {
+            return PostComments(
+                postType = PostType.POLL,
+                postId = pollId,
+                userId = userId,
+                content = content
+            )
+        }
     }
 }

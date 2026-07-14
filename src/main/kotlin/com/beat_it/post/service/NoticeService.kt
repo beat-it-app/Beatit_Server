@@ -21,6 +21,7 @@ import com.beat_it.global.service.FileService
 import com.beat_it.post.entity.NoticeReactions
 import com.beat_it.post.entity.PostComments
 import com.beat_it.post.entity.enum.NoticeSortType
+import org.springframework.data.domain.Page
 import org.springframework.data.domain.PageRequest
 
 @Service
@@ -46,10 +47,15 @@ class NoticeService(
         val pageRequest = PageRequest.of(0, 10, sort)
 
         val searchKeyword = keyword ?: ""
-        val notices = noticeRepository.searchNotices(teamId, searchKeyword, pageRequest)
+        val noticesPage = noticeRepository.searchNotices(teamId, searchKeyword, pageRequest)
+        val notices = noticesPage.content
 
         if (notices.isEmpty()) {
-            return NoticeListResponse(noticeListResponse = emptyList())
+            return NoticeListResponse(
+                noticeListResponse = emptyList(),
+                totalCount = noticesPage.totalElements.toInt(),
+                hasNext = noticesPage.hasNext()
+            )
         }
 
         val noticeItems = notices.map { notice ->
@@ -75,12 +81,15 @@ class NoticeService(
             )
         }
 
-        return NoticeListResponse(noticeListResponse = noticeItems)
+        return NoticeListResponse(
+            noticeListResponse = noticeItems,
+            totalCount = noticesPage.totalElements.toInt(),
+            hasNext = noticesPage.hasNext()
+        )
     }
 
     @Transactional
     fun createNotice(userId: Long, dto: NoticeRequest, images: List<MultipartFile>?) {
-        validateTitleAndContent(dto.title, dto.content)
         val teamId = userService.getCurrentTeamId(userId)
         userService.getCurrentTeamId(userId)
         validateTitleAndContent(dto.title, dto.content)
@@ -100,7 +109,7 @@ class NoticeService(
         saveNoticeAttachments(savedNotice, uploadedPostFiles, userId)
     }
 
-    @Transactional
+    @Transactional(readOnly = true)
     fun getNotice(userId: Long, noticeId: Long): NoticeDetailResponse {
         val teamId = userService.getCurrentTeamId(userId)
         val notice = getNotice(noticeId)
@@ -129,7 +138,7 @@ class NoticeService(
         // FIXME : n+1 문제가 발생할 수 있음. 검증해볼 것.
         val commentDtos = comments.map { comment ->
             val commentWriterProfile = userService.getUserProfile(comment.userId)
-            NoticeCommentDto(
+            CommentResponse(
                 commentId = comment.commentId!!,
                 writerName = commentWriterProfile?.name ?: "알 수 없음",
                 content = comment.content,
@@ -306,6 +315,7 @@ class NoticeService(
         }
     }
 
+    @Transactional
     fun createComment(userId: Long, noticeId: Long, dto: CommentRequest) {
         val notice = getNotice(noticeId)
         val temaId = userService.getCurrentTeamId(userId)
@@ -321,6 +331,24 @@ class NoticeService(
         postCommentRepository.save(comment)
 
         notice.increaseComment()
+        noticeRepository.save(notice)
+    }
+
+    @Transactional
+    fun deleteComment(userId: Long, noticeId: Long, commentId: Long) {
+        val teamId = userService.getCurrentTeamId(userId)
+        val notice = getNotice(noticeId)
+        validateTeam(notice, teamId)
+
+        val comment = postCommentRepository.findById(commentId)
+            .orElseThrow { BusinessException(ErrorCode.RESOURCE_NOT_FOUND) }
+
+        validateCommentBelongsToPost(comment, PostType.NOTICE, noticeId)
+        validateCommentDeletePermission(comment, userId, notice.userId)
+
+        postCommentRepository.delete(comment)
+
+        notice.decreaseComment()
         noticeRepository.save(notice)
     }
 
@@ -348,6 +376,18 @@ class NoticeService(
 
     private fun validateWriter(notice: Notices, userId: Long){
         if (notice.userId != userId) {
+            throw BusinessException(ErrorCode.NOT_AUTHOR)
+        }
+    }
+
+    private fun validateCommentBelongsToPost(comment: PostComments, postType: PostType, postId: Long) {
+        if (comment.postType != postType || comment.postId != postId) {
+            throw BusinessException(ErrorCode.RESOURCE_NOT_FOUND)
+        }
+    }
+
+    private fun validateCommentDeletePermission(comment: PostComments, userId: Long, postOwnerId: Long) {
+        if (comment.userId != userId && postOwnerId != userId) {
             throw BusinessException(ErrorCode.NOT_AUTHOR)
         }
     }

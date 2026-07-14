@@ -1,7 +1,9 @@
 package com.beat_it.post.dto
 
 data class NoticeListResponse(
-    val noticeListResponse: List<NoticeItems>
+    val noticeListResponse: List<NoticeItems>,
+    val totalCount: Int,
+    val hasNext: Boolean
 )
 
 data class NoticeItems(
