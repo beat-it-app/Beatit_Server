@@ -18,4 +18,6 @@ interface ChatRepository : JpaRepository<ChatRoom, Long> {
         @Param("chatRoomId") chatRoomId: Long,
         @Param("userId") userId: Long
     ): Boolean
+
+    fun findByMembersUserId(userId: Long): List<ChatRoom>
 }

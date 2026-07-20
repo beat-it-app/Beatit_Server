@@ -6,6 +6,8 @@ import com.beat_it.chat.dto.ChatMessageRequest
 import com.beat_it.chat.dto.ChatRoomCreateRequest
 import com.beat_it.chat.dto.ChatRoomCreateResponse
 import com.beat_it.chat.dto.ChatRoomDetailResponse
+import com.beat_it.chat.dto.ChatRoomListResponse
+import com.beat_it.chat.dto.ChatRoomSummaryDto
 import com.beat_it.chat.dto.ChatRoomUpdateRequest
 import com.beat_it.chat.dto.ChatRoomUpdateResponse
 import com.beat_it.chat.dto.GetChatMessageQueryResponse
@@ -243,6 +245,33 @@ class ChatService(
             messages = messageResponses,
             hasNext = messageSlice.hasNext()
         )
+    }
+
+    @Transactional(readOnly = true)
+    fun getChatRooms(currentUserId: Long): ChatRoomListResponse {
+        val chatRooms = chatRepository.findByMembersUserId(currentUserId)
+
+        val roomSummaries = chatRooms.map { chatRoom ->
+            val chatId = chatRoom.chatId!!
+
+            val latestMessage = chatMessageRepository.findTopByChatRoomChatIdOrderByChatMessageIdDesc(chatId)
+
+            val unreadCount = 0
+
+            val profileImage = null
+
+            ChatRoomSummaryDto(
+                chatId = chatId,
+                roomName = chatRoom.title,
+                lastMessage = latestMessage?.content,
+                lastMessageTime = latestMessage?.let { DateTimeUtil.format(it.createdAt) },
+                unreadCount = unreadCount,
+                profileImage = profileImage,
+                participantCount = chatRoom.members.size
+            )
+        }
+
+        return ChatRoomListResponse(chatroomList = roomSummaries)
     }
 
     private fun validateChatRoomMember(chatRoom: ChatRoom, userId: Long) {

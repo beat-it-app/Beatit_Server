@@ -9,4 +9,5 @@ import org.springframework.stereotype.Repository
 @Repository
 interface ChatMessageRepository : JpaRepository<ChatMessage, Long> {
     fun findByChatRoomChatIdOrderByChatMessageIdDesc(chatId: Long, pageable: Pageable): Slice<ChatMessage>
+    fun findTopByChatRoomChatIdOrderByChatMessageIdDesc(chatId: Long): ChatMessage?
 }

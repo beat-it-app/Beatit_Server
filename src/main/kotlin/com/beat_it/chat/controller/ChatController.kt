@@ -4,6 +4,7 @@ import com.beat_it.chat.dto.ChatMessageRequest
 import com.beat_it.chat.dto.ChatRoomCreateRequest
 import com.beat_it.chat.dto.ChatRoomCreateResponse
 import com.beat_it.chat.dto.ChatRoomDetailResponse
+import com.beat_it.chat.dto.ChatRoomListResponse
 import com.beat_it.chat.dto.ChatRoomUpdateRequest
 import com.beat_it.chat.dto.ChatRoomUpdateResponse
 import com.beat_it.chat.service.ChatService
@@ -119,6 +120,27 @@ class ChatController(
                     responseData,
                     HttpStatus.OK,
                     "메시지 내역을 성공적으로 불러왔습니다."
+                )
+            )
+    }
+
+    @GetMapping
+    fun getChatRooms(
+        @AuthenticationPrincipal userDetails: UserDetails
+    ): ResponseEntity<BasicResponse<ChatRoomListResponse>> {
+
+        val currentUserId = userDetails.username.toLongOrNull()
+            ?: throw BusinessException(ErrorCode.UNAUTHORIZED)
+
+        val responseData = chatService.getChatRooms(currentUserId)
+
+        return ResponseEntity
+            .status(HttpStatus.OK)
+            .body(
+                BasicResponse.success(
+                    responseData,
+                    HttpStatus.OK,
+                    "채팅방 목록을 성공적으로 불러왔습니다."
                 )
             )
     }
