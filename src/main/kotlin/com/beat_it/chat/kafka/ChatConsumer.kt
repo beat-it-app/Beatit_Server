@@ -1,7 +1,11 @@
 package com.beat_it.chat.kafka
 
 import com.beat_it.chat.dto.ChatMessageDetailResponse
+import com.beat_it.chat.entity.ChatMessage
+import com.beat_it.chat.entity.ChatMessageType
 import com.beat_it.chat.handler.ChatWebSocketHandler
+import com.beat_it.chat.repository.ChatMessageRepository
+import com.beat_it.chat.repository.ChatRepository
 import com.fasterxml.jackson.databind.ObjectMapper
 import org.springframework.kafka.annotation.KafkaListener
 import org.springframework.stereotype.Component
@@ -9,7 +13,10 @@ import org.springframework.web.socket.TextMessage
 
 @Component
 class ChatConsumer(
-    private val objectMapper: ObjectMapper
+    private val objectMapper: ObjectMapper,
+    //임시
+    private val chatMessageRepository: ChatMessageRepository,
+    private val chatRepository: ChatRepository
 ) {
 
     @KafkaListener(topics = ["chat-topic"], groupId = "chat-group")
@@ -19,6 +26,19 @@ class ChatConsumer(
         try {
             val chatData = objectMapper.readValue(message, ChatMessageDetailResponse::class.java)
             val targetChatId = chatData.chatId
+
+            //임시
+            val chatRoom = chatRepository.findById(targetChatId).orElse(null)
+            if (chatRoom != null) {
+                val chatMessage = ChatMessage(
+                    chatRoom = chatRoom,
+                    senderId = chatData.senderId,
+                    content = chatData.content,
+                    type = ChatMessageType.valueOf(chatData.messageType)
+                )
+                chatMessageRepository.save(chatMessage)
+                println("[Kafka Consumer] DB 영구 저장 완료 (MessageId: ${chatMessage.chatMessageId})")
+            }
 
             val activeSessions = ChatWebSocketHandler.roomSessions[targetChatId]
 

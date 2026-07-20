@@ -3,6 +3,7 @@ package com.beat_it.chat.controller
 import com.beat_it.chat.dto.ChatMessageRequest
 import com.beat_it.chat.dto.ChatRoomCreateRequest
 import com.beat_it.chat.dto.ChatRoomCreateResponse
+import com.beat_it.chat.dto.ChatRoomDetailResponse
 import com.beat_it.chat.dto.ChatRoomUpdateRequest
 import com.beat_it.chat.dto.ChatRoomUpdateResponse
 import com.beat_it.chat.service.ChatService
@@ -14,12 +15,14 @@ import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.security.core.annotation.AuthenticationPrincipal
 import org.springframework.security.core.userdetails.UserDetails
+import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.ModelAttribute
 import org.springframework.web.bind.annotation.PatchMapping
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
+import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
 
 @RestController
@@ -92,6 +95,30 @@ class ChatController(
                     responseData,
                     HttpStatus.OK,
                     "채팅방 이름이 수정되었습니다."
+                )
+            )
+    }
+
+    @GetMapping("/{chatId}/messages")
+    fun getChatRoomDetails(
+        @AuthenticationPrincipal userDetails: UserDetails,
+        @PathVariable chatId: Long,
+        @RequestParam(value = "page", defaultValue = "0") page: Int,
+        @RequestParam(value = "size", defaultValue = "30") size: Int
+    ): ResponseEntity<BasicResponse<ChatRoomDetailResponse>> {
+
+        val currentUserId = userDetails.username.toLongOrNull()
+            ?: throw BusinessException(ErrorCode.UNAUTHORIZED)
+
+        val responseData = chatService.getChatRoomDetails(chatId, currentUserId, page, size)
+
+        return ResponseEntity
+            .status(HttpStatus.OK)
+            .body(
+                BasicResponse.success(
+                    responseData,
+                    HttpStatus.OK,
+                    "메시지 내역을 성공적으로 불러왔습니다."
                 )
             )
     }

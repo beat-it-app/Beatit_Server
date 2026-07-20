@@ -5,8 +5,10 @@ import com.beat_it.chat.dto.ChatMessageDetailResponse
 import com.beat_it.chat.dto.ChatMessageRequest
 import com.beat_it.chat.dto.ChatRoomCreateRequest
 import com.beat_it.chat.dto.ChatRoomCreateResponse
+import com.beat_it.chat.dto.ChatRoomDetailResponse
 import com.beat_it.chat.dto.ChatRoomUpdateRequest
 import com.beat_it.chat.dto.ChatRoomUpdateResponse
+import com.beat_it.chat.dto.GetChatMessageQueryResponse
 import com.beat_it.chat.entity.ChatFiles
 import com.beat_it.chat.entity.ChatMember
 import com.beat_it.chat.entity.ChatMessage
@@ -27,6 +29,7 @@ import com.beat_it.global.util.DateTimeUtil
 import com.beat_it.team.service.TeamService
 import com.fasterxml.jackson.databind.ObjectMapper
 import org.springframework.context.ApplicationEventPublisher
+import org.springframework.data.domain.PageRequest
 import org.springframework.kafka.core.KafkaTemplate
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -62,13 +65,11 @@ class ChatService(
 
         val roomType = if (request.participantIds.size == 1) ChatRoomType.DIRECT else ChatRoomType.GROUP
 
-        if (request.roomName.isNullOrBlank()) {
-            throw BusinessException(ErrorCode.CHAT_ROOM_NAME_REQUIRED)
-        }
+        validateChatRoomNameNotBlank(request.roomName)
 
         val chatRoom = ChatRoom(
             teamId = teamId,
-            title = request.roomName,
+            title = request.roomName!!,
             type = roomType
         )
 
@@ -190,14 +191,9 @@ class ChatService(
         val chatRoom = chatRepository.findById(chatId)
             .orElseThrow { BusinessException(ErrorCode.CHAT_ROOM_NOT_FOUND) }
 
-        val isMember = chatRoom.members.any { it.userId == userId }
-        if (!isMember) {
-            throw BusinessException(ErrorCode.FORBIDDEN)
-        }
+        validateChatRoomMember(chatRoom, userId)
 
-        if (request.roomName.isBlank()) {
-            throw BusinessException(ErrorCode.CHAT_ROOM_NAME_REQUIRED)
-        }
+        validateChatRoomNameNotBlank(request.roomName)
 
         chatRoom.title = request.roomName
         val updatedChatRoom = chatRepository.saveAndFlush(chatRoom)
@@ -207,5 +203,58 @@ class ChatService(
             roomName = updatedChatRoom.title,
             updatedAt = DateTimeUtil.format(updatedChatRoom.updatedAt)
         )
+    }
+
+    @Transactional(readOnly = true)
+    fun getChatRoomDetails(chatId: Long, currentUserId: Long, page: Int, size: Int): ChatRoomDetailResponse {
+        val chatRoom = chatRepository.findById(chatId)
+            .orElseThrow { BusinessException(ErrorCode.CHAT_ROOM_NOT_FOUND) }
+
+        validateChatRoomMember(chatRoom, currentUserId)
+
+        val pageable = PageRequest.of(page, size)
+        val messageSlice = chatMessageRepository.findByChatRoomChatIdOrderByChatMessageIdDesc(chatId, pageable)
+
+        val senderIds = messageSlice.content.map { it.senderId }.distinct()
+
+        val userProfileMap = userService.getUserProfiles(senderIds)
+            .associateBy { it.userId }
+
+        val messageResponses = messageSlice.content.map { message ->
+            val profile = userProfileMap[message.senderId]
+            val senderName = profile?.name ?: "알 수 없는 사용자"
+            val profileImageUrl = profile?.profileImageUrl
+
+            GetChatMessageQueryResponse.of(
+                messageId = message.chatMessageId!!,
+                senderId = message.senderId,
+                senderName = senderName,
+                profileImageUrl = profileImageUrl,
+                content = message.content,
+                messageType = message.type.name,
+                createdAt = DateTimeUtil.format(message.createdAt), // DateTimeUtil 활용 일관성 유지
+                isMine = (message.senderId == currentUserId)
+            )
+        }.reversed()
+
+        return ChatRoomDetailResponse.of(
+            chatroomName = chatRoom.title,
+            participantCount = chatRoom.members.size,
+            messages = messageResponses,
+            hasNext = messageSlice.hasNext()
+        )
+    }
+
+    private fun validateChatRoomMember(chatRoom: ChatRoom, userId: Long) {
+        val isMember = chatRoom.members.any { it.userId == userId }
+        if (!isMember) {
+            throw BusinessException(ErrorCode.FORBIDDEN)
+        }
+    }
+
+    private fun validateChatRoomNameNotBlank(roomName: String?) {
+        if (roomName.isNullOrBlank()) {
+            throw BusinessException(ErrorCode.CHAT_ROOM_NAME_REQUIRED)
+        }
     }
 }
