@@ -1,4 +1,6 @@
-package com.beat_it.post.dto
+package com.beat_it.post.dto.notice
+
+import com.beat_it.post.dto.CommentResponse
 
 data class NoticeDetailResponse(
     val noticeId: Long,
@@ -11,7 +13,7 @@ data class NoticeDetailResponse(
     val images: List<String>,
     val isWriter: Boolean,
     val reaction: NoticeReactionDto,
-    val commentList: List<NoticeCommentDto>
+    val commentList: List<CommentResponse>
 )
 
 data class NoticeReactionDto(
@@ -20,14 +22,4 @@ data class NoticeReactionDto(
     val isLiked: Boolean,
     val isDisliked: Boolean,
     val commentCount: Int
-)
-
-data class NoticeCommentDto(
-    val commentId: Long,
-    val writerName: String,
-    val content: String,
-    val createdAt: String,
-    val profileImageUrl: String?,
-    val isWriter: Boolean,
-    val isMine: Boolean
 )

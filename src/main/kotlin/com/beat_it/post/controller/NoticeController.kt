@@ -4,9 +4,9 @@ import com.beat_it.global.error.BusinessException
 import com.beat_it.global.error.ErrorCode
 import com.beat_it.global.response.BasicResponse
 import com.beat_it.post.dto.CommentRequest
-import com.beat_it.post.dto.NoticeRequest
-import com.beat_it.post.dto.NoticeDetailResponse
-import com.beat_it.post.dto.NoticeListResponse
+import com.beat_it.post.dto.notice.NoticeRequest
+import com.beat_it.post.dto.notice.NoticeDetailResponse
+import com.beat_it.post.dto.notice.NoticeListResponse
 import com.beat_it.post.entity.enum.NoticeSortType
 import com.beat_it.post.service.NoticeService
 import io.swagger.v3.oas.annotations.Operation
@@ -20,7 +20,7 @@ import org.springframework.security.core.userdetails.UserDetails
 import org.springframework.web.bind.annotation.*
 import org.springframework.web.multipart.MultipartFile
 
-@Tag(name = "5. POST API", description = "공지 및 투표 관련 로직")
+@Tag(name = "5-1. (POST) NOTICE API", description = "공지 관련 로직")
 @RestController
 @RequestMapping("/posts/notices")
 class NoticeController (
@@ -168,5 +168,22 @@ class NoticeController (
         return ResponseEntity
             .status(HttpStatus.OK)
             .body(BasicResponse.success(HttpStatus.OK, "댓글이 성공적으로 등록되었습니다."))
+    }
+
+    @Operation(summary = "댓글 삭제하기 - 댓글 작성자 혹은 공지 작성자만 가능")
+    @DeleteMapping("/{noticeId}/comments/{commentId}")
+    fun deleteComment(
+        @AuthenticationPrincipal userDetails: UserDetails,
+        @PathVariable noticeId: Long,
+        @PathVariable commentId: Long
+    ): ResponseEntity<BasicResponse<Nothing>> {
+        val userId = userDetails.username.toLongOrNull()
+            ?: throw BusinessException(ErrorCode.UNAUTHORIZED)
+
+        noticeService.deleteComment(userId, noticeId, commentId)
+
+        return ResponseEntity
+            .status(HttpStatus.OK)
+            .body(BasicResponse.success(HttpStatus.OK, "댓글이 성공적으로 삭제되었습니다."))
     }
 }

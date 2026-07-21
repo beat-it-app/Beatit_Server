@@ -86,6 +86,9 @@ enum class ErrorCode(
     ALREADY_LIKED(HttpStatus.BAD_REQUEST, "POST-004", "이미 좋아요를 누르셨습니다."),
     ALREADY_DISLIKED(HttpStatus.BAD_REQUEST, "POST-005", "이미 싫어요를 누르셨습니다."),
     INVALID_COMMENT_CONTENT(HttpStatus.BAD_REQUEST, "POST-006", "댓글 내용은 공백일 수 없습니다."),
+    POLL_CLOSED(HttpStatus.BAD_REQUEST, "POST-007", "이미 종료된 투표입니다."),
+    POLL_OPTION_NOT_FOUND(HttpStatus.NOT_FOUND, "POST-008", "존재하지 않는 투표 항목입니다."),
+    POLL_MULTIPLE_CHOICE_NOT_ALLOWED(HttpStatus.BAD_REQUEST, "POST-009", "중복 투표가 허용되지 않는 투표입니다."),
 
     // --- 장소 관련 에러 ---
     LOCATION_NOT_FOUND(HttpStatus.NOT_FOUND, "LOCATION-001", "장소를 찾을 수 없습니다."),

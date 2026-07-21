@@ -23,4 +23,6 @@ interface UserRepository : JpaRepository<Users, Long> {
     fun clearCurrentTeamIdByTeamId(
         @Param("teamId") teamId: Long
     ): Int
+
+    fun findByUserIdIn(userIds: List<Long>): List<Users>
 }

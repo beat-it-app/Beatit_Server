@@ -1,9 +1,8 @@
 package com.beat_it.auth.service
 
-import com.beat_it.auth.dto.UserSimpleInfo
+import com.beat_it.auth.dto.UserProfileResponse
 import com.beat_it.auth.entity.AuthFiles
 import com.beat_it.auth.entity.UserProfiles
-import com.beat_it.auth.entity.Users
 import com.beat_it.auth.entity.enum.MediaCategory
 import com.beat_it.auth.repository.AuthFilesRepository
 import com.beat_it.auth.repository.UserProfilesRepository
@@ -11,7 +10,6 @@ import com.beat_it.auth.repository.UserRepository
 import com.beat_it.global.error.BusinessException
 import com.beat_it.global.error.ErrorCode
 import com.beat_it.global.service.FileService
-import org.springframework.data.repository.findByIdOrNull
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import org.springframework.web.multipart.MultipartFile
@@ -63,7 +61,7 @@ class UserService (
         val userProfile = UserProfiles.create(
             user = user,
             name = name,
-            authFile = savedAuthFile!!
+            authFile = savedAuthFile
         )
         userProfilesRepository.save(userProfile)
     }
@@ -127,6 +125,20 @@ class UserService (
 
     fun getUserProfile(userId: Long): UserProfiles? {
         return userProfilesRepository.findByUserUserId(userId)
+    }
+
+    @Transactional(readOnly = true)
+    fun getUserProfiles(userIds: List<Long>): List<UserProfileResponse> {
+        if (userIds.isEmpty()) return emptyList()
+
+        val profiles = userProfilesRepository.findByUserUserIdIn(userIds)
+        return profiles.map { profile ->
+            UserProfileResponse(
+                userId = profile.user?.userId ?: 0L,
+                name = profile.name,
+                profileImageUrl = profile.authFile.cdnUrl
+            )
+        }
     }
 
     private fun validateName(name: String) {

@@ -1,6 +1,7 @@
-package com.beat_it.post.entity
+package com.beat_it.post.entity.notice
 
 import com.beat_it.global.entity.BaseCreatedTimeEntity
+import com.beat_it.post.entity.PostFiles
 import com.beat_it.post.entity.enum.FileType
 import jakarta.persistence.*
 
