@@ -164,6 +164,14 @@ class ChatService(
             type = type
         )
         val savedMessage = chatMessageRepository.saveAndFlush(chatMessage)
+        val savedMessageId = savedMessage.chatMessageId!!
+
+        val currentMember = chatMemberRepository.findByChatRoomChatIdAndUserId(chatId, senderId)
+        if (currentMember != null) {
+            if (currentMember.lastChatMessageId == null || currentMember.lastChatMessageId!! < savedMessageId) {
+                currentMember.lastChatMessageId = savedMessageId
+            }
+        }
 
         if (savedChatFile != null) {
             val chatMessageFile = ChatMessageFiles(
@@ -208,15 +216,25 @@ class ChatService(
         )
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     fun getChatRoomDetails(chatId: Long, currentUserId: Long, page: Int, size: Int): ChatRoomDetailResponse {
         val chatRoom = chatRepository.findById(chatId)
             .orElseThrow { BusinessException(ErrorCode.CHAT_ROOM_NOT_FOUND) }
 
         validateChatRoomMember(chatRoom, currentUserId)
 
+        val currentMember = chatMemberRepository.findByChatRoomChatIdAndUserId(chatId, currentUserId)
+            ?: throw BusinessException(ErrorCode.FORBIDDEN)
+
         val pageable = PageRequest.of(page, size)
         val messageSlice = chatMessageRepository.findByChatRoomChatIdOrderByChatMessageIdDesc(chatId, pageable)
+
+        if (messageSlice.hasContent()) {
+            val latestMessageId = messageSlice.content.first().chatMessageId!!
+            if (currentMember.lastChatMessageId == null || currentMember.lastChatMessageId!! < latestMessageId) {
+                currentMember.lastChatMessageId = latestMessageId
+            }
+        }
 
         val senderIds = messageSlice.content.map { it.senderId }.distinct()
 
@@ -255,9 +273,20 @@ class ChatService(
         val roomSummaries = chatRooms.map { chatRoom ->
             val chatId = chatRoom.chatId!!
 
+            val currentMember = chatRoom.members.find { it.userId == currentUserId }
+
             val latestMessage = chatMessageRepository.findTopByChatRoomChatIdOrderByChatMessageIdDesc(chatId)
 
-            val unreadCount = 0
+            val unreadCount = if (latestMessage == null) {
+                0L
+            } else {
+                val lastReadId = currentMember?.lastChatMessageId
+                if (lastReadId == null) {
+                    chatMessageRepository.countAllUnreadMessages(chatId, currentUserId)
+                } else {
+                    chatMessageRepository.countUnreadMessages(chatId, lastReadId, currentUserId)
+                }
+            }
 
             val profileImage = null
 
@@ -266,13 +295,23 @@ class ChatService(
                 roomName = chatRoom.title,
                 lastMessage = latestMessage?.content,
                 lastMessageTime = latestMessage?.let { DateTimeUtil.format(it.createdAt) },
-                unreadCount = unreadCount,
+                unreadCount = unreadCount.toInt(),
                 profileImage = profileImage,
                 participantCount = chatRoom.members.size
             )
         }
 
         return ChatRoomListResponse(chatroomList = roomSummaries)
+    }
+
+    @Transactional
+    fun updateLastReadMessage(chatId: Long, userId: Long, messageId: Long) {
+        val member = chatMemberRepository.findByChatRoomChatIdAndUserId(chatId, userId)
+            ?: throw BusinessException(ErrorCode.FORBIDDEN)
+
+        if (member.lastChatMessageId == null || member.lastChatMessageId!! < messageId) {
+            member.lastChatMessageId = messageId
+        }
     }
 
     private fun validateChatRoomMember(chatRoom: ChatRoom, userId: Long) {

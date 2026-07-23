@@ -144,4 +144,27 @@ class ChatController(
                 )
             )
     }
+
+    @PatchMapping("/{chatId}/read")
+    fun updateLastReadMessage(
+        @AuthenticationPrincipal userDetails: UserDetails,
+        @PathVariable chatId: Long,
+        @RequestParam("messageId") messageId: Long
+    ): ResponseEntity<BasicResponse<Nothing?>> {
+
+        val currentUserId = userDetails.username.toLongOrNull()
+            ?: throw BusinessException(ErrorCode.UNAUTHORIZED)
+
+        chatService.updateLastReadMessage(chatId, currentUserId, messageId)
+
+        return ResponseEntity
+            .status(HttpStatus.OK)
+            .body(
+                BasicResponse.success(
+                    null,
+                    HttpStatus.OK,
+                    "읽음 처리가 완료되었습니다."
+                )
+            )
+    }
 }

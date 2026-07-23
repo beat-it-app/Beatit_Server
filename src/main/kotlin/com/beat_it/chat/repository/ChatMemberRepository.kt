@@ -8,6 +8,7 @@ import org.springframework.stereotype.Repository
 
 @Repository
 interface ChatMemberRepository : JpaRepository<ChatMember, Long> {
+
     @Query("SELECT COUNT(cm) > 0 FROM ChatMember cm WHERE cm.chatRoom.chatId = :chatId AND cm.userId = :userId")
     fun existsByChatRoomChatIdAndUserId(
         @Param("chatId") chatId: Long,
