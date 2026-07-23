@@ -8,6 +8,6 @@ import org.springframework.stereotype.Repository
 
 @Repository
 interface ChatRepository : JpaRepository<ChatRoom, Long> {
-    @Query("SELECT DISTINCT r FROM ChatRoom r JOIN FETCH r.members m WHERE m.userId = :userId")
+    @Query("SELECT DISTINCT r FROM ChatRoom r JOIN r.members m WHERE m.userId = :userId")
     fun findByMembersUserId(@Param("userId") userId: Long): List<ChatRoom>
 }

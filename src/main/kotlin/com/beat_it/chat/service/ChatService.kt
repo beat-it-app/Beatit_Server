@@ -288,7 +288,23 @@ class ChatService(
                 }
             }
 
-            val profileImage = null
+            val profileImages: List<String> = if (chatRoom.type == ChatRoomType.DIRECT) {
+                val otherMember = chatRoom.members.find { it.userId != currentUserId }
+
+                if (otherMember != null) {
+                    val profiles = userService.getUserProfiles(listOf(otherMember.userId))
+                    profiles.map { it.profileImageUrl }
+                } else {
+                    emptyList()
+                }
+            } else {
+                val memberUserIds = chatRoom.members.map { it.userId }
+                val userProfiles = userService.getUserProfiles(memberUserIds)
+
+                userProfiles
+                    .take(4)
+                    .map { it.profileImageUrl }
+            }
 
             ChatRoomSummaryDto(
                 chatId = chatId,
@@ -296,7 +312,7 @@ class ChatService(
                 lastMessage = latestMessage?.content,
                 lastMessageTime = latestMessage?.let { DateTimeUtil.format(it.createdAt) },
                 unreadCount = unreadCount.toInt(),
-                profileImage = profileImage,
+                profileImage = profileImages,
                 participantCount = chatRoom.members.size
             )
         }

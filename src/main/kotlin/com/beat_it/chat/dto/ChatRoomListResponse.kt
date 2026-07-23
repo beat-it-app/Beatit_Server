@@ -10,6 +10,6 @@ data class ChatRoomSummaryDto(
     val lastMessage: String?,
     val lastMessageTime: String?,
     val unreadCount: Int,
-    val profileImage: String?,
+    val profileImage: List<String>,
     val participantCount: Int
 )
