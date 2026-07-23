@@ -36,6 +36,7 @@ import org.springframework.data.domain.PageRequest
 import org.springframework.kafka.core.KafkaTemplate
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+import java.time.OffsetDateTime
 
 @Service
 class ChatService(
@@ -227,7 +228,16 @@ class ChatService(
             ?: throw BusinessException(ErrorCode.FORBIDDEN)
 
         val pageable = PageRequest.of(page, size)
-        val messageSlice = chatMessageRepository.findByChatRoomChatIdOrderByChatMessageIdDesc(chatId, pageable)
+
+        val messageSlice = if (currentMember.leftAt != null) {
+            chatMessageRepository.findByChatRoomChatIdAndCreatedAtAfterOrderByChatMessageIdDesc(
+                chatId = chatId,
+                leftAt = currentMember.leftAt!!,
+                pageable = pageable
+            )
+        } else {
+            chatMessageRepository.findByChatRoomChatIdOrderByChatMessageIdDesc(chatId, pageable)
+        }
 
         if (messageSlice.hasContent()) {
             val latestMessageId = messageSlice.content.first().chatMessageId!!
@@ -330,6 +340,50 @@ class ChatService(
         }
     }
 
+    @Transactional
+    fun leaveChatRoom(chatId: Long, userId: Long) {
+        val chatRoom = findChatRoomOrThrow(chatId)
+        val member = findChatMemberOrThrow(chatId, userId)
+
+        if (chatRoom.type == ChatRoomType.DIRECT) {
+            member.leftAt = OffsetDateTime.now()
+        } else {
+
+            val remainingCount = chatMemberRepository.countByChatRoomChatId(chatId)
+
+            if (remainingCount <= 1L) {
+                chatMemberRepository.delete(member)
+                chatRepository.delete(chatRoom)
+                return
+            }
+
+            chatMemberRepository.delete(member)
+
+            val userProfile = userService.getUserProfiles(listOf(userId)).firstOrNull()
+            val userName = userProfile?.name ?: "알 수 없는 사용자"
+
+            val systemMessage = ChatMessage(
+                chatRoom = chatRoom,
+                senderId = userId,
+                content = "${userName}님이 나갔습니다.",
+                type = ChatMessageType.TEXT
+            )
+
+            val savedMessage = chatMessageRepository.saveAndFlush(systemMessage)
+
+            val messageDetail = ChatMessageDetailResponse(
+                messageId = savedMessage.chatMessageId!!,
+                chatId = chatId,
+                senderId = userId,
+                content = savedMessage.content,
+                messageType = savedMessage.type.name,
+                createdAt = DateTimeUtil.format(savedMessage.createdAt)
+            )
+            val payload = objectMapper.writeValueAsString(messageDetail)
+            kafkaTemplate.send("chat-topic", payload)
+        }
+    }
+
     private fun validateChatRoomMember(chatRoom: ChatRoom, userId: Long) {
         val chatId = chatRoom.chatId ?: throw BusinessException(ErrorCode.CHAT_ROOM_NOT_FOUND)
         val isMember = chatMemberRepository.existsByChatRoomChatIdAndUserId(chatId, userId)
@@ -342,5 +396,15 @@ class ChatService(
         if (roomName.isNullOrBlank()) {
             throw BusinessException(ErrorCode.CHAT_ROOM_NAME_REQUIRED)
         }
+    }
+
+    private fun findChatRoomOrThrow(chatId: Long): ChatRoom {
+        return chatRepository.findById(chatId)
+            .orElseThrow { BusinessException(ErrorCode.CHAT_ROOM_NOT_FOUND) }
+    }
+
+    private fun findChatMemberOrThrow(chatId: Long, userId: Long): ChatMember {
+        return chatMemberRepository.findByChatRoomChatIdAndUserId(chatId, userId)
+            ?: throw BusinessException(ErrorCode.CHAT_MEMBER_NOT_FOUND)
     }
 }

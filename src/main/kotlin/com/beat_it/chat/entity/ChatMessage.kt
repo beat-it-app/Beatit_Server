@@ -4,7 +4,12 @@ import com.beat_it.global.entity.BaseCreatedTimeEntity
 import jakarta.persistence.*
 
 @Entity
-@Table(name = "chat_messages")
+@Table(
+    name = "chat_messages",
+    indexes = [
+        Index(name = "idx_chat_room_created_at", columnList = "chat_room_id, created_at DESC")
+    ]
+)
 class ChatMessage(
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

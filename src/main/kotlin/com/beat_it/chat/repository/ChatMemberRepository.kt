@@ -16,4 +16,6 @@ interface ChatMemberRepository : JpaRepository<ChatMember, Long> {
     ): Boolean
 
     fun findByChatRoomChatIdAndUserId(chatId: Long, userId: Long): ChatMember?
+
+    fun countByChatRoomChatId(chatId: Long): Long
 }

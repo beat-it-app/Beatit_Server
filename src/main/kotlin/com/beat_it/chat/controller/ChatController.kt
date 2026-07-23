@@ -16,6 +16,7 @@ import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.security.core.annotation.AuthenticationPrincipal
 import org.springframework.security.core.userdetails.UserDetails
+import org.springframework.web.bind.annotation.DeleteMapping
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.ModelAttribute
 import org.springframework.web.bind.annotation.PatchMapping
@@ -164,6 +165,28 @@ class ChatController(
                     null,
                     HttpStatus.OK,
                     "읽음 처리가 완료되었습니다."
+                )
+            )
+    }
+
+    @DeleteMapping("/{chatId}/leave")
+    fun leaveChatRoom(
+        @AuthenticationPrincipal userDetails: UserDetails,
+        @PathVariable chatId: Long
+    ): ResponseEntity<BasicResponse<Nothing?>> {
+
+        val currentUserId = userDetails.username.toLongOrNull()
+            ?: throw BusinessException(ErrorCode.UNAUTHORIZED)
+
+        chatService.leaveChatRoom(chatId, currentUserId)
+
+        return ResponseEntity
+            .status(HttpStatus.OK)
+            .body(
+                BasicResponse.success(
+                    null,
+                    HttpStatus.OK,
+                    "채팅방을 나갔습니다."
                 )
             )
     }

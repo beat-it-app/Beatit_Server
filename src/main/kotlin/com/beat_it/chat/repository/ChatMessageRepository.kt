@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.data.jpa.repository.Query
 import org.springframework.data.repository.query.Param
 import org.springframework.stereotype.Repository
+import java.time.OffsetDateTime
 
 @Repository
 interface ChatMessageRepository : JpaRepository<ChatMessage, Long> {
@@ -25,4 +26,10 @@ interface ChatMessageRepository : JpaRepository<ChatMessage, Long> {
         @Param("chatId") chatId: Long,
         @Param("currentUserId") currentUserId: Long
     ): Long
+
+    fun findByChatRoomChatIdAndCreatedAtAfterOrderByChatMessageIdDesc(
+        chatId: Long,
+        leftAt: OffsetDateTime,
+        pageable: Pageable
+    ): Slice<ChatMessage>
 }
