@@ -21,6 +21,7 @@ import com.beat_it.chat.entity.enum.ChatRoomType
 import com.beat_it.chat.entity.MediaCategory
 import com.beat_it.chat.event.ChatRoomCreatedEvent
 import com.beat_it.chat.repository.ChatFilesRepository
+import com.beat_it.chat.repository.ChatMemberRepository
 import com.beat_it.chat.repository.ChatMessageFilesRepository
 import com.beat_it.chat.repository.ChatMessageRepository
 import com.beat_it.chat.repository.ChatRepository
@@ -35,11 +36,11 @@ import org.springframework.data.domain.PageRequest
 import org.springframework.kafka.core.KafkaTemplate
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
-import java.time.OffsetDateTime
 
 @Service
 class ChatService(
     private val chatRepository: ChatRepository,
+    private val chatMemberRepository: ChatMemberRepository,
     private val chatMessageRepository: ChatMessageRepository,
     private val chatFilesRepository: ChatFilesRepository,
     private val chatMessageFilesRepository: ChatMessageFilesRepository,
@@ -275,7 +276,8 @@ class ChatService(
     }
 
     private fun validateChatRoomMember(chatRoom: ChatRoom, userId: Long) {
-        val isMember = chatRoom.members.any { it.userId == userId }
+        val chatId = chatRoom.chatId ?: throw BusinessException(ErrorCode.CHAT_ROOM_NOT_FOUND)
+        val isMember = chatMemberRepository.existsByChatRoomChatIdAndUserId(chatId, userId)
         if (!isMember) {
             throw BusinessException(ErrorCode.FORBIDDEN)
         }

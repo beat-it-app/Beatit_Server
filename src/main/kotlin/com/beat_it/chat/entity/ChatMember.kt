@@ -1,5 +1,6 @@
 package com.beat_it.chat.entity
 
+import com.beat_it.global.entity.BaseJoinedTimeEntity
 import jakarta.persistence.*
 import java.time.OffsetDateTime
 
@@ -23,7 +24,4 @@ class ChatMember(
 
     @Column(name = "is_muted", nullable = false)
     var isMuted: Boolean = false,
-
-    @Column(name = "joined_at", nullable = false, updatable = false)
-    val joinedAt: OffsetDateTime = OffsetDateTime.now()
-)
+) : BaseJoinedTimeEntity()
