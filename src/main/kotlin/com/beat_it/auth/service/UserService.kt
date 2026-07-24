@@ -1,6 +1,7 @@
 package com.beat_it.auth.service
 
 import com.beat_it.auth.dto.UserProfileResponse
+import com.beat_it.auth.dto.UserSimpleInfo
 import com.beat_it.auth.entity.AuthFiles
 import com.beat_it.auth.entity.UserProfiles
 import com.beat_it.auth.entity.enum.MediaCategory
