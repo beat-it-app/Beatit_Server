@@ -252,19 +252,12 @@ class ChatService(
             .associateBy { it.userId }
 
         val messageResponses = messageSlice.content.map { message ->
-            val profile = userProfileMap[message.senderId]
-            val senderName = profile?.name ?: "알 수 없는 사용자"
-            val profileImageUrl = profile?.profileImageUrl
+            val profileResponse = userProfileMap[message.senderId]
 
             GetChatMessageQueryResponse.of(
-                messageId = message.chatMessageId!!,
-                senderId = message.senderId,
-                senderName = senderName,
-                profileImageUrl = profileImageUrl,
-                content = message.content,
-                messageType = message.type.name,
-                createdAt = DateTimeUtil.format(message.createdAt), // DateTimeUtil 활용 일관성 유지
-                isMine = (message.senderId == currentUserId)
+                message = message,
+                profile = profileResponse,
+                currentUserId = currentUserId,
             )
         }.reversed()
 
@@ -278,14 +271,31 @@ class ChatService(
 
     @Transactional(readOnly = true)
     fun getChatRooms(currentUserId: Long): ChatRoomListResponse {
-        val chatRooms = chatRepository.findByMembersUserId(currentUserId)
+        val chatRooms = chatRepository.findByMembersUserIdAndIsParticipatingTrue(currentUserId)
+
+        if (chatRooms.isEmpty()) {
+            return ChatRoomListResponse(emptyList())
+        }
+        val chatIds = chatRooms.map { chatRoom -> chatRoom.chatId!! }
+
+        val latestMessagesMap = chatMessageRepository.findTopMessagesByChatRoomChatIds(chatIds)
+            .associateBy { message -> message.chatRoom.chatId }
+
+        val allMemberUserIds = chatRooms.flatMap { chatRoom ->
+            if (chatRoom.type == ChatRoomType.DIRECT) {
+                chatRoom.members.filter { member -> member.userId != currentUserId }.map { member -> member.userId }
+            } else {
+                chatRoom.members.map { member -> member.userId }
+            }
+        }.distinct()
+
+        val userProfileMap = userService.getUserProfiles(allMemberUserIds)
+            .associateBy { profile -> profile.userId }
 
         val roomSummaries = chatRooms.map { chatRoom ->
             val chatId = chatRoom.chatId!!
-
-            val currentMember = chatRoom.members.find { it.userId == currentUserId }
-
-            val latestMessage = chatMessageRepository.findTopByChatRoomChatIdOrderByChatMessageIdDesc(chatId)
+            val currentMember = chatRoom.members.find { member -> member.userId == currentUserId }
+            val latestMessage = latestMessagesMap[chatId]
 
             val unreadCount = if (latestMessage == null) {
                 0L
@@ -299,28 +309,21 @@ class ChatService(
             }
 
             val profileImages: List<String> = if (chatRoom.type == ChatRoomType.DIRECT) {
-                val otherMember = chatRoom.members.find { it.userId != currentUserId }
-
-                if (otherMember != null) {
-                    val profiles = userService.getUserProfiles(listOf(otherMember.userId))
-                    profiles.map { it.profileImageUrl }
-                } else {
-                    emptyList()
-                }
+                val otherMember = chatRoom.members.find { member -> member.userId != currentUserId }
+                otherMember?.let { member ->
+                    listOfNotNull(userProfileMap[member.userId]?.profileImageUrl)
+                } ?: emptyList()
             } else {
-                val memberUserIds = chatRoom.members.map { it.userId }
-                val userProfiles = userService.getUserProfiles(memberUserIds)
-
-                userProfiles
-                    .take(4)
-                    .map { it.profileImageUrl }
+                chatRoom.members.mapNotNull { member ->
+                    userProfileMap[member.userId]?.profileImageUrl
+                }.take(4)
             }
 
             ChatRoomSummaryDto(
                 chatId = chatId,
                 roomName = chatRoom.title,
                 lastMessage = latestMessage?.content,
-                lastMessageTime = latestMessage?.let { DateTimeUtil.format(it.createdAt) },
+                lastMessageTime = latestMessage?.let { message -> DateTimeUtil.format(message.createdAt) },
                 unreadCount = unreadCount.toInt(),
                 profileImage = profileImages,
                 participantCount = chatRoom.members.size
@@ -342,11 +345,12 @@ class ChatService(
 
     @Transactional
     fun leaveChatRoom(chatId: Long, userId: Long) {
-        val chatRoom = findChatRoomOrThrow(chatId)
-        val member = findChatMemberOrThrow(chatId, userId)
+        val member = findChatMemberWithChatRoomOrThrow(chatId, userId)
+        val chatRoom = member.chatRoom
 
         if (chatRoom.type == ChatRoomType.DIRECT) {
             member.leftAt = OffsetDateTime.now()
+            member.isParticipating = false
         } else {
 
             val remainingCount = chatMemberRepository.countByChatRoomChatId(chatId)
@@ -366,7 +370,7 @@ class ChatService(
                 chatRoom = chatRoom,
                 senderId = userId,
                 content = "${userName}님이 나갔습니다.",
-                type = ChatMessageType.TEXT
+                type = ChatMessageType.SYSTEM
             )
 
             val savedMessage = chatMessageRepository.saveAndFlush(systemMessage)
@@ -398,13 +402,8 @@ class ChatService(
         }
     }
 
-    private fun findChatRoomOrThrow(chatId: Long): ChatRoom {
-        return chatRepository.findById(chatId)
-            .orElseThrow { BusinessException(ErrorCode.CHAT_ROOM_NOT_FOUND) }
-    }
-
-    private fun findChatMemberOrThrow(chatId: Long, userId: Long): ChatMember {
-        return chatMemberRepository.findByChatRoomChatIdAndUserId(chatId, userId)
+    private fun findChatMemberWithChatRoomOrThrow(chatId: Long, userId: Long): ChatMember {
+        return chatMemberRepository.findByChatRoomChatIdAndUserIdWithChatRoom(chatId, userId)
             ?: throw BusinessException(ErrorCode.CHAT_MEMBER_NOT_FOUND)
     }
 }

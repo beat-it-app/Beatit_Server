@@ -1,5 +1,9 @@
 package com.beat_it.chat.dto
 
+import com.beat_it.auth.dto.UserProfileResponse
+import com.beat_it.chat.entity.ChatMessage
+import com.beat_it.global.util.DateTimeUtil
+
 data class GetChatMessageQueryResponse(
     val messageId: Long,
     val senderId: Long,
@@ -12,24 +16,19 @@ data class GetChatMessageQueryResponse(
 ) {
     companion object {
         fun of(
-            messageId: Long,
-            senderId: Long,
-            senderName: String,
-            profileImageUrl: String?,
-            content: String,
-            messageType: String,
-            createdAt: String,
-            isMine: Boolean
+            message: ChatMessage,
+            profile: UserProfileResponse?,
+            currentUserId: Long,
         ): GetChatMessageQueryResponse {
             return GetChatMessageQueryResponse(
-                messageId = messageId,
-                senderId = senderId,
-                senderName = senderName,
-                profileImageUrl = profileImageUrl,
-                content = content,
-                messageType = messageType,
-                createdAt = createdAt,
-                isMine = isMine
+                messageId = message.chatMessageId!!,
+                senderId = message.senderId,
+                senderName = profile?.name ?: "알 수 없는 사용자",
+                profileImageUrl = profile?.profileImageUrl,
+                content = message.content,
+                messageType = message.type.name,
+                createdAt = DateTimeUtil.format(message.createdAt),
+                isMine = (message.senderId == currentUserId)
             )
         }
     }

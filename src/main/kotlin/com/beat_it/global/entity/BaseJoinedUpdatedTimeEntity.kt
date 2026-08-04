@@ -7,7 +7,7 @@ import org.springframework.data.annotation.LastModifiedDate
 import java.time.OffsetDateTime
 
 @MappedSuperclass
-abstract class BaseJoinedUpdateEntity {
+abstract class BaseJoinedUpdatedTimeEntity {
     @CreatedDate
     @Column(name = "joined_at", nullable = false, updatable = false)
     var joinedAt: OffsetDateTime = OffsetDateTime.now()

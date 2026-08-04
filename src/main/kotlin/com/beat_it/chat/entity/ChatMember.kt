@@ -26,6 +26,9 @@ class ChatMember(
     var isMuted: Boolean = false,
 
     @Column(name = "left_at")
-    var leftAt: OffsetDateTime? = null
+    var leftAt: OffsetDateTime? = null,
+
+    @Column(name = "is_participating", nullable = false)
+    var isParticipating: Boolean = true
 
 ) : BaseJoinedTimeEntity()
