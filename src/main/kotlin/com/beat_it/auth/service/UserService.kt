@@ -3,6 +3,7 @@ package com.beat_it.auth.service
 import com.beat_it.auth.dto.UserProfileResponse
 import com.beat_it.auth.entity.AuthFiles
 import com.beat_it.auth.entity.UserProfiles
+import com.beat_it.auth.entity.enum.DefaultProfileImage
 import com.beat_it.auth.entity.enum.MediaCategory
 import com.beat_it.auth.repository.AuthFilesRepository
 import com.beat_it.auth.repository.UserProfilesRepository
@@ -22,7 +23,7 @@ class UserService (
     private val fileService: FileService
 ) {
     @Transactional
-    fun createProfile(userId: Long, name: String, profileImage: MultipartFile?) {
+    fun createProfile(userId: Long, name: String, profileImage: MultipartFile?, defaultImageId: Int?) {
         validateName(name)
 
         if (userProfilesRepository.existsByUser_UserId(userId)) {
@@ -32,8 +33,18 @@ class UserService (
         val user = userRepository.findById(userId).orElse(null)
             ?: throw BusinessException(ErrorCode.USER_NOT_FOUND)
 
-        val savedAuthFile = if (profileImage != null) {
-            val uploadedResult = fileService.uploadFiles(listOf(profileImage), "profile").first()
+        var savedAuthFile: AuthFiles? = null
+        var defaultProfileImage: DefaultProfileImage? = null
+
+        val hasImage = profileImage != null && !profileImage.isEmpty
+        val hasDefaultId = defaultImageId != null
+
+        if (hasImage && hasDefaultId) {
+            throw BusinessException(ErrorCode.INVALID_INPUT_VALUE)
+        }
+
+        if (hasImage) {
+            val uploadedResult = fileService.uploadFiles(listOf(profileImage!!), "profile").first()
             
             val authFile = AuthFiles(
                 user = user,
@@ -43,24 +54,18 @@ class UserService (
                 mediaCategory = MediaCategory.IMAGE,
                 isPublic = true
             )
-            authFilesRepository.save(authFile)
+            savedAuthFile = authFilesRepository.save(authFile)
+        } else if (hasDefaultId) {
+            defaultProfileImage = DefaultProfileImage.getByIndex(defaultImageId!!)
         } else {
-            // TODO : S3 연동 후 기본 프로필 이미지 처리 (현재는 더미값)
-            val authFile = AuthFiles(
-                user = user,
-                originalFileName = "default.jpg",
-                storageKey = "dummy/path/default.jpg",
-                cdnUrl = "https://example.com/default-image.jpg",
-                mediaCategory = MediaCategory.IMAGE,
-                isPublic = true
-            )
-            authFilesRepository.save(authFile)
+            defaultProfileImage = DefaultProfileImage.getRandom()
         }
 
         val userProfile = UserProfiles.create(
             user = user,
             name = name,
-            authFile = savedAuthFile
+            authFile = savedAuthFile,
+            defaultProfileImage = defaultProfileImage
         )
         userProfilesRepository.save(userProfile)
     }
@@ -114,7 +119,7 @@ class UserService (
             UserProfileResponse(
                 userId = profile.user?.userId ?: 0L,
                 name = profile.name,
-                profileImageUrl = profile.authFile.cdnUrl
+                profileImageUrl = profile.authFile?.cdnUrl ?: profile.defaultProfileImage?.url ?: ""
             )
         }
     }
