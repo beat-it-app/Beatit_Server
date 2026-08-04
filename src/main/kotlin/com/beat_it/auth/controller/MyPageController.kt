@@ -2,6 +2,8 @@ package com.beat_it.auth.controller
 
 import com.beat_it.auth.dto.MyPageResponse
 import com.beat_it.auth.dto.UpdateNameRequest
+import com.beat_it.auth.dto.WithdrawalRequest
+import com.beat_it.auth.dto.WithdrawalResponse
 import com.beat_it.auth.service.MyPageService
 import com.beat_it.global.error.BusinessException
 import com.beat_it.global.error.ErrorCode
@@ -93,18 +95,18 @@ class MyPageController (
     }
 
     // 5. 회원 탈퇴
-    // Todo : 보류기간 7일 있어서 delete 아니고 patch로 변경해야 함
     @Operation(summary = "회원 탈퇴")
     @PatchMapping
     fun withdraw(
-        @AuthenticationPrincipal userDetails: UserDetails
-    ): ResponseEntity<BasicResponse<Nothing>> {
+        @AuthenticationPrincipal userDetails: UserDetails,
+        @Valid @RequestBody request: WithdrawalRequest
+    ): ResponseEntity<BasicResponse<WithdrawalResponse>> {
         val userId = extractUserId(userDetails)
 
-        myPageService.withdraw(userId)
+        val data = myPageService.withdraw(userId, request)
 
         return ResponseEntity.ok(
-            BasicResponse.success(HttpStatus.OK, "회원 탈퇴가 완료되었습니다.")
+            BasicResponse.success(data, HttpStatus.OK, "회원 탈퇴 요청이 정상적으로 접수되었습니다.")
         )
     }
 

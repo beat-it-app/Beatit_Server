@@ -3,6 +3,8 @@ package com.beat_it.auth.service
 import com.beat_it.auth.dto.MyPageResponse
 import com.beat_it.auth.dto.MyPageTeamResponse
 import com.beat_it.auth.dto.UpdateNameRequest
+import com.beat_it.auth.dto.WithdrawalRequest
+import com.beat_it.auth.dto.WithdrawalResponse
 import com.beat_it.auth.entity.AuthFiles
 import com.beat_it.auth.entity.enum.DefaultProfileImage
 import com.beat_it.auth.entity.enum.MediaCategory
@@ -14,6 +16,7 @@ import com.beat_it.global.service.FileService
 import com.beat_it.team.repository.TeamMembershipRepository
 import jakarta.transaction.Transactional
 import org.springframework.data.repository.findByIdOrNull
+import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.stereotype.Service
 import org.springframework.web.multipart.MultipartFile
 
@@ -25,6 +28,7 @@ class MyPageService (
     private val teamMembershipRepository: TeamMembershipRepository,
     private val authFilesRepository: AuthFilesRepository,
     private val fileService: FileService,
+    private val passwordEncoder: PasswordEncoder,
 ){
     // 1. 마이페이지 조회
     fun getMyPage(userId: Long): MyPageResponse {
@@ -40,8 +44,6 @@ class MyPageService (
             val team = membership.team
             val teamId = team.teamId!!
             val memberCount = teamMembershipRepository.countByTeamTeamIdAndLeftAtIsNull(teamId)
-
-            // 팀의 LEADER 찾기
             val leaderMembership = teamMembershipRepository.findAllByTeamTeamIdAndLeftAtIsNull(teamId)
                 .find { it.teamRole.name == "LEADER" }
             
@@ -58,7 +60,10 @@ class MyPageService (
             )
         }
 
-        val socialAccounts = listOfNotNull(authAccount.socialProvider)
+        val socialAccounts = mutableListOf<SocialProvider>()
+        if (authAccount.kakaoId != null) socialAccounts.add(SocialProvider.KAKAO)
+        if (authAccount.naverId != null) socialAccounts.add(SocialProvider.NAVER)
+        if (authAccount.googleId != null) socialAccounts.add(SocialProvider.GOOGLE)
 
         return MyPageResponse(
             userId = userId,
@@ -153,10 +158,30 @@ class MyPageService (
 
     // 5. 회원 탈퇴
     @Transactional
-    fun withdraw(userId: Long) {
+    fun withdraw(userId: Long, request: WithdrawalRequest): WithdrawalResponse {
         val user = userRepository.findByIdOrNull(userId)
             ?: throw BusinessException(ErrorCode.USER_NOT_FOUND)
         
+        val authAccount = userAuthAccountRepository.findByUserUserId(userId)
+            ?: throw BusinessException(ErrorCode.USER_NOT_FOUND)
+
+        // 일반 로그인 유저인 경우 (identifier가 존재하고 소셜 연동이 없는 경우) 비밀번호 검증
+        if (authAccount.identifier != null) {
+            if (request.password.isNullOrBlank() || !passwordEncoder.matches(request.password, authAccount.password)) {
+                throw BusinessException(ErrorCode.INVALID_PASSWORD)
+            }
+        }
+
         user.withdraw()
+
+        val formatter = java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")
+        val requestedAtStr = user.withdrawnAt!!.format(formatter)
+        val scheduledDeletionDateStr = user.withdrawnAt!!.plusDays(7).format(formatter)
+
+        return WithdrawalResponse(
+            userId = userId,
+            requestedAt = requestedAtStr,
+            scheduledDeletionDate = scheduledDeletionDateStr
+        )
     }
 }
