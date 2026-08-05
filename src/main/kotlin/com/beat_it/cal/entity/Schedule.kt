@@ -42,7 +42,16 @@ class Schedule(
     var locationId: Long? = null,
 
     @Column(length = 500)
-    var content: String? = null
+    var content: String? = null,
+
+    @Column(name = "music_title")
+    var musicTitle: String? = null,
+
+    @Column(name = "music_artist")
+    var musicArtist: String? = null,
+
+    @Column(name = "music_preview_url")
+    var musicPreviewUrl: String? = null
 
 ) : BaseUpdatedTimeEntity() {
 
@@ -50,6 +59,9 @@ class Schedule(
     val participants: MutableList<ScheduleParticipant> = mutableListOf()
 
     // TODO: S3 연동 후 File 엔티티와 연관관계 매핑 (1:N)
+    @OneToMany(mappedBy = "schedule", cascade = [CascadeType.ALL], orphanRemoval = true)
+    val files: MutableList<ScheduleFile> = mutableListOf()
+
 
     fun addParticipant(participantUserId: Long) {
         val participant = ScheduleParticipant(
@@ -64,18 +76,34 @@ class Schedule(
         content: String?,
         locationId: Long?,
         startsAt: OffsetDateTime,
-        endsAt: OffsetDateTime
+        endsAt: OffsetDateTime,
+        musicTitle: String?,
+        musicArtist: String?,
+        musicPreviewUrl: String?
     ) {
         this.title = title
         this.content = content
         this.locationId = locationId
         this.startsAt = startsAt
         this.endsAt = endsAt
+        this.musicTitle = musicTitle
+        this.musicArtist = musicArtist
+        this.musicPreviewUrl = musicPreviewUrl
     }
 
     fun isParticipantsSame(targetIds: List<Long>): Boolean {
         val currentIds = this.participants.map { it.userId }.sorted()
         val newIds = targetIds.sorted()
         return currentIds == newIds
+    }
+
+    fun addFile(originalFileName: String, storageKey: String, cdnUrl: String) {
+        val scheduleFile = ScheduleFile(
+            schedule = this,
+            originalFileName = originalFileName,
+            storageKey = storageKey,
+            cdnUrl = cdnUrl
+        )
+        this.files.add(scheduleFile)
     }
 }

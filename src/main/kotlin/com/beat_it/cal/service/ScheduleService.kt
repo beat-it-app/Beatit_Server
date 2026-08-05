@@ -9,15 +9,18 @@ import com.beat_it.cal.dto.ParticipantResponse
 import com.beat_it.cal.dto.ScheduleCreateRequest
 import com.beat_it.cal.dto.ScheduleCreateResponse
 import com.beat_it.cal.dto.ScheduleDetailResponse
+import com.beat_it.cal.dto.ScheduleFileResponse
 import com.beat_it.cal.dto.ScheduleUpdateRequest
 import com.beat_it.cal.entity.Schedule
 import com.beat_it.cal.repository.ScheduleRepository
 import com.beat_it.global.error.BusinessException
 import com.beat_it.global.error.ErrorCode
+import com.beat_it.global.service.FileService
 import com.beat_it.global.util.DateTimeUtil
 import com.beat_it.team.service.TeamService
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+import org.springframework.web.multipart.MultipartFile
 import java.time.LocalDate
 import java.time.LocalTime
 import java.time.OffsetDateTime
@@ -28,11 +31,12 @@ class ScheduleService(
     private val scheduleRepository: ScheduleRepository,
     private val teamService: TeamService,
     private val userService: UserService,
+    private val fileService: FileService
     // private val locationService: LocationService
 ) {
 
     @Transactional
-    fun createSchedule(userId: Long, request: ScheduleCreateRequest): ScheduleCreateResponse {
+    fun createSchedule(userId: Long, request: ScheduleCreateRequest, files: List<MultipartFile>?): ScheduleCreateResponse {
 
         validateScheduleCommon(request.title, request.startsAt, request.endsAt)
 
@@ -47,8 +51,22 @@ class ScheduleService(
             content = request.content,
             locationId = request.locationId,
             startsAt = request.startsAt!!,
-            endsAt = request.endsAt!!
+            endsAt = request.endsAt!!,
+            musicTitle = request.musicTitle,
+            musicArtist = request.musicArtist,
+            musicPreviewUrl = request.musicPreviewUrl
         )
+
+        if (!request.files.isNullOrEmpty()) {
+            val uploadedFiles = fileService.uploadFiles(request.files, "schedules")
+            uploadedFiles.forEach { fileResult ->
+                schedule.addFile(
+                    originalFileName = fileResult.originalFileName,
+                    storageKey = fileResult.storageKey,
+                    cdnUrl = fileResult.cdnUrl
+                )
+            }
+        }
 
         request.participantUserIds.forEach { participantUserId ->
             teamService.validateTeamMember(currentTeamId, participantUserId)
@@ -111,12 +129,36 @@ class ScheduleService(
 //            }
 //        }
 
+        val retainIds = request.retainFileIds ?: emptyList()
+
+        val filesToRemove = schedule.files.filter { it.id !in retainIds }
+        filesToRemove.forEach { file ->
+            //TODO: fileService delete 함수 반영 시 주석 제거
+            //fileService.deleteFile(file.storageKey)
+        }
+        schedule.files.removeIf { it.id !in retainIds }
+
+        if (!request.files.isNullOrEmpty()) {
+
+            val uploadedFiles = fileService.uploadFiles(request.files, "schedules")
+            uploadedFiles.forEach { fileResult ->
+                schedule.addFile(
+                    originalFileName = fileResult.originalFileName,
+                    storageKey = fileResult.storageKey,
+                    cdnUrl = fileResult.cdnUrl
+                )
+            }
+        }
+
         schedule.update(
             title = request.title!!,
             content = request.content,
             locationId = request.locationId,
             startsAt = request.startsAt!!,
-            endsAt = request.endsAt!!
+            endsAt = request.endsAt!!,
+            musicTitle = request.musicTitle,
+            musicArtist = request.musicArtist,
+            musicPreviewUrl = request.musicPreviewUrl
         )
 
         return ScheduleCreateResponse(
@@ -134,7 +176,13 @@ class ScheduleService(
 
         validateScheduleOwner(schedule.userId, userId)
 
-        scheduleRepository.delete(schedule)
+        //TODO: fileService delete 함수 반영 시 주석 제거
+//        if (schedule.files.isNotEmpty()) {
+//            schedule.files.forEach { file ->
+//                fileService.deleteFile(file.storageKey)
+//            }
+//        }
+//        scheduleRepository.delete(schedule)
     }
 
     @Transactional(readOnly = true)
@@ -143,6 +191,14 @@ class ScheduleService(
 
         val currentTeamId = userService.getCurrentTeamId(userId)
         validateScheduleTeam(schedule.teamId, currentTeamId)
+
+        val fileResponses = schedule.files.map { file ->
+            ScheduleFileResponse(
+                fileId = file.id!!, // 파일 엔티티의 ID
+                originalFileName = file.originalFileName,
+                cdnUrl = file.cdnUrl
+            )
+        }
 
         return ScheduleDetailResponse(
             scheduleId = schedule.scheduleId!!,
@@ -160,7 +216,8 @@ class ScheduleService(
                     scheduleParticipantId = participant.scheduleParticipantId!!,
                     userId = participant.userId
                 )
-            }
+            },
+            files = fileResponses
         )
     }
 
