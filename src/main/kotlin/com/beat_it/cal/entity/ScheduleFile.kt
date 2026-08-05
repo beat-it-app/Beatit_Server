@@ -7,18 +7,18 @@ import jakarta.persistence.*
 class ScheduleFile(
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    val id: Long? = null, // 파일 엔티티 ID
+    val id: Long? = null,
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "schedule_id")
-    var schedule: Schedule? = null, // 어떤 일정의 파일인지
+    var schedule: Schedule? = null,
 
     @Column(nullable = false)
-    val originalFileName: String, // 원본 파일명
+    val originalFileName: String,
 
     @Column(nullable = false)
-    val storageKey: String, // 스토리지 저장 키
+    val storageKey: String,
 
     @Column(nullable = false)
-    val cdnUrl: String // CDN 접근 URL
+    val cdnUrl: String
 )

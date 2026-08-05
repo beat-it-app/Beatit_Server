@@ -194,7 +194,7 @@ class ScheduleService(
 
         val fileResponses = schedule.files.map { file ->
             ScheduleFileResponse(
-                fileId = file.id!!, // 파일 엔티티의 ID
+                fileId = file.id!!,
                 originalFileName = file.originalFileName,
                 cdnUrl = file.cdnUrl
             )

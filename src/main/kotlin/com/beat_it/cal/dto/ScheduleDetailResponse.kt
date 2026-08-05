@@ -4,7 +4,7 @@ import com.fasterxml.jackson.annotation.JsonProperty
 import java.time.OffsetDateTime
 
 data class ScheduleFileResponse(
-    val fileId: Long, // 또는 식별자
+    val fileId: Long,
     val originalFileName: String,
     val cdnUrl: String
 )
