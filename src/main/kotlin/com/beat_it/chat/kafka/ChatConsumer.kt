@@ -1,7 +1,11 @@
 package com.beat_it.chat.kafka
 
 import com.beat_it.chat.dto.ChatMessageDetailResponse
+import com.beat_it.chat.entity.ChatMessage
+import com.beat_it.chat.entity.ChatMessageType
 import com.beat_it.chat.handler.ChatWebSocketHandler
+import com.beat_it.chat.repository.ChatMessageRepository
+import com.beat_it.chat.repository.ChatRepository
 import com.fasterxml.jackson.databind.ObjectMapper
 import org.springframework.kafka.annotation.KafkaListener
 import org.springframework.stereotype.Component
@@ -9,7 +13,7 @@ import org.springframework.web.socket.TextMessage
 
 @Component
 class ChatConsumer(
-    private val objectMapper: ObjectMapper
+    private val objectMapper: ObjectMapper,
 ) {
 
     @KafkaListener(topics = ["chat-topic"], groupId = "chat-group")
