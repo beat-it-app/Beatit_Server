@@ -6,6 +6,9 @@ import com.beat_it.auth.dto.UpdateNameRequest
 import com.beat_it.auth.dto.WithdrawalRequest
 import com.beat_it.auth.dto.WithdrawalResponse
 import com.beat_it.auth.entity.AuthFiles
+import com.beat_it.auth.entity.UserAuthAccounts
+import com.beat_it.auth.entity.UserProfiles
+import com.beat_it.auth.entity.Users
 import com.beat_it.auth.entity.enum.DefaultProfileImage
 import com.beat_it.auth.entity.enum.MediaCategory
 import com.beat_it.auth.entity.enum.SocialProvider
@@ -32,11 +35,8 @@ class MyPageService (
 ){
     // 1. 마이페이지 조회
     fun getMyPage(userId: Long): MyPageResponse {
-        val userProfile = userProfilesRepository.findByUserUserId(userId)
-            ?: throw BusinessException(ErrorCode.USER_NOT_FOUND)
-        
-        val authAccount = userAuthAccountRepository.findByUserUserId(userId)
-            ?: throw BusinessException(ErrorCode.USER_NOT_FOUND)
+        val userProfile = getUserProfile(userId)
+        val authAccount = getUserAuthAccount(userId)
 
         val memberships = teamMembershipRepository.findAllByUserIdAndLeftAtIsNull(userId)
 
@@ -78,8 +78,7 @@ class MyPageService (
     // 2. 이름 변경
     @Transactional
     fun updateName(userId: Long, request: UpdateNameRequest) {
-        val userProfile = userProfilesRepository.findByUserUserId(userId)
-            ?: throw BusinessException(ErrorCode.USER_NOT_FOUND)
+        val userProfile = getUserProfile(userId)
 
         userProfile.updateName(request.name)
     }
@@ -95,10 +94,8 @@ class MyPageService (
             throw BusinessException(ErrorCode.INVALID_INPUT_VALUE)
         }
 
-        val user = userRepository.findByIdOrNull(userId)
-            ?: throw BusinessException(ErrorCode.USER_NOT_FOUND)
-        val userProfile = userProfilesRepository.findByUserUserId(userId)
-            ?: throw BusinessException(ErrorCode.USER_NOT_FOUND)
+        val user = getUser(userId)
+        val userProfile = getUserProfile(userId)
 
         // 2. 기존 이미지 정리 (기존에 업로드한 커스텀 이미지가 있다면 연관관계를 끊고 DB에 선반영 후 삭제)
         userProfile.authFile?.let { oldFile ->
@@ -136,8 +133,7 @@ class MyPageService (
     // 4. 프로필 이미지 삭제
     @Transactional
     fun deleteProfileImage(userId: Long) {
-        val userProfile = userProfilesRepository.findByUserUserId(userId)
-            ?: throw BusinessException(ErrorCode.USER_NOT_FOUND)
+        val userProfile = getUserProfile(userId);
 
         if (userProfile.authFile == null) {
             throw BusinessException(ErrorCode.ALREADY_DEFAULT_PROFILE)
@@ -159,11 +155,8 @@ class MyPageService (
     // 5. 회원 탈퇴
     @Transactional
     fun withdraw(userId: Long, request: WithdrawalRequest): WithdrawalResponse {
-        val user = userRepository.findByIdOrNull(userId)
-            ?: throw BusinessException(ErrorCode.USER_NOT_FOUND)
-        
-        val authAccount = userAuthAccountRepository.findByUserUserId(userId)
-            ?: throw BusinessException(ErrorCode.USER_NOT_FOUND)
+        val user = getUser(userId)
+        val authAccount = getUserAuthAccount(userId)
 
         // 일반 로그인 유저인 경우 (identifier가 존재하고 소셜 연동이 없는 경우) 비밀번호 검증
         if (authAccount.identifier != null) {
@@ -183,5 +176,20 @@ class MyPageService (
             requestedAt = requestedAtStr,
             scheduledDeletionDate = scheduledDeletionDateStr
         )
+    }
+
+    private fun getUser(userId: Long): Users{
+        return userRepository.findByIdOrNull(userId)
+            ?: throw BusinessException(ErrorCode.USER_NOT_FOUND)
+    }
+
+    private fun getUserProfile(userId: Long): UserProfiles{
+        return userProfilesRepository.findByUserUserId(userId)
+            ?: throw BusinessException(ErrorCode.USER_NOT_FOUND)
+    }
+
+    private fun getUserAuthAccount(userId: Long): UserAuthAccounts{
+        return userAuthAccountRepository.findByUserUserId(userId)
+            ?: throw BusinessException(ErrorCode.USER_NOT_FOUND)
     }
 }
