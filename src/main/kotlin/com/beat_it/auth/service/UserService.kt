@@ -77,18 +77,43 @@ class UserService (
     }
 
     @Transactional(readOnly = true)
-    fun getUserSimpleInfo(userId: Long): UserSimpleInfo {
-        val user = userRepository.findById(userId)
-            .orElseThrow { BusinessException(ErrorCode.USER_NOT_FOUND) }
+    fun getUserSimpleInfos(
+        userIds: List<Long>,
+    ): Map<Long, UserSimpleInfo> {
+        val distinctUserIds = userIds.distinct()
 
-        val profile = getUserProfile(userId)
+        if (distinctUserIds.isEmpty()) {
+            return emptyMap()
+        }
 
-        return UserSimpleInfo(
-            userId = user.userId!!,
-            userPublicId = user.publicId,
-            userName = profile?.name ?: "이름 없음",
-            profileImageUrl = profile?.authFile?.cdnUrl,
-        )
+        val usersById = userRepository
+            .findByUserIdIn(distinctUserIds)
+            .associateBy { user ->
+                user.userId
+                    ?: throw BusinessException(ErrorCode.USER_NOT_FOUND)
+            }
+
+        if (usersById.size != distinctUserIds.size) {
+            throw BusinessException(ErrorCode.USER_NOT_FOUND)
+        }
+
+        val profilesById = getUserProfiles(distinctUserIds)
+            .associateBy { profile ->
+                profile.userId
+            }
+
+        return distinctUserIds.associateWith { userId ->
+            val user = usersById[userId]
+                ?: throw BusinessException(ErrorCode.USER_NOT_FOUND)
+
+            val profile = profilesById[userId]
+
+            UserSimpleInfo(
+                userPublicId = user.publicId,
+                userName = profile?.name ?: "이름 없음",
+                profileImageUrl = profile?.profileImageUrl,
+            )
+        }
     }
 
     @Transactional(readOnly = true)

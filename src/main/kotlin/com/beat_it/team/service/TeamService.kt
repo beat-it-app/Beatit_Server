@@ -318,12 +318,8 @@ class TeamService(
         val memberships = teamMembershipRepository
             .findAllByTeamTeamIdAndLeftAtIsNull(teamId)
 
-        val members = memberships.map { membership ->
-            createTeamMemberInfo(membership)
-        }
-
         return TeamMemberListResponse(
-            members = members
+            members = toTeamMemberInfos(memberships),
         )
     }
 
@@ -459,10 +455,12 @@ class TeamService(
         targetMembership.updateTeamRole(TeamRole.LEADER)
 
         return TeamManageResponse(
-            updatedMembers = listOf(
-                createTeamMemberInfo(targetMembership),
-                createTeamMemberInfo(requesterMembership),
-            )
+            updatedMembers = toTeamMemberInfos(
+                listOf(
+                    targetMembership,
+                    requesterMembership,
+                )
+            ),
         )
     }
 
@@ -480,9 +478,9 @@ class TeamService(
         targetMembership.updateTeamRole(targetRole)
 
         return TeamManageResponse(
-            updatedMembers = listOf(
-                createTeamMemberInfo(targetMembership)
-            )
+            updatedMembers = toTeamMemberInfos(
+                listOf(targetMembership)
+            ),
         )
     }
 
@@ -523,18 +521,26 @@ class TeamService(
         }
     }
 
-    private fun createTeamMemberInfo(
-        membership: TeamMemberships
-    ): TeamMemberInfo  {
-        val userInfo = userService.getUserSimpleInfo(membership.userId)
-
-        return TeamMemberInfo(
-            userId = userInfo.userId,
-            userPublicId = userInfo.userPublicId,
-            userName = userInfo.userName,
-            profileImageUrl = userInfo.profileImageUrl,
-            teamRole = membership.teamRole,
+    private fun toTeamMemberInfos(
+        memberships: List<TeamMemberships>,
+    ): List<TeamMemberInfo> {
+        val userInfoById = userService.getUserSimpleInfos(
+            memberships.map { membership ->
+                membership.userId
+            }
         )
+
+        return memberships.map { membership ->
+            val userInfo = userInfoById[membership.userId]
+                ?: throw BusinessException(ErrorCode.USER_NOT_FOUND)
+
+            TeamMemberInfo(
+                userPublicId = userInfo.userPublicId,
+                userName = userInfo.userName,
+                profileImageUrl = userInfo.profileImageUrl,
+                teamRole = membership.teamRole,
+            )
+        }
     }
 
     private fun validateAndNormalizeInviteCode(inviteCode: String?): String {
