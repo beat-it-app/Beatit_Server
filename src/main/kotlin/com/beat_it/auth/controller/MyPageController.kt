@@ -16,14 +16,7 @@ import org.springframework.http.MediaType
 import org.springframework.http.ResponseEntity
 import org.springframework.security.core.annotation.AuthenticationPrincipal
 import org.springframework.security.core.userdetails.UserDetails
-import org.springframework.web.bind.annotation.DeleteMapping
-import org.springframework.web.bind.annotation.GetMapping
-import org.springframework.web.bind.annotation.PatchMapping
-import org.springframework.web.bind.annotation.RequestBody
-import org.springframework.web.bind.annotation.RequestMapping
-import org.springframework.web.bind.annotation.RequestParam
-import org.springframework.web.bind.annotation.RequestPart
-import org.springframework.web.bind.annotation.RestController
+import org.springframework.web.bind.annotation.*
 import org.springframework.web.multipart.MultipartFile
 
 @Tag(name = "n. MY PAGE API", description = "마이페이지 관련 로직")
@@ -32,7 +25,6 @@ import org.springframework.web.multipart.MultipartFile
 class MyPageController (
     private val myPageService: MyPageService,
 ){
-    // 1. 마이페이지 조회
     @Operation(summary = "마이페이지 조회")
     @GetMapping
     fun getMyPage(@AuthenticationPrincipal userDetails: UserDetails
@@ -46,7 +38,6 @@ class MyPageController (
             .body(BasicResponse.success(data, HttpStatus.OK, "마이페이지 불러오기에 성공했습니다."))
     }
 
-    // 2. 이름 변경
     @Operation(summary = "이름 변경")
     @PatchMapping("/profile/name")
     fun updateName(
@@ -62,7 +53,6 @@ class MyPageController (
             .body(BasicResponse.success(HttpStatus.OK, "이름 변경에 성공했습니다."))
     }
 
-    // 3. 프로필 이미지 변경
     @Operation(summary = "프로필 이미지 변경")
     @PatchMapping("/image", consumes = [MediaType.MULTIPART_FORM_DATA_VALUE])
     fun updateProfileImage(
@@ -79,7 +69,6 @@ class MyPageController (
         )
     }
 
-    // 4. 프로필 이미지 삭제 (기본 이미지로 초기화)
     @Operation(summary = "프로필 이미지 삭제")
     @DeleteMapping("/profile/image")
     fun deleteProfileImage(
@@ -94,7 +83,6 @@ class MyPageController (
         )
     }
 
-    // 5. 회원 탈퇴
     @Operation(summary = "회원 탈퇴")
     @PatchMapping
     fun withdraw(
@@ -110,7 +98,6 @@ class MyPageController (
         )
     }
 
-    // 반복되는 Auth 유저 ID 추출 private 함수
     private fun extractUserId(userDetails: UserDetails): Long {
         return userDetails.username.toLongOrNull()
             ?: throw BusinessException(ErrorCode.UNAUTHORIZED)

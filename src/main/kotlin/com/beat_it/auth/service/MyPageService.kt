@@ -33,7 +33,6 @@ class MyPageService (
     private val fileService: FileService,
     private val passwordEncoder: PasswordEncoder,
 ){
-    // 1. 마이페이지 조회
     fun getMyPage(userId: Long): MyPageResponse {
         val userProfile = getUserProfile(userId)
         val authAccount = getUserAuthAccount(userId)
@@ -75,7 +74,6 @@ class MyPageService (
         )
     }
 
-    // 2. 이름 변경
     @Transactional
     fun updateName(userId: Long, request: UpdateNameRequest) {
         val userProfile = getUserProfile(userId)
@@ -83,13 +81,11 @@ class MyPageService (
         userProfile.updateName(request.name)
     }
 
-    // 3. 프로필 이미지 변경
     @Transactional
     fun updateProfileImage(userId: Long, image: MultipartFile?, defaultImageId: Int?) {
         val hasImage = image != null && !image.isEmpty
         val hasDefaultId = defaultImageId != null
 
-        // 1. 요청 검증 (둘 다 없거나 둘 다 들어온 경우 예외 처리)
         if ((!hasImage && !hasDefaultId) || (hasImage && hasDefaultId)) {
             throw BusinessException(ErrorCode.INVALID_INPUT_VALUE)
         }
@@ -97,7 +93,6 @@ class MyPageService (
         val user = getUser(userId)
         val userProfile = getUserProfile(userId)
 
-        // 2. 기존 이미지 정리 (기존에 업로드한 커스텀 이미지가 있다면 연관관계를 끊고 DB에 선반영 후 삭제)
         userProfile.authFile?.let { oldFile ->
             userProfile.updateProfileImage(null, userProfile.defaultProfileImage)
             userProfilesRepository.saveAndFlush(userProfile)
@@ -107,10 +102,8 @@ class MyPageService (
         }
 
         if (hasImage) {
-            // 새 이미지 업로드
             val uploadResult = fileService.uploadFile(image!!, "profiles/$userId")
-            
-            // 새 AuthFiles 레코드 생성
+
             val newAuthFile = AuthFiles(
                 user = user,
                 originalFileName = uploadResult.originalFileName,
@@ -124,13 +117,11 @@ class MyPageService (
 
             userProfile.updateProfileImage(savedAuthFile, null)
         } else {
-            // 기본 이미지 선택
             val defaultImage = DefaultProfileImage.getByIndex(defaultImageId!!)
             userProfile.updateProfileImage(null, defaultImage)
         }
     }
 
-    // 4. 프로필 이미지 삭제
     @Transactional
     fun deleteProfileImage(userId: Long) {
         val userProfile = getUserProfile(userId);
@@ -139,7 +130,6 @@ class MyPageService (
             throw BusinessException(ErrorCode.ALREADY_DEFAULT_PROFILE)
         }
 
-        // 기존 커스텀 이미지 정리 (연관관계 선해제 후 삭제)
         userProfile.authFile?.let { oldFile ->
             userProfile.updateProfileImage(null, userProfile.defaultProfileImage)
             userProfilesRepository.saveAndFlush(userProfile)
@@ -148,17 +138,14 @@ class MyPageService (
             authFilesRepository.delete(oldFile)
         }
 
-        // 기본 이미지 랜덤 설정
         userProfile.updateProfileImage(null, DefaultProfileImage.getRandom())
     }
 
-    // 5. 회원 탈퇴
     @Transactional
     fun withdraw(userId: Long, request: WithdrawalRequest): WithdrawalResponse {
         val user = getUser(userId)
         val authAccount = getUserAuthAccount(userId)
 
-        // 일반 로그인 유저인 경우 (identifier가 존재하고 소셜 연동이 없는 경우) 비밀번호 검증
         if (authAccount.identifier != null) {
             if (request.password.isNullOrBlank() || !passwordEncoder.matches(request.password, authAccount.password)) {
                 throw BusinessException(ErrorCode.INVALID_PASSWORD)
