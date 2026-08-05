@@ -25,4 +25,9 @@ interface UserRepository : JpaRepository<Users, Long> {
     ): Int
 
     fun findByUserIdIn(userIds: List<Long>): List<Users>
+
+    fun findAllByAccountStatusAndWithdrawnAtBefore(
+        accountStatus: com.beat_it.auth.entity.enum.AccountStatus,
+        withdrawnAt: java.time.OffsetDateTime
+    ): List<Users>
 }
