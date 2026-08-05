@@ -78,6 +78,7 @@ enum class ErrorCode(
     CHAT_ROOM_NOT_FOUND(HttpStatus.NOT_FOUND, "CHAT-003", "채팅방을 찾을 수 없습니다."),
     INVALID_MESSAGE_TYPE(HttpStatus.BAD_REQUEST, "CHAT-004", "올바르지 않은 채팅 메시지 타입입니다."),
     CHAT_MESSAGE_REQUIRED(HttpStatus.BAD_REQUEST, "CHAT-005", "텍스트 메시지 내용은 필수입니다."),
+    CHAT_MEMBER_NOT_FOUND(HttpStatus.NOT_FOUND, "CHAT-006", "채팅방 참여자를 찾을 수 없습니다."),
 
     // --- 5. 공지/투표 관련 에러 (POST) ---
     TITLE_CONTENT_REQUIRED(HttpStatus.BAD_REQUEST, "POST-001", "제목과 내용은 필수 입력 사항입니다."),

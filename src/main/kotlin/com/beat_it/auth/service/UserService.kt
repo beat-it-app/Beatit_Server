@@ -10,6 +10,7 @@ import com.beat_it.auth.repository.UserRepository
 import com.beat_it.global.error.BusinessException
 import com.beat_it.global.error.ErrorCode
 import com.beat_it.global.service.FileService
+import org.springframework.cache.annotation.Cacheable
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import org.springframework.web.multipart.MultipartFile
@@ -106,6 +107,8 @@ class UserService (
     }
 
     @Transactional(readOnly = true)
+    @Cacheable(cacheNames = ["userProfiles"], key = "#userIds.sorted().toString()")
+    //TODO: updateProfile 만들면 @CacheEvict 적용
     fun getUserProfiles(userIds: List<Long>): List<UserProfileResponse> {
         if (userIds.isEmpty()) return emptyList()
 
