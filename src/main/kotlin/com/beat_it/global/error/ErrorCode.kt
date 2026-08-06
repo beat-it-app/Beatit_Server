@@ -105,4 +105,13 @@ enum class ErrorCode(
 
     // --- 멤버 관련 에러 ---
     MEMBER_NOT_FOUND(HttpStatus.NOT_FOUND, "MEMBER-001", "참여 사용자를 찾을 수 없습니다."),
+
+    // --- 팀 클라우드 관련 에러 (TEAM_CLOUD) ---
+    TEAM_CLOUD_FOLDER_NOT_FOUND(HttpStatus.NOT_FOUND, "TEAM_CLOUD-001", "팀 클라우드 폴더를 찾을 수 없습니다."),
+    TEAM_CLOUD_ITEM_NOT_FOUND(HttpStatus.NOT_FOUND, "TEAM_CLOUD-002", "팀 클라우드 아이템을 찾을 수 없습니다."),
+    TEAM_CLOUD_FOLDER_TEAM_MISMATCH(HttpStatus.FORBIDDEN, "TEAM_CLOUD-003", "해당 팀의 폴더가 아닙니다."),
+    TEAM_CLOUD_ITEM_TEAM_MISMATCH(HttpStatus.FORBIDDEN, "TEAM_CLOUD-004", "해당 팀 클라우드 아이템의 팀 정보가 일치하지 않습니다."),
+    TEAM_CLOUD_FILE_NOT_FOUND(HttpStatus.NOT_FOUND, "TEAM_CLOUD-005", "해당 파일 아이템을 찾을 수 없습니다."),
+    TEAM_CLOUD_STORAGE_EXCEEDED(HttpStatus.BAD_REQUEST, "TEAM_CLOUD-006", "팀 클라우드 용량(10GB)이 초과되었습니다."),
+
 }
