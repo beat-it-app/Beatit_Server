@@ -1,4 +1,4 @@
-package com.beat_it.team.entity
+package com.beat_it.team.entity.archive
 
 import com.beat_it.auth.entity.enum.MediaCategory
 import com.beat_it.global.entity.BaseCreatedTimeEntity
@@ -13,7 +13,6 @@ import jakarta.persistence.Id
 import jakarta.persistence.JoinColumn
 import jakarta.persistence.ManyToOne
 import jakarta.persistence.Table
-import java.time.OffsetDateTime
 
 @Entity
 @Table(name = "archives_files")

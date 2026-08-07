@@ -1,8 +1,4 @@
-package com.beat_it.team.dto
-
-import com.beat_it.team.entity.enum.TeamType
-import com.fasterxml.jackson.annotation.JsonProperty
-import java.time.OffsetDateTime
+package com.beat_it.team.dto.archive
 
 data class ArchiveUpdateResponse(
     val archiveId: Long,

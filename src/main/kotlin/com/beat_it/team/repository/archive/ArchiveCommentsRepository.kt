@@ -1,7 +1,6 @@
-package com.beat_it.team.repository
+package com.beat_it.team.repository.archive
 
-import com.beat_it.team.entity.ArchiveComments
-import com.beat_it.team.entity.Archives
+import com.beat_it.team.entity.archive.ArchiveComments
 import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.stereotype.Repository
 

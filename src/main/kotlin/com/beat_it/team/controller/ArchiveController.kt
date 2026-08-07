@@ -3,11 +3,11 @@ package com.beat_it.team.controller
 import com.beat_it.global.error.BusinessException
 import com.beat_it.global.error.ErrorCode
 import com.beat_it.global.response.BasicResponse
-import com.beat_it.team.dto.ArchiveCreateRequest
-import com.beat_it.team.dto.ArchiveCreateResponse
-import com.beat_it.team.dto.ArchiveDetailResponse
-import com.beat_it.team.dto.ArchiveUpdateRequest
-import com.beat_it.team.dto.ArchiveUpdateResponse
+import com.beat_it.team.dto.archive.ArchiveCreateRequest
+import com.beat_it.team.dto.archive.ArchiveCreateResponse
+import com.beat_it.team.dto.archive.ArchiveDetailResponse
+import com.beat_it.team.dto.archive.ArchiveUpdateRequest
+import com.beat_it.team.dto.archive.ArchiveUpdateResponse
 import com.beat_it.team.service.ArchiveService
 import io.swagger.v3.oas.annotations.Operation
 import org.springframework.http.HttpStatus

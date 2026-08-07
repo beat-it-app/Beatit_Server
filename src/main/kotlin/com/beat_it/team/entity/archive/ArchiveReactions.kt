@@ -1,4 +1,4 @@
-package com.beat_it.team.entity
+package com.beat_it.team.entity.archive
 
 import com.beat_it.global.entity.BaseCreatedTimeEntity
 import com.beat_it.team.entity.enum.ReactionType

@@ -1,6 +1,4 @@
-package com.beat_it.team.dto
-
-import java.time.OffsetDateTime
+package com.beat_it.team.dto.archive
 
 data class ArchiveDetailResponse(
     val archiveId: Long,
