@@ -8,4 +8,5 @@ import org.springframework.stereotype.Repository
 interface ArchiveRepository : JpaRepository<Archives, Long> {
     fun findByArchiveId(archiveId: Long): Archives?
 
+    fun findAllByTeamTeamIdOrderByCreatedAtDesc(teamId: Long): List<Archives>
 }

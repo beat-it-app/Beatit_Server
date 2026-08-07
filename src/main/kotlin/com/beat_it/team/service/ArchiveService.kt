@@ -6,15 +6,20 @@ import com.beat_it.global.error.BusinessException
 import com.beat_it.global.error.ErrorCode
 import com.beat_it.global.service.FileService
 import com.beat_it.global.util.DateTimeUtil
-import com.beat_it.team.dto.*
-import com.beat_it.team.entity.Archives
-import com.beat_it.team.entity.ArchivesFiles
+import com.beat_it.team.dto.archive.ArchiveCreateRequest
+import com.beat_it.team.dto.archive.ArchiveCreateResponse
+import com.beat_it.team.dto.archive.ArchiveDetailResponse
+import com.beat_it.team.dto.archive.ArchiveSimpleInfo
+import com.beat_it.team.dto.archive.ArchiveUpdateRequest
+import com.beat_it.team.dto.archive.ArchiveUpdateResponse
+import com.beat_it.team.dto.archive.TeamArchiveListResponse
+import com.beat_it.team.entity.archive.Archives
+import com.beat_it.team.entity.archive.ArchivesFiles
 import com.beat_it.team.entity.Teams
-import com.beat_it.team.repository.ArchiveCommentsRepository
-import com.beat_it.team.repository.ArchiveReactionsRepository
-import com.beat_it.team.repository.ArchiveRepository
-import com.beat_it.team.repository.ArchivesFilesRepository
-import com.beat_it.team.repository.TeamRepository
+import com.beat_it.team.repository.archive.ArchiveCommentsRepository
+import com.beat_it.team.repository.archive.ArchiveReactionsRepository
+import com.beat_it.team.repository.archive.ArchiveRepository
+import com.beat_it.team.repository.archive.ArchivesFilesRepository
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import org.springframework.web.multipart.MultipartFile
@@ -154,6 +159,30 @@ class ArchiveService(
         archivesFilesRepository.deleteAllByArchiveArchiveId(archiveId)
 
         archiveRepository.delete(archive)
+    }
+
+    @Transactional(readOnly = true)
+    fun getTeamArchives(userId: Long): TeamArchiveListResponse {
+        val team = findCurrentTeamForArchiveOrThrow(userId)
+
+        val archives = archiveRepository
+            .findAllByTeamTeamIdOrderByCreatedAtDesc(team.teamId!!)
+            .map { archive ->
+                ArchiveSimpleInfo(
+                    archiveId = archive.archiveId!!,
+                    title = archive.title,
+                    placeName = archive.placeName,
+                    archiveImageUrl = archive.archiveImageUrl,
+                    likeCount = archive.likeCount,
+                    dislikeCount = archive.dislikeCount,
+                    commentCount = archive.commentCount,
+                    createdAt = DateTimeUtil.format(archive.createdAt),
+                )
+            }
+
+        return TeamArchiveListResponse(
+            archives = archives,
+        )
     }
 
     private fun saveArchiveImage(

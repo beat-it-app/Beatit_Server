@@ -8,6 +8,7 @@ import com.beat_it.team.dto.archive.ArchiveCreateResponse
 import com.beat_it.team.dto.archive.ArchiveDetailResponse
 import com.beat_it.team.dto.archive.ArchiveUpdateRequest
 import com.beat_it.team.dto.archive.ArchiveUpdateResponse
+import com.beat_it.team.dto.archive.TeamArchiveListResponse
 import com.beat_it.team.service.ArchiveService
 import io.swagger.v3.oas.annotations.Operation
 import org.springframework.http.HttpStatus
@@ -122,19 +123,25 @@ class ArchiveController(
     }
 
 
-//    @Operation(summary = "연습실 목록 확인하기")
-//    @GetMapping
-//    fun getMyTeamArchives(
-//        @AuthenticationPrincipal userDetails: UserDetails?,
-//    ): ResponseEntity<BasicResponse<UserTeamListResponse>> {
-//        val userId = userDetails?.username?.toLong()
-//            ?: throw BusinessException(ErrorCode.UNAUTHORIZED)
+    @Operation(summary = "연습실 목록 확인하기")
+    @GetMapping
+    fun getTeamArchives(
+        @AuthenticationPrincipal userDetails: UserDetails,
+    ): ResponseEntity<BasicResponse<TeamArchiveListResponse>> {
+        val userId = userDetails.username.toLongOrNull()
+            ?: throw BusinessException(ErrorCode.UNAUTHORIZED)
 
-//        val responseData = archiveService.getTeamArchives(userId)
+        val responseData = archiveService.getTeamArchives(userId)
 
-//        return ResponseEntity.ok(
-//            BasicResponse.success(responseData, HttpStatus.OK, "나의 팀 리스트 조회에 성공했습니다.")
-//        )
-//    }
+        return ResponseEntity
+            .status(HttpStatus.OK)
+            .body(
+                BasicResponse.success(
+                    responseData,
+                    HttpStatus.OK,
+                    "연습실 목록 조회에 성공했습니다.",
+                )
+            )
+    }
 }
 
