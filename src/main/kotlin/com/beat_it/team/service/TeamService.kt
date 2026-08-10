@@ -293,14 +293,13 @@ class TeamService(
 
         // 바꾸고 싶은 역할이 Leader인지, Manager인지 확인해야 함.
         return when (request.targetRole) {
-            // 바꾼 역할이 Leader면, 요청자가 대표인지도 확인한 뒤, 대표에서 운영진으로 변경되는 로직이 필요.
-            TeamRole.LEADER -> changeLeader(
+            TeamRole.LEADER -> changeToLeader(
                 requesterMembership = requesterMembership,
                 targetMembership = targetMembership
             )
 
             TeamRole.MANAGER,
-            TeamRole.MEMBER -> changeManagerRole(
+            TeamRole.MEMBER -> changeToManagerOrMember(
                 requesterMembership = requesterMembership,
                 targetMembership = targetMembership,
                 targetRole = request.targetRole
@@ -442,7 +441,7 @@ class TeamService(
         findActiveMembershipOrThrow(teamId, userId)
     }
 
-    private fun changeLeader(
+    private fun changeToLeader(
         requesterMembership: TeamMemberships,
         targetMembership: TeamMemberships
     ): TeamManageResponse {
@@ -464,7 +463,7 @@ class TeamService(
         )
     }
 
-    private fun changeManagerRole(
+    private fun changeToManagerOrMember(
         requesterMembership: TeamMemberships,
         targetMembership: TeamMemberships,
         targetRole: TeamRole
