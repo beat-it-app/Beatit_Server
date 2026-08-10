@@ -277,21 +277,13 @@ class TeamService(
 
     @Transactional
     fun updateMemberRole(request: TeamManageRequest, userId: Long, userPublicId: UUID): TeamManageResponse {
-        // 유저가 실제 존재하는 유저인지 확인
-        userService.validateUserExists(userId)
-
-        // 요청한 유저가 어떤 팀에 속해있는지 확인 후, 팀 존재 검증
         val teamId = userService.getCurrentTeamId(userId)
-        findTeamForCommandOrThrow(teamId)
 
-        // 팀의 역할을 미리 파악하기 위해 membership 가지고 옴. > 요청자의 role에 따라 허용되는 변경 범위가 달라짐.
         val requesterMembership = findActiveMembershipOrThrow(teamId, userId)
 
-        // 바꾸기를 원하는 타겟 유저 id를 public에서 변경 > target membership도 가지고 오기
         val targetUserId = userService.findUserId(userPublicId)
         val targetMembership = findActiveMembershipOrThrow(teamId, targetUserId)
 
-        // 바꾸고 싶은 역할이 Leader인지, Manager인지 확인해야 함.
         return when (request.targetRole) {
             TeamRole.LEADER -> changeToLeader(
                 requesterMembership = requesterMembership,
