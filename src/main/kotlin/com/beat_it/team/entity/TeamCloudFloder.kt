@@ -3,7 +3,15 @@ package com.beat_it.team.entity
 import jakarta.persistence.*
 
 @Entity
-@Table(name = "team_cloud_folders")
+@Table(
+    name = "team_cloud_folders",
+    uniqueConstraints = [
+        UniqueConstraint(
+            name = "uk_team_folder_name",
+            columnNames = ["team_id", "folder_name"]
+        )
+    ]
+)
 class TeamCloudFolders(
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

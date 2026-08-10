@@ -8,7 +8,8 @@ data class TeamCloudListResponse(
     data class FolderResponse(
         val folderId: Long,
         val folderName: String,
-        val itemCount: Int
+        val itemCount: Int,
+        val creatorName: String
     )
 
     data class ItemResponse(
@@ -17,6 +18,7 @@ data class TeamCloudListResponse(
         val fileSize: Long?,
         val mimeType: String?,
         val linkUrl: String?,
+        val uploaderName: String,
         val createdAt: String
     )
 }

@@ -9,7 +9,7 @@ class TeamCloudItems(
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "team_cloud_item_id")
-    val teamCloudItemsId: Long? = null,
+    val teamCloudItemId: Long? = null,
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "team_id", nullable = false)
@@ -23,8 +23,8 @@ class TeamCloudItems(
     var teamCloudFolder: TeamCloudFolders? = null,
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "teamfiles_id", nullable = true)
-    val teamFiles: TeamFiles? = null,
+    @JoinColumn(name = "team_file_id", nullable = true)
+    val teamFile: TeamFile? = null,
 
     @Column(name = "link_url", length = 1000)
     val linkUrl: String? = null,

@@ -4,8 +4,7 @@ import com.beat_it.global.error.BusinessException
 import com.beat_it.global.error.ErrorCode
 import com.beat_it.global.response.BasicResponse
 import com.beat_it.team.dto.TeamCloudFileDetailResponse
-import com.beat_it.team.dto.TeamCloudFolderCreateRequest
-import com.beat_it.team.dto.TeamCloudFolderUpdateRequest
+import com.beat_it.team.dto.TeamCloudFolderRequest
 import com.beat_it.team.dto.TeamCloudItemsDeleteRequest
 import com.beat_it.team.dto.TeamCloudItemsMoveRequest
 import com.beat_it.team.dto.TeamCloudLinkCreateRequest
@@ -37,7 +36,7 @@ class TeamCloudController(
             .body(BasicResponse.success(response, HttpStatus.OK, "팀 클라우드 목록을 성공적으로 조회했습니다."))
     }
 
-    @GetMapping("/files/{itemId}")
+    @GetMapping("/items/{itemId}")
     fun getTeamCloudFileDetail(
         @PathVariable itemId: Long,
         @AuthenticationPrincipal userDetails: UserDetails
@@ -53,7 +52,7 @@ class TeamCloudController(
     @PostMapping("/folders")
     fun createFolder(
         @AuthenticationPrincipal userDetails: UserDetails,
-        @RequestBody request: TeamCloudFolderCreateRequest
+        @RequestBody request: TeamCloudFolderRequest
     ): ResponseEntity<BasicResponse<Long>> {
         val userId = extractUserId(userDetails)
         val folderId = teamCloudService.createFolder(userId, request)
@@ -67,7 +66,7 @@ class TeamCloudController(
     fun updateFolder(
         @PathVariable folderId: Long,
         @AuthenticationPrincipal userDetails: UserDetails,
-        @RequestBody request: TeamCloudFolderUpdateRequest
+        @RequestBody request: TeamCloudFolderRequest
     ): ResponseEntity<BasicResponse<Nothing?>> {
         val userId = extractUserId(userDetails)
         teamCloudService.updateFolder(userId, folderId, request)

@@ -6,11 +6,11 @@ import jakarta.persistence.*
 
 @Entity
 @Table(name = "team_files")
-class TeamFiles(
+class TeamFile(
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "teamfiles_id")
-    val id: Long? = null,
+    @Column(name = "team_file_id")
+    val teamFileId: Long? = null,
 
     @Column(name = "user_id", nullable = false)
     val userId: Long,

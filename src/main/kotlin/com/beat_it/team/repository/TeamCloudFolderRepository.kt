@@ -7,7 +7,9 @@ import org.springframework.data.jpa.repository.Query
 import org.springframework.stereotype.Repository
 
 @Repository
-interface TeamCloudFoldersRepository : JpaRepository<TeamCloudFolders, Long> {
+interface TeamCloudFolderRepository : JpaRepository<TeamCloudFolders, Long> {
     @Query("SELECT f FROM TeamCloudFolders f WHERE f.team = :team")
     fun findByTeam(team: Teams): List<TeamCloudFolders>
+
+    fun existsByTeamAndFolderName(team: Teams, folderName: String): Boolean
 }
