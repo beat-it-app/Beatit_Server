@@ -2,7 +2,6 @@ package com.beat_it.team.dto
 
 import com.beat_it.team.entity.enum.PlatformCode
 import java.time.LocalDate
-import java.time.OffsetDateTime
 import java.util.UUID
 
 data class TeamDetailResponse(
@@ -30,6 +29,9 @@ data class LinksResponse(
 
 data class PartsResponse(
     val teamPartId: Long,
+    val userPublicId: UUID,
+    val userName: String,
+    val profileImageUrl: String?,
     val partName: String,
     val displayOrder: Int,
 )

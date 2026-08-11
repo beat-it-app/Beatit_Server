@@ -7,6 +7,7 @@ import com.beat_it.global.util.DateTimeUtil
 import com.beat_it.team.dto.*
 import com.beat_it.team.entity.TeamLinks
 import com.beat_it.team.entity.TeamMemberships
+import com.beat_it.team.entity.TeamParts
 import com.beat_it.team.entity.Teams
 import com.beat_it.team.entity.enum.TeamRole
 import com.beat_it.team.repository.TeamLinksRepository
@@ -81,8 +82,17 @@ class TeamService(
         validateTeamUpdatePermission(team.teamId!!, userId)
 
         val currentLinks = teamLinksRepository.findAllByTeamTeamId(team.teamId!!)
+        val currentParts = teamPartsRepository
+            .findAllByTeamTeamIdAndIsActiveTrueOrderByDisplayOrderAscTeamPartIdAsc(teamId)
+        val requestedParts = request.parts?.let { resolvePartRequests(teamId, it) }
 
-        validateTeamDetailChanged(team, request, currentLinks)
+        validateTeamDetailChanged(
+            team = team,
+            request = request,
+            currentLinks = currentLinks,
+            currentParts = currentParts,
+            requestedParts = requestedParts,
+        )
 
         team.updateTeamDetail(
             teamName = request.teamName,
@@ -109,6 +119,8 @@ class TeamService(
             teamLinksRepository.saveAll(newLinks)
         }
 
+        requestedParts?.let { synchronizeTeamParts(team, it) }
+
         val links = teamLinksRepository.findAllByTeamTeamId(teamId)
             .map {
                 LinksResponse(
@@ -118,6 +130,8 @@ class TeamService(
                 )
             }
 
+        val parts = getActivePartResponses(teamId)
+
         return TeamDetailUpdateResponse(
             teamId = teamId,
             teamPublicId = team.publicId,
@@ -125,7 +139,8 @@ class TeamService(
             description = team.description,
             establishedOn = team.establishedOn,
             updatedAt = DateTimeUtil.format(team.updatedAt),
-            links = links
+            links = links,
+            parts = parts,
         )
     }
 
@@ -172,15 +187,7 @@ class TeamService(
                 )
             }
 
-        val parts = teamPartsRepository
-            .findAllByTeamTeamId(teamId)
-            .map {
-                PartsResponse(
-                    teamPartId = it.teamPartId!!,
-                    partName = it.partName,
-                    displayOrder = it.displayOrder,
-                )
-            }
+        val parts = getActivePartResponses(teamId)
 
         return TeamDetailResponse(
             teamId = team.teamId,
@@ -321,7 +328,9 @@ class TeamService(
     private fun validateTeamDetailChanged(
         team: Teams,
         request: TeamDetailUpdateRequest,
-        currentLinks: List<TeamLinks>
+        currentLinks: List<TeamLinks>,
+        currentParts: List<TeamParts>,
+        requestedParts: List<ResolvedPartRequest>?,
     ) {
         val isAnyFieldChanged =
             (request.teamName != null && request.teamName != team.teamName) ||
@@ -333,10 +342,119 @@ class TeamService(
         val isLinksChanged =
             request.links != null && !isLinksSame(currentLinks, request.links)
 
-        if (!isAnyFieldChanged && !isLinksChanged) {
+        val isPartsChanged =
+            requestedParts != null && !isPartsSame(currentParts, requestedParts)
+
+        if (!isAnyFieldChanged && !isLinksChanged && !isPartsChanged) {
             throw BusinessException(ErrorCode.TEAM_NO_CONTENT_TO_UPDATE)
         }
     }
+
+    private fun resolvePartRequests(
+        teamId: Long,
+        requests: List<TeamMemberPartRequest>,
+    ): List<ResolvedPartRequest> {
+        if (requests.isEmpty()) return emptyList()
+
+        val resolvedParts = requests.map { request ->
+            ResolvedPartRequest(
+                userId = userService.findUserId(request.userPublicId),
+                partName = request.partName.trim(),
+                displayOrder = request.displayOrder,
+            )
+        }
+
+        val requestedUserIds = resolvedParts.map { it.userId }
+        val containsDuplicateMember = requestedUserIds.distinct().size != requestedUserIds.size
+
+        if (containsDuplicateMember || !validateMembersInTeam(teamId, requestedUserIds)) {
+            throw BusinessException(ErrorCode.TEAM_UNAVAILABLE)
+        }
+
+        return resolvedParts
+    }
+
+    private fun synchronizeTeamParts(
+        team: Teams,
+        requestedParts: List<ResolvedPartRequest>,
+    ) {
+        val teamId = team.teamId!!
+        val existingParts = teamPartsRepository.findAllByTeamTeamId(teamId)
+        val existingPartByUserId = existingParts.associateBy { it.userId }
+        val requestedUserIds = requestedParts.mapTo(mutableSetOf()) { it.userId }
+
+        existingParts
+            .filter { it.isActive && it.userId !in requestedUserIds }
+            .forEach { it.deactivateTeamPart() }
+
+        val partsToSave = requestedParts.map { requestedPart ->
+            existingPartByUserId[requestedPart.userId]
+                ?.apply {
+                    updateTeamPart(
+                        partName = requestedPart.partName,
+                        displayOrder = requestedPart.displayOrder,
+                    )
+                    activateTeamPart()
+                }
+                ?: TeamParts(
+                    team = team,
+                    userId = requestedPart.userId,
+                    partName = requestedPart.partName,
+                    displayOrder = requestedPart.displayOrder,
+                )
+        }
+
+        teamPartsRepository.saveAll(partsToSave)
+    }
+
+    private fun isPartsSame(
+        currentParts: List<TeamParts>,
+        requestedParts: List<ResolvedPartRequest>,
+    ): Boolean {
+        val current = currentParts
+            .map { Triple(it.userId, it.partName, it.displayOrder) }
+            .sortedWith(compareBy({ it.third }, { it.first }))
+
+        val requested = requestedParts
+            .map { Triple(it.userId, it.partName, it.displayOrder) }
+            .sortedWith(compareBy({ it.third }, { it.first }))
+
+        return current == requested
+    }
+
+    private fun getActivePartResponses(teamId: Long): List<PartsResponse> {
+        val activeMemberIds = teamMembershipRepository
+            .findAllByTeamTeamIdAndLeftAtIsNull(teamId)
+            .mapTo(mutableSetOf()) { it.userId }
+
+        val activeParts = teamPartsRepository
+            .findAllByTeamTeamIdAndIsActiveTrueOrderByDisplayOrderAscTeamPartIdAsc(teamId)
+            .filter { it.userId in activeMemberIds }
+
+        if (activeParts.isEmpty()) return emptyList()
+
+        val userInfoById = userService.getUserSimpleInfos(activeParts.map { it.userId })
+
+        return activeParts.map { part ->
+            val userInfo = userInfoById[part.userId]
+                ?: throw BusinessException(ErrorCode.TEAM_UNAVAILABLE)
+
+            PartsResponse(
+                teamPartId = part.teamPartId!!,
+                userPublicId = userInfo.userPublicId,
+                userName = userInfo.userName,
+                profileImageUrl = userInfo.profileImageUrl,
+                partName = part.partName,
+                displayOrder = part.displayOrder,
+            )
+        }
+    }
+
+    private data class ResolvedPartRequest(
+        val userId: Long,
+        val partName: String,
+        val displayOrder: Int,
+    )
 
     private fun isLinksSame(
         currentLinks: List<TeamLinks>,

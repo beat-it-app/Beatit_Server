@@ -1,22 +1,30 @@
 package com.beat_it.team.entity
 
 import com.beat_it.global.entity.BaseUpdatedTimeEntity
-import com.beat_it.team.entity.enum.TeamRole
 import jakarta.persistence.*
-import java.time.OffsetDateTime
 
 @Entity
-@Table(name = "team_parts")
+@Table(
+    name = "team_parts",
+    uniqueConstraints = [
+        UniqueConstraint(
+            name = "uk_team_parts_team_user",
+            columnNames = ["team_id", "user_id"]
+        )
+    ]
+)
 class TeamParts(
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name="team_part_id", nullable = false)
     val teamPartId: Long? = null,
 
-    //TODO: 팀 ID 연결하기
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "team_id", nullable = false)
     val team: Teams,
+
+    @Column(name = "user_id", nullable = false)
+    val userId: Long,
 
     @Column(name="part_name", nullable = false)
     var partName: String = "",
@@ -28,7 +36,6 @@ class TeamParts(
     var isActive: Boolean = true,
 
     ) : BaseUpdatedTimeEntity() {
-    // TODO: 파트를 추가하는 함수를 넣어야 함.
     fun updateTeamPart(
         partName: String,
         displayOrder: Int,
@@ -41,4 +48,7 @@ class TeamParts(
         this.isActive = false
     }
 
+    fun activateTeamPart() {
+        this.isActive = true
+    }
 }

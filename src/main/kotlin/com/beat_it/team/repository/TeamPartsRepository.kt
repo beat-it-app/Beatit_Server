@@ -11,6 +11,10 @@ interface TeamPartsRepository : JpaRepository<TeamParts, Long> {
         teamId: Long,
     ): List<TeamParts>
 
+    fun findAllByTeamTeamIdAndIsActiveTrueOrderByDisplayOrderAscTeamPartIdAsc(
+        teamId: Long,
+    ): List<TeamParts>
+
     fun deleteAllByTeamTeamId(
         teamId: Long,
     )
