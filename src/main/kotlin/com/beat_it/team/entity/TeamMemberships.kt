@@ -30,6 +30,7 @@ class TeamMemberships(
 
     fun updateTeamRole(teamRole: TeamRole) {
         this.teamRole = teamRole
+        this.updatedAt = OffsetDateTime.now()
     }
 
     fun leaveTeam() {
