@@ -1,6 +1,7 @@
 package com.beat_it.auth.service
 
 import com.beat_it.auth.dto.UserProfileResponse
+import com.beat_it.auth.dto.UserSimpleInfo
 import com.beat_it.auth.entity.AuthFiles
 import com.beat_it.auth.entity.UserProfiles
 import com.beat_it.auth.entity.enum.DefaultProfileImage
@@ -15,6 +16,7 @@ import org.springframework.cache.annotation.Cacheable
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import org.springframework.web.multipart.MultipartFile
+import java.util.UUID
 
 @Service
 class UserService (
@@ -80,10 +82,56 @@ class UserService (
     }
 
     @Transactional(readOnly = true)
+    fun getUserSimpleInfos(
+        userIds: List<Long>,
+    ): Map<Long, UserSimpleInfo> {
+        val distinctUserIds = userIds.distinct()
+
+        if (distinctUserIds.isEmpty()) {
+            return emptyMap()
+        }
+
+        val usersById = userRepository
+            .findByUserIdIn(distinctUserIds)
+            .associateBy { user ->
+                user.userId
+                    ?: throw BusinessException(ErrorCode.USER_NOT_FOUND)
+            }
+
+        if (usersById.size != distinctUserIds.size) {
+            throw BusinessException(ErrorCode.USER_NOT_FOUND)
+        }
+
+        val profilesById = getUserProfiles(distinctUserIds)
+            .associateBy { profile ->
+                profile.userId
+            }
+
+        return distinctUserIds.associateWith { userId ->
+            val user = usersById[userId]
+                ?: throw BusinessException(ErrorCode.USER_NOT_FOUND)
+
+            val profile = profilesById[userId]
+
+            UserSimpleInfo(
+                userPublicId = user.publicId,
+                userName = profile?.name ?: "이름 없음",
+                profileImageUrl = profile?.profileImageUrl,
+            )
+        }
+    }
+
+    @Transactional(readOnly = true)
     fun validateUserExists(userId: Long) {
         if (!userRepository.existsById(userId)) {
             throw BusinessException(ErrorCode.USER_NOT_FOUND)
         }
+    }
+
+    @Transactional(readOnly = true)
+    fun findUserId(userPublicId: UUID): Long {
+        return userRepository.findByPublicId(userPublicId)?.userId
+            ?: throw BusinessException(ErrorCode.USER_NOT_FOUND)
     }
 
     @Transactional(readOnly = true)
