@@ -394,7 +394,7 @@ class TeamService(
 
     private fun findActiveMembershipOrThrow(teamId: Long, userId: Long): TeamMemberships {
         return teamMembershipRepository.findByTeamTeamIdAndUserIdAndLeftAtIsNull(teamId, userId)
-            ?: throw BusinessException(ErrorCode.TEAM_UNAVAILABLE)
+            ?: throw BusinessException(ErrorCode.NOT_TEAM_MEMBER)
     }
 
     private fun validateTeamRole(
