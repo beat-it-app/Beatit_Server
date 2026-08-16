@@ -107,14 +107,11 @@ class AuthService (
 
     @Transactional
     fun googleLogin(dto: SocialLoginRequest): Pair<String, LoginResponse> {
-        // 1. 구글 토큰 검증 및 페이로드 추출
         val googlePayload = googleAuthService.verifyToken(dto.idToken)
 
-        // 2. 가입된 회원인지 확인
         var userAuthAccount = userAuthAccountRepository.findByGoogleId(googlePayload.googleId)
 
         if (userAuthAccount == null) {
-            // 3. 신규 회원이면 회원 등록 진행
             var user = Users.createNewUser(
                 role = Role.USER,
                 accountStatus = AccountStatus.ACTIVE
@@ -139,7 +136,6 @@ class AuthService (
         val user = userAuthAccount.user
         val isCreatedProfile = userProfilesRepository.existsByUser_UserId(user.userId)
 
-        // 4. JWT 토큰 생성
         val accessToken = jwtTokenProvider.createAccessToken(
             userId = user.userId.toString(),
             role = user.role
