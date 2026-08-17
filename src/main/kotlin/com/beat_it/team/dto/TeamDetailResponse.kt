@@ -1,6 +1,7 @@
 package com.beat_it.team.dto
 
 import com.beat_it.team.entity.enum.PlatformCode
+import com.fasterxml.jackson.annotation.JsonProperty
 import java.time.LocalDate
 import java.util.UUID
 
@@ -19,6 +20,17 @@ data class TeamDetailResponse(
     val parts: List<PartsResponse>,
     val archiveCount: Int,
     val cloudItemCount: Int,
+    val upcomingSchedules: List<UpcomingScheduleResponse>,
+)
+
+data class UpcomingScheduleResponse(
+    val scheduleId: Long,
+    val title: String,
+    val startsAt: String,
+    val endsAt: String,
+    val locationId: Long?,
+    @get:JsonProperty("isParticipant")
+    val isParticipant: Boolean,
 )
 
 data class LinksResponse(

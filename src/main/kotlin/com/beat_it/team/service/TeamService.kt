@@ -1,6 +1,7 @@
 package com.beat_it.team.service
 
 import com.beat_it.auth.service.UserService
+import com.beat_it.cal.service.ScheduleService
 import com.beat_it.global.error.BusinessException
 import com.beat_it.global.error.ErrorCode
 import com.beat_it.global.util.DateTimeUtil
@@ -14,8 +15,12 @@ import com.beat_it.team.repository.TeamLinksRepository
 import com.beat_it.team.repository.TeamMembershipRepository
 import com.beat_it.team.repository.TeamPartsRepository
 import com.beat_it.team.repository.TeamRepository
+import org.springframework.beans.factory.ObjectProvider
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+import java.time.OffsetDateTime
+import java.time.YearMonth
+import java.time.ZoneOffset
 import java.util.UUID
 
 @Service
@@ -25,6 +30,7 @@ class TeamService(
     private val teamLinksRepository: TeamLinksRepository,
     private val teamPartsRepository: TeamPartsRepository,
     private val teamMembershipRepository: TeamMembershipRepository,
+    private val scheduleServiceProvider: ObjectProvider<ScheduleService>,
 ) {
 
     @Transactional
@@ -188,6 +194,7 @@ class TeamService(
             }
 
         val parts = getActivePartResponses(teamId)
+        val upcomingSchedules = getUpcomingSchedules(teamId, userId)
 
         return TeamDetailResponse(
             teamId = team.teamId,
@@ -203,7 +210,8 @@ class TeamService(
             links = links,
             parts = parts,
             archiveCount = 0,
-            cloudItemCount = 0
+            cloudItemCount = 0,
+            upcomingSchedules = upcomingSchedules,
         )
     }
 
@@ -489,6 +497,67 @@ class TeamService(
         }
     }
 
+    private fun getUpcomingSchedules(
+        teamId: Long,
+        requesterUserId: Long,
+    ): List<UpcomingScheduleResponse> {
+        val scheduleService = scheduleServiceProvider.getObject()
+        val now = OffsetDateTime.now(TEAM_SCHEDULE_ZONE_OFFSET)
+        val scheduleRangeEnd = now.plusDays(UPCOMING_SCHEDULE_RANGE_DAYS)
+        val formattedNow = DateTimeUtil.format(now)
+        val formattedScheduleRangeEnd = DateTimeUtil.format(scheduleRangeEnd)
+        val upcomingSchedules = mutableListOf<UpcomingScheduleResponse>()
+        val checkedScheduleIds = mutableSetOf<Long>()
+        val activeMemberIds = teamMembershipRepository
+            .findAllByTeamTeamIdAndLeftAtIsNull(teamId)
+            .map { it.userId }
+        val startMonth = YearMonth.from(now)
+        val endMonth = YearMonth.from(scheduleRangeEnd)
+        val targetMonths = generateSequence(startMonth) { it.plusMonths(1) }
+            .takeWhile { !it.isAfter(endMonth) }
+
+        for (targetMonth in targetMonths) {
+            val schedules = activeMemberIds
+                .flatMap { scheduleOwnerId ->
+                    scheduleService.getCalendarSchedules(
+                        userId = scheduleOwnerId,
+                        year = targetMonth.year,
+                        month = targetMonth.monthValue,
+                    ).items
+                }
+                .asSequence()
+                .filter { checkedScheduleIds.add(it.scheduleId) }
+                .filter { it.endsAt >= formattedNow }
+                .filter { it.startsAt < formattedScheduleRangeEnd }
+                .sortedBy { it.startsAt }
+                .toList()
+
+            for (schedule in schedules) {
+                val detail = try {
+                    scheduleService.getScheduleDetail(schedule.scheduleId, requesterUserId)
+                } catch (_: BusinessException) {
+                    // 멤버가 다른 팀에서 만든 일정은 현재 선택한 팀의 상세 응답에서 제외한다.
+                    continue
+                }
+
+                upcomingSchedules += UpcomingScheduleResponse(
+                    scheduleId = detail.scheduleId,
+                    title = detail.title,
+                    startsAt = detail.startsAt,
+                    endsAt = detail.endsAt,
+                    locationId = detail.locationId,
+                    isParticipant = detail.participants.any { it.userId == requesterUserId },
+                )
+
+                if (upcomingSchedules.size == UPCOMING_SCHEDULE_LIMIT) {
+                    return upcomingSchedules
+                }
+            }
+        }
+
+        return upcomingSchedules
+    }
+
     private data class ResolvedPartRequest(
         val userId: Long,
         val partName: String,
@@ -690,5 +759,11 @@ class TeamService(
         val activeMembers = teamMembershipRepository.findAllByTeamTeamIdAndUserIdInAndLeftAtIsNull(teamId, userIds)
         val uniqueUserIdsCount = userIds.distinct().size
         return activeMembers.size == uniqueUserIdsCount
+    }
+
+    companion object {
+        private const val UPCOMING_SCHEDULE_LIMIT = 3
+        private const val UPCOMING_SCHEDULE_RANGE_DAYS = 7L
+        private val TEAM_SCHEDULE_ZONE_OFFSET: ZoneOffset = ZoneOffset.ofHours(9)
     }
 }
