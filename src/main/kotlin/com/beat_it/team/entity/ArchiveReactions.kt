@@ -13,9 +13,18 @@ import jakarta.persistence.Id
 import jakarta.persistence.JoinColumn
 import jakarta.persistence.ManyToOne
 import jakarta.persistence.Table
+import jakarta.persistence.UniqueConstraint
 
 @Entity
-@Table(name = "archive_reactions")
+@Table(
+    name = "archive_reactions",
+    uniqueConstraints = [
+        UniqueConstraint(
+            name = "uk_archive_reactions_archive_user",
+            columnNames = ["archive_id", "user_id"],
+        ),
+    ],
+)
 class ArchiveReactions(
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -33,4 +42,4 @@ class ArchiveReactions(
     @Column(name = "reaction_type", nullable = false)
     val reactionType: ReactionType,
 
-): BaseCreatedTimeEntity() {}
+) : BaseCreatedTimeEntity()

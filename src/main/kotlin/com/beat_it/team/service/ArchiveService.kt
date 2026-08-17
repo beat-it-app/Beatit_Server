@@ -6,15 +6,19 @@ import com.beat_it.global.error.BusinessException
 import com.beat_it.global.error.ErrorCode
 import com.beat_it.global.service.FileService
 import com.beat_it.global.util.DateTimeUtil
+import com.beat_it.post.dto.CommentRequest
+import com.beat_it.post.dto.CommentResponse
 import com.beat_it.team.dto.*
+import com.beat_it.team.entity.ArchiveComments
+import com.beat_it.team.entity.ArchiveReactions
 import com.beat_it.team.entity.Archives
 import com.beat_it.team.entity.ArchivesFiles
 import com.beat_it.team.entity.Teams
+import com.beat_it.team.entity.enum.ReactionType
 import com.beat_it.team.repository.ArchiveCommentsRepository
 import com.beat_it.team.repository.ArchiveReactionsRepository
 import com.beat_it.team.repository.ArchiveRepository
 import com.beat_it.team.repository.ArchivesFilesRepository
-import com.beat_it.team.repository.TeamRepository
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import org.springframework.web.multipart.MultipartFile
@@ -50,7 +54,6 @@ class ArchiveService(
             description = request.description,
             archiveImageUrl = null,
             likeCount = 0,
-            dislikeCount = 0,
             commentCount = 0,
         )
 
@@ -74,12 +77,22 @@ class ArchiveService(
         )
     }
 
-    @Transactional
+    @Transactional(readOnly = true)
     fun getArchiveDetail(userId: Long, archiveId: Long): ArchiveDetailResponse {
-        val team = findCurrentTeamForArchiveOrThrow(userId)
-        val archive = findArchiveOrThrow(archiveId)
+        val archive = findAccessibleArchiveOrThrow(userId, archiveId)
+        val writerProfile = userService.getUserProfile(archive.writerId)
 
-        validateArchiveBelongsToCurrentTeam(team, archive)
+        val myReaction = archiveReactionsRepository
+            .findByArchiveArchiveIdAndUserId(archiveId, userId)
+
+        val comments = archiveCommentsRepository
+            .findAllByArchiveArchiveIdOrderByCreatedAtAsc(archiveId)
+
+        val commentResponses = toCommentResponses(
+            comments = comments,
+            archiveWriterId = archive.writerId,
+            currentUserId = userId,
+        )
 
         return ArchiveDetailResponse(
             archiveId = archive.archiveId!!,
@@ -88,9 +101,15 @@ class ArchiveService(
             description = archive.description,
             archiveImageUrl = archive.archiveImageUrl,
             //TODO: 장소 LocaitonResponse도 추가해야 함.
-            likeCount = archive.likeCount,
-            dislikeCount = archive.dislikeCount,
-            commentCount = archive.commentCount,
+            writerName = writerProfile?.name ?: "알 수 없음",
+            writerProfileImageUrl = writerProfile?.authFile?.cdnUrl,
+            isWriter = archive.writerId == userId,
+            reaction = ArchiveReactionResponse(
+                likeCount = archive.likeCount,
+                isLiked = myReaction?.reactionType == ReactionType.LIKE,
+                commentCount = archive.commentCount,
+            ),
+            commentList = commentResponses,
             createdAt = DateTimeUtil.format(archive.createdAt),
             updatedAt = DateTimeUtil.format(archive.updatedAt),
         )
@@ -106,10 +125,7 @@ class ArchiveService(
         request.title?.let { validateTitle(it) }
         validateDescription(request.description)
 
-        val team = findCurrentTeamForArchiveOrThrow(userId)
-        val archive = findArchiveOrThrow(archiveId)
-
-        validateArchiveBelongsToCurrentTeam(team, archive)
+        val archive = findAccessibleArchiveOrThrow(userId, archiveId)
         validateArchiveUpdatePermission(userId, archive)
         validateArchiveChanged(
             archive = archive,
@@ -143,10 +159,7 @@ class ArchiveService(
 
     @Transactional
     fun deleteArchive(userId: Long, archiveId: Long) {
-        val team = findCurrentTeamForArchiveOrThrow(userId)
-        val archive = findArchiveOrThrow(archiveId)
-
-        validateArchiveBelongsToCurrentTeam(team, archive)
+        val archive = findAccessibleArchiveOrThrow(userId, archiveId)
         validateArchiveDeletePermission(userId, archive)
 
         archiveCommentsRepository.deleteByArchiveArchiveId(archiveId)
@@ -154,6 +167,70 @@ class ArchiveService(
         archivesFilesRepository.deleteAllByArchiveArchiveId(archiveId)
 
         archiveRepository.delete(archive)
+    }
+
+    @Transactional
+    fun toggleLike(userId: Long, archiveId: Long): Boolean {
+        val archive = findAccessibleArchiveOrThrow(userId, archiveId)
+        val existingReaction = archiveReactionsRepository
+            .findByArchiveArchiveIdAndUserId(archiveId, userId)
+
+        if (existingReaction != null) {
+            archiveReactionsRepository.delete(existingReaction)
+            archive.decreaseLike()
+            return false
+        }
+
+        archiveReactionsRepository.save(
+            ArchiveReactions(
+                archive = archive,
+                userId = userId,
+                reactionType = ReactionType.LIKE,
+            )
+        )
+
+        archive.increaseLike()
+        return true
+    }
+
+    @Transactional
+    fun createComment(
+        userId: Long,
+        archiveId: Long,
+        request: CommentRequest,
+    ) {
+        val archive = findAccessibleArchiveOrThrow(userId, archiveId)
+        validateComment(request.content)
+
+        val comment = ArchiveComments.create(
+            archive = archive,
+            userId = userId,
+            content = request.content,
+        )
+
+        archiveCommentsRepository.save(comment)
+        archive.increaseComment()
+    }
+
+    @Transactional
+    fun deleteComment(
+        userId: Long,
+        archiveId: Long,
+        commentId: Long,
+    ) {
+        val archive = findAccessibleArchiveOrThrow(userId, archiveId)
+        val comment = archiveCommentsRepository
+            .findByArchiveCommentIdAndArchiveArchiveId(commentId, archiveId)
+            ?: throw BusinessException(ErrorCode.RESOURCE_NOT_FOUND)
+
+        validateCommentDeletePermission(
+            comment = comment,
+            userId = userId,
+            archiveWriterId = archive.writerId,
+        )
+
+        archiveCommentsRepository.delete(comment)
+        archive.decreaseComment()
     }
 
     private fun saveArchiveImage(
@@ -211,6 +288,37 @@ class ArchiveService(
         archive.updateArchiveImageUrl(savedArchiveFile.cdnUrl)
     }
 
+    private fun toCommentResponses(
+        comments: List<ArchiveComments>,
+        archiveWriterId: Long,
+        currentUserId: Long,
+    ): List<CommentResponse> {
+        return comments.map { comment ->
+            val writerProfile = userService.getUserProfile(comment.userId)
+
+            CommentResponse(
+                commentId = comment.archiveCommentId!!,
+                writerName = writerProfile?.name ?: "알 수 없음",
+                content = comment.content,
+                createdAt = DateTimeUtil.format(comment.createdAt),
+                profileImageUrl = writerProfile?.authFile?.cdnUrl,
+                isWriter = comment.userId == archiveWriterId,
+                isMine = comment.userId == currentUserId,
+            )
+        }
+    }
+
+    private fun findAccessibleArchiveOrThrow(
+        userId: Long,
+        archiveId: Long,
+    ): Archives {
+        val team = findCurrentTeamForArchiveOrThrow(userId)
+        val archive = findArchiveOrThrow(archiveId)
+
+        validateArchiveBelongsToCurrentTeam(team, archive)
+        return archive
+    }
+
     private fun findArchiveOrThrow(archiveId: Long): Archives {
         return archiveRepository.findByArchiveId(archiveId)
             ?: throw BusinessException(ErrorCode.ARCHIVE_NOT_FOUND)
@@ -258,6 +366,22 @@ class ArchiveService(
     private fun validateDescription(description: String?) {
         if ((description?.length ?: 0) > 500) {
             throw BusinessException(ErrorCode.ARCHIVE_DESCRIPTION_TOO_LONG)
+        }
+    }
+
+    private fun validateComment(content: String) {
+        if (content.isBlank() || content.length > 1000) {
+            throw BusinessException(ErrorCode.INVALID_COMMENT_CONTENT)
+        }
+    }
+
+    private fun validateCommentDeletePermission(
+        comment: ArchiveComments,
+        userId: Long,
+        archiveWriterId: Long,
+    ) {
+        if (comment.userId != userId && archiveWriterId != userId) {
+            throw BusinessException(ErrorCode.NOT_AUTHOR)
         }
     }
 

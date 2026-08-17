@@ -3,6 +3,7 @@ package com.beat_it.team.controller
 import com.beat_it.global.error.BusinessException
 import com.beat_it.global.error.ErrorCode
 import com.beat_it.global.response.BasicResponse
+import com.beat_it.post.dto.CommentRequest
 import com.beat_it.team.dto.ArchiveCreateRequest
 import com.beat_it.team.dto.ArchiveCreateResponse
 import com.beat_it.team.dto.ArchiveDetailResponse
@@ -119,6 +120,57 @@ class ArchiveController(
         return ResponseEntity
             .status(HttpStatus.OK)
             .body(BasicResponse.success(archiveDetail, HttpStatus.OK, "연습실 상세 내용 조회에 성공했습니다."))
+    }
+
+    @Operation(summary = "연습실 좋아요 토글")
+    @PostMapping("/{archiveId}/like")
+    fun toggleLike(
+        @AuthenticationPrincipal userDetails: UserDetails,
+        @PathVariable archiveId: Long,
+    ): ResponseEntity<BasicResponse<Boolean>> {
+        val userId = userDetails.username.toLongOrNull()
+            ?: throw BusinessException(ErrorCode.UNAUTHORIZED)
+
+        val isLiked = archiveService.toggleLike(userId, archiveId)
+        val message = if (isLiked) "좋아요를 눌렀습니다." else "좋아요를 취소했습니다."
+
+        return ResponseEntity
+            .status(HttpStatus.OK)
+            .body(BasicResponse.success(isLiked, HttpStatus.OK, message))
+    }
+
+    @Operation(summary = "연습실 댓글 작성하기")
+    @PostMapping("/{archiveId}/comments")
+    fun createComment(
+        @AuthenticationPrincipal userDetails: UserDetails,
+        @PathVariable archiveId: Long,
+        @RequestBody request: CommentRequest,
+    ): ResponseEntity<BasicResponse<Nothing>> {
+        val userId = userDetails.username.toLongOrNull()
+            ?: throw BusinessException(ErrorCode.UNAUTHORIZED)
+
+        archiveService.createComment(userId, archiveId, request)
+
+        return ResponseEntity
+            .status(HttpStatus.OK)
+            .body(BasicResponse.success(HttpStatus.OK, "댓글이 성공적으로 등록되었습니다."))
+    }
+
+    @Operation(summary = "연습실 댓글 삭제하기 - 댓글 작성자 혹은 연습실 작성자만 가능")
+    @DeleteMapping("/{archiveId}/comments/{commentId}")
+    fun deleteComment(
+        @AuthenticationPrincipal userDetails: UserDetails,
+        @PathVariable archiveId: Long,
+        @PathVariable commentId: Long,
+    ): ResponseEntity<BasicResponse<Nothing>> {
+        val userId = userDetails.username.toLongOrNull()
+            ?: throw BusinessException(ErrorCode.UNAUTHORIZED)
+
+        archiveService.deleteComment(userId, archiveId, commentId)
+
+        return ResponseEntity
+            .status(HttpStatus.OK)
+            .body(BasicResponse.success(HttpStatus.OK, "댓글이 성공적으로 삭제되었습니다."))
     }
 
 

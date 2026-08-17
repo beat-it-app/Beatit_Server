@@ -1,7 +1,6 @@
 package com.beat_it.team.entity
 
 import com.beat_it.global.entity.BaseUpdatedTimeEntity
-import com.beat_it.team.entity.enum.TeamType
 import jakarta.persistence.Column
 import jakarta.persistence.Entity
 import jakarta.persistence.FetchType
@@ -11,8 +10,6 @@ import jakarta.persistence.Id
 import jakarta.persistence.JoinColumn
 import jakarta.persistence.ManyToOne
 import jakarta.persistence.Table
-import java.time.LocalDate
-import java.util.UUID
 
 @Entity
 @Table(name = "archives")
@@ -48,9 +45,6 @@ class Archives(
     @Column(name = "like_count", nullable = false)
     var likeCount: Int = 0,
 
-    @Column(name = "dislike_count", nullable = false)
-    var dislikeCount: Int = 0,
-
     @Column(name = "comment_count", nullable = false)
     var commentCount: Int = 0,
 ): BaseUpdatedTimeEntity() {
@@ -69,5 +63,25 @@ class Archives(
 
     fun updateArchiveImageUrl(archiveImageUrl: String?) {
         this.archiveImageUrl = archiveImageUrl
+    }
+
+    fun increaseLike() {
+        likeCount++
+    }
+
+    fun decreaseLike() {
+        if (likeCount > 0) {
+            likeCount--
+        }
+    }
+
+    fun increaseComment() {
+        commentCount++
+    }
+
+    fun decreaseComment() {
+        if (commentCount > 0) {
+            commentCount--
+        }
     }
 }
