@@ -13,12 +13,21 @@ spring:
     properties:
       hibernate:
         format_sql: true
-
   data:
     redis:
       host: localhost
       port: 6379
-
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            client-id: ${GOOGLE_CLIENT_ID}
+            client-secret: ${GOOGLE_CLIENT_PASSWORD}
+            redirect-uri: http://localhost:8080/login/oauth2/code/google
+            scope:
+              - openid
+              - email
 
   kafka:
     bootstrap-servers: localhost:9092

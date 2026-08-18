@@ -4,11 +4,13 @@ import com.beat_it.auth.dto.LoginRequest
 import com.beat_it.auth.dto.LoginResponse
 import com.beat_it.auth.dto.SignUpRequest
 import com.beat_it.auth.dto.SignUpResponse
+import com.beat_it.auth.dto.SocialLoginRequest
 import com.beat_it.auth.entity.UserAuthAccounts
 import com.beat_it.auth.entity.UserSettings
 import com.beat_it.auth.entity.Users
 import com.beat_it.auth.entity.enum.AccountStatus
 import com.beat_it.auth.entity.enum.Role
+import com.beat_it.auth.entity.enum.SocialProvider
 import com.beat_it.auth.repository.UserAuthAccountRepository
 import com.beat_it.auth.repository.UserProfilesRepository
 import com.beat_it.auth.repository.UserRepository
@@ -28,7 +30,8 @@ class AuthService (
     private val userSettingsRepository: UserSettingsRepository,
     private val passwordEncoder: PasswordEncoder,
     private val jwtTokenProvider: JwtTokenProvider,
-    private val userProfilesRepository: UserProfilesRepository
+    private val userProfilesRepository: UserProfilesRepository,
+    private val googleAuthService: GoogleAuthService
 ){
     @Transactional
     fun signUp(dto : SignUpRequest): SignUpResponse {
@@ -88,7 +91,8 @@ class AuthService (
             LoginResponse(
                 userId = user.userId,
                 role = user.role,
-                isCreatedProfile = isCreatedProfile
+                isCreatedProfile = isCreatedProfile,
+                socialProvider = userAuthAccount.socialProvider
             )
         )
     }
@@ -99,6 +103,53 @@ class AuthService (
         } else {
             return true
         }
+    }
+
+    @Transactional
+    fun googleLogin(dto: SocialLoginRequest): Pair<String, LoginResponse> {
+        val googlePayload = googleAuthService.verifyToken(dto.idToken)
+
+        var userAuthAccount = userAuthAccountRepository.findByGoogleId(googlePayload.googleId)
+
+        if (userAuthAccount == null) {
+            var user = Users.createNewUser(
+                role = Role.USER,
+                accountStatus = AccountStatus.ACTIVE
+            )
+            user = userRepository.save(user)
+
+            val userSetting = UserSettings.createNewUser(
+                user,
+                allowAutoLogin = false
+            )
+            userSettingsRepository.save(userSetting)
+
+            userAuthAccount = UserAuthAccounts.createSocialUser(
+                user = user,
+                email = googlePayload.email,
+                socialId = googlePayload.googleId,
+                provider = SocialProvider.GOOGLE
+            )
+            userAuthAccountRepository.save(userAuthAccount)
+        }
+
+        val user = userAuthAccount.user
+        val isCreatedProfile = userProfilesRepository.existsByUser_UserId(user.userId)
+
+        val accessToken = jwtTokenProvider.createAccessToken(
+            userId = user.userId.toString(),
+            role = user.role
+        )
+
+        return Pair(
+            accessToken,
+            LoginResponse(
+                userId = user.userId,
+                role = user.role,
+                isCreatedProfile = isCreatedProfile,
+                socialProvider = SocialProvider.GOOGLE
+            )
+        )
     }
 
     fun sendEmailVerificationCode(email: String): Boolean {

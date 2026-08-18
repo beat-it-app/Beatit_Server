@@ -32,6 +32,7 @@ enum class ErrorCode(
     PROFILE_ALREADY_EXISTS(HttpStatus.BAD_REQUEST, "LOGIN-003", "이미 프로필이 존재합니다."),
     INVALID_NAME_FORMAT(HttpStatus.BAD_REQUEST, "LOGIN-004", "프로필 이름은 1자 이상 10자 이하로 입력해주세요."),
     ALREADY_DEFAULT_PROFILE(HttpStatus.BAD_REQUEST, "LOGIN-005", "이미 기본 프로필 이미지 상태입니다."),
+    INVALID_TOKEN(HttpStatus.BAD_REQUEST, "LOGIN-006", "유효하지 않은 토큰입니다."),
 
     // --- 4. 일정 관련 에러 (CALENDAR) ---
     CALENDAR_NO_CONTENT_TO_UPDATE(HttpStatus.BAD_REQUEST, "CALENDAR-001", "변경할 내용이 없습니다."),
