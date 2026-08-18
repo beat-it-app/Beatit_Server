@@ -17,7 +17,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal
 import org.springframework.security.core.userdetails.UserDetails
 import org.springframework.web.bind.annotation.*
 
-@Tag(name = "5-2. (POST) POLL API", description = "투표 관련 로직")
+@Tag(name = "4-2. (POST) POLL API", description = "투표 관련 로직")
 @RestController
 @RequestMapping("/posts/poll")
 class PollController (

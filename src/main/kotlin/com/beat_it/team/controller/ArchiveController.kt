@@ -20,7 +20,7 @@ import org.springframework.security.core.userdetails.UserDetails
 import org.springframework.web.multipart.MultipartFile
 import tools.jackson.databind.ObjectMapper
 
-@Tag(name = "3-2. TEAM ARCHIVE API", description = "팀 연습실 수정 및 생성 관리 로직")
+@Tag(name = "2-2. TEAM ARCHIVE API", description = "팀 연습실 수정 및 생성 관리 로직")
 @RestController
 @RequestMapping("/teams/archives")
 class ArchiveController(

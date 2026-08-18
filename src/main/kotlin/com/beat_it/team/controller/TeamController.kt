@@ -25,7 +25,7 @@ import io.swagger.v3.oas.annotations.tags.Tag
 import org.springframework.security.core.annotation.AuthenticationPrincipal
 import org.springframework.security.core.userdetails.UserDetails
 
-@Tag(name = "3-1. TEAM API", description = "팀 생성 및 수정 관련 로직")
+@Tag(name = "2-1. TEAM API", description = "팀 생성 및 수정 관련 로직")
 @RestController
 @RequestMapping("/teams")
 class TeamController(

@@ -20,7 +20,7 @@ import org.springframework.security.core.userdetails.UserDetails
 import org.springframework.web.bind.annotation.*
 import org.springframework.web.multipart.MultipartFile
 
-@Tag(name = "5-1. (POST) NOTICE API", description = "공지 관련 로직")
+@Tag(name = "4-1. (POST) NOTICE API", description = "공지 관련 로직")
 @RestController
 @RequestMapping("/posts/notices")
 class NoticeController (
