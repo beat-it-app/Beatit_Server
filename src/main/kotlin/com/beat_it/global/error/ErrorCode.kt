@@ -114,5 +114,7 @@ enum class ErrorCode(
     TEAM_CLOUD_FILE_NOT_FOUND(HttpStatus.NOT_FOUND, "TEAM_CLOUD-005", "해당 파일 아이템을 찾을 수 없습니다."),
     TEAM_CLOUD_STORAGE_EXCEEDED(HttpStatus.BAD_REQUEST, "TEAM_CLOUD-006", "팀 클라우드 용량(10GB)이 초과되었습니다."),
     TEAM_CLOUD_FOLDER_ALREADY_EXISTS(HttpStatus.CONFLICT, "TEAM_CLOUD-006","이미 존재하는 폴더 이름입니다."),
+    TEAM_CLOUD_FILE_UPLOAD_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "TEAM_CLOUD-007", "파일 업로드에 실패했습니다."),
+
 
 }

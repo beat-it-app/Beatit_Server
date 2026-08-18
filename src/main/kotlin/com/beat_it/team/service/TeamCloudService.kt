@@ -1,9 +1,11 @@
 package com.beat_it.team.service
 
+import com.beat_it.auth.dto.UserProfileResponse
 import com.beat_it.auth.service.UserService
 import com.beat_it.global.error.BusinessException
 import com.beat_it.global.error.ErrorCode
 import com.beat_it.global.service.FileService
+import com.beat_it.global.service.FileUploadResult
 import com.beat_it.global.util.DateTimeUtil
 import com.beat_it.team.dto.TeamCloudFileDetailResponse
 import com.beat_it.team.dto.TeamCloudFolderRequest
@@ -11,8 +13,8 @@ import com.beat_it.team.dto.TeamCloudItemsDeleteRequest
 import com.beat_it.team.dto.TeamCloudItemsMoveRequest
 import com.beat_it.team.dto.TeamCloudLinkCreateRequest
 import com.beat_it.team.dto.TeamCloudListResponse
-import com.beat_it.team.entity.TeamCloudFolders
-import com.beat_it.team.entity.TeamCloudItems
+import com.beat_it.team.entity.TeamCloudFolder
+import com.beat_it.team.entity.TeamCloudItem
 import com.beat_it.team.entity.TeamFile
 import com.beat_it.team.entity.Teams
 import com.beat_it.team.entity.enum.MediaCategory
@@ -62,18 +64,8 @@ class TeamCloudService(
                 )
             }
 
-            val itemResponses = rootItems.map { item ->
-                val uploaderProfile = userProfileMap[item.uploaderId]
-                TeamCloudListResponse.ItemResponse(
-                    itemId = item.teamCloudItemId!!,
-                    itemName = item.itemName,
-                    fileSize = item.teamFile?.fileSizeBytes,
-                    mimeType = item.teamFile?.mimeType,
-                    linkUrl = item.linkUrl,
-                    uploaderName = uploaderProfile?.name ?: "알 수 없음",
-                    createdAt = DateTimeUtil.format(item.createdAt)
-                )
-            }
+            val itemResponses = mapToItemResponses(rootItems, userProfileMap)
+
 
             return TeamCloudListResponse(
                 currentFolderName = null,
@@ -89,18 +81,7 @@ class TeamCloudService(
         val uploaderIds = items.map { it.uploaderId }.distinct()
         val userProfileMap = userService.getUserProfiles(uploaderIds).associateBy { it.userId }
 
-        val itemResponses = items.map { item ->
-            val uploaderProfile = userProfileMap[item.uploaderId]
-            TeamCloudListResponse.ItemResponse(
-                itemId = item.teamCloudItemId!!,
-                itemName = item.itemName,
-                fileSize = item.teamFile?.fileSizeBytes,
-                mimeType = item.teamFile?.mimeType,
-                linkUrl = item.linkUrl,
-                uploaderName = uploaderProfile?.name ?: "알 수 없음",
-                createdAt = DateTimeUtil.format(item.createdAt)
-            )
-        }
+        val itemResponses = mapToItemResponses(items, userProfileMap)
 
         return TeamCloudListResponse(
             currentFolderName = targetFolder.folderName,
@@ -147,25 +128,53 @@ class TeamCloudService(
         val fileUploadResult = fileService.uploadFile(file, "team-clouds/$teamId")
         val mediaCategory = determineMediaCategory(fileUploadResult.originalFileName)
 
+        try {
+            return saveTeamCloudFileToDatabase(
+                team = team,
+                userId = userId,
+                targetFolder = targetFolder,
+                fileUploadResult = fileUploadResult,
+                mediaCategory = mediaCategory,
+                fileSize = file.size,
+                contentType = file.contentType,
+                itemName = fileName
+            )
+        } catch (e: Exception) {
+            fileService.deleteFile(fileUploadResult.storageKey)
+            throw BusinessException(ErrorCode.TEAM_CLOUD_FILE_UPLOAD_FAILED)
+        }
+    }
+
+    @Transactional
+    protected fun saveTeamCloudFileToDatabase(
+        team: Teams,
+        userId: Long,
+        targetFolder: TeamCloudFolder?,
+        fileUploadResult: FileUploadResult,
+        mediaCategory: MediaCategory,
+        fileSize: Long,
+        contentType: String?,
+        itemName: String
+    ): Long {
         val teamFile = TeamFile(
             userId = userId,
             originalFileName = fileUploadResult.originalFileName,
             storageKey = fileUploadResult.storageKey,
             cdnUrl = fileUploadResult.cdnUrl,
             mediaCategory = mediaCategory,
-            fileSizeBytes = file.size,
-            mimeType = file.contentType,
+            fileSizeBytes = fileSize,
+            mimeType = contentType,
             isPublic = false
         )
-        val savedteamFile = teamFileRepository.save(teamFile)
+        val savedTeamFile = teamFileRepository.save(teamFile)
 
-        val cloudItem = TeamCloudItems(
+        val cloudItem = TeamCloudItem(
             team = team,
             uploaderId = userId,
             teamCloudFolder = targetFolder,
-            teamFile = savedteamFile,
+            teamFile = savedTeamFile,
             linkUrl = null,
-            itemName = fileName
+            itemName = itemName
         )
         val savedCloudItem = teamCloudItemRepository.save(cloudItem)
 
@@ -182,7 +191,7 @@ class TeamCloudService(
         val team = findTeamOrThrow(teamId)
         val targetFolder = validateAndGetFolder(teamId, folderId)
 
-        val cloudItem = TeamCloudItems(
+        val cloudItem = TeamCloudItem(
             team = team,
             uploaderId = userId,
             teamCloudFolder = targetFolder,
@@ -210,7 +219,6 @@ class TeamCloudService(
         }
     }
 
-    @Transactional
     fun deleteItems(userId: Long, request: TeamCloudItemsDeleteRequest) {
         val teamId = userService.getCurrentTeamId(userId)
 
@@ -222,11 +230,19 @@ class TeamCloudService(
             }
         }
 
-        val storageKeys = items.mapNotNull { it.teamFile?.storageKey }
+        val storageKeys = items.mapNotNull { item ->
+            item.teamFile?.storageKey
+        }
+
         if (storageKeys.isNotEmpty()) {
             fileService.deleteFiles(storageKeys)
         }
 
+        deleteItemsFromDatabase(items)
+    }
+
+    @Transactional
+    protected fun deleteItemsFromDatabase(items: List<TeamCloudItem>) {
         teamCloudItemRepository.deleteAll(items)
     }
 
@@ -239,7 +255,7 @@ class TeamCloudService(
 
         validateDuplicateFolderName(team, request.folderName)
 
-        val folder = TeamCloudFolders(
+        val folder = TeamCloudFolder(
             team = team,
             folderName = request.folderName,
             creatorId = userId
@@ -291,23 +307,23 @@ class TeamCloudService(
             .orElseThrow { BusinessException(ErrorCode.TEAM_UNAVAILABLE) }
     }
 
-    private fun findFolderOrThrow(folderId: Long): TeamCloudFolders {
+    private fun findFolderOrThrow(folderId: Long): TeamCloudFolder {
         return teamCloudFolderRepository.findById(folderId)
             .orElseThrow { BusinessException(ErrorCode.TEAM_CLOUD_FOLDER_NOT_FOUND) }
     }
 
-    private fun findItemOrThrow(itemId: Long): TeamCloudItems {
+    private fun findItemOrThrow(itemId: Long): TeamCloudItem {
         return teamCloudItemRepository.findById(itemId)
             .orElseThrow { BusinessException(ErrorCode.TEAM_CLOUD_ITEM_NOT_FOUND) }
     }
 
-    private fun validateFolderTeam(folder: TeamCloudFolders, teamId: Long) {
+    private fun validateFolderTeam(folder: TeamCloudFolder, teamId: Long) {
         if (folder.team.teamId != teamId) {
             throw BusinessException(ErrorCode.TEAM_CLOUD_FOLDER_TEAM_MISMATCH)
         }
     }
 
-    private fun validateAndGetFolder(teamId: Long, folderId: Long?): TeamCloudFolders? {
+    private fun validateAndGetFolder(teamId: Long, folderId: Long?): TeamCloudFolder? {
         return folderId?.let { id ->
             val folder = findFolderOrThrow(id)
             validateFolderTeam(folder, teamId)
@@ -331,6 +347,24 @@ class TeamCloudService(
         }
         if (teamCloudFolderRepository.existsByTeamAndFolderName(team, newFolderName)) {
             throw BusinessException(ErrorCode.TEAM_CLOUD_FOLDER_ALREADY_EXISTS)
+        }
+    }
+
+    private fun mapToItemResponses(
+        items: List<TeamCloudItem>,
+        userProfileMap: Map<Long, UserProfileResponse>
+    ): List<TeamCloudListResponse.ItemResponse> {
+        return items.map { item ->
+            val uploaderProfile = userProfileMap[item.uploaderId]
+            TeamCloudListResponse.ItemResponse(
+                itemId = item.teamCloudItemId!!,
+                itemName = item.itemName,
+                fileSize = item.teamFile?.fileSizeBytes,
+                mimeType = item.teamFile?.mimeType,
+                linkUrl = item.linkUrl,
+                uploaderName = uploaderProfile?.name ?: "알 수 없음",
+                createdAt = DateTimeUtil.format(item.createdAt)
+            )
         }
     }
 }

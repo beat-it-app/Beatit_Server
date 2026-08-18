@@ -12,7 +12,7 @@ import jakarta.persistence.*
         )
     ]
 )
-class TeamCloudFolders(
+class TeamCloudFolder(
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "team_cloud_folder_id")
@@ -29,7 +29,7 @@ class TeamCloudFolders(
     val creatorId: Long,
 
     @OneToMany(mappedBy = "teamCloudFolder", cascade = [CascadeType.ALL], orphanRemoval = true)
-    val items: MutableList<TeamCloudItems> = mutableListOf()
+    val items: MutableList<TeamCloudItem> = mutableListOf()
 ){
     fun updateFolderName(folderName: String) {
         this.folderName = folderName

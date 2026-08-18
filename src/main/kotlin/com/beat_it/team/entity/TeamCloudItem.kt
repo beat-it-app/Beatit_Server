@@ -5,7 +5,7 @@ import jakarta.persistence.*
 
 @Entity
 @Table(name = "team_cloud_items")
-class TeamCloudItems(
+class TeamCloudItem(
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "team_cloud_item_id")
@@ -20,7 +20,7 @@ class TeamCloudItems(
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "team_cloud_folder_id", nullable = true)
-    var teamCloudFolder: TeamCloudFolders? = null,
+    var teamCloudFolder: TeamCloudFolder? = null,
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "team_file_id", nullable = true)
@@ -33,7 +33,7 @@ class TeamCloudItems(
     val itemName: String
 ) : BaseCreatedTimeEntity() {
 
-    fun changeFolder(folder: TeamCloudFolders?) {
+    fun changeFolder(folder: TeamCloudFolder?) {
         this.teamCloudFolder = folder
     }
 }
