@@ -33,7 +33,7 @@ class ScheduleController(
 
         val userId = userDetails.username.toLongOrNull()
             ?: throw BusinessException(ErrorCode.UNAUTHORIZED)
-        val responseData = scheduleService.createSchedule(userId, request, request.files)
+        val responseData = scheduleService.createSchedule(userId, request)
 
         return ResponseEntity
             .status(HttpStatus.CREATED)

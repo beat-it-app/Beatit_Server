@@ -36,7 +36,7 @@ class ScheduleService(
 ) {
 
     @Transactional
-    fun createSchedule(userId: Long, request: ScheduleCreateRequest, files: List<MultipartFile>?): ScheduleCreateResponse {
+    fun createSchedule(userId: Long, request: ScheduleCreateRequest): ScheduleCreateResponse {
 
         validateScheduleCommon(request.title, request.startsAt, request.endsAt)
 
@@ -51,11 +51,16 @@ class ScheduleService(
             content = request.content,
             locationId = request.locationId,
             startsAt = request.startsAt!!,
-            endsAt = request.endsAt!!,
-            musicTitle = request.musicTitle,
-            musicArtist = request.musicArtist,
-            musicPreviewUrl = request.musicPreviewUrl
+            endsAt = request.endsAt!!
         )
+
+        request.musics.forEach { music ->
+            schedule.addMusic(
+                musicTitle = music.musicTitle,
+                musicArtist = music.musicArtist,
+                musicPreviewUrl = music.musicPreviewUrl
+            )
+        }
 
         if (!request.files.isNullOrEmpty()) {
             val uploadedFiles = fileService.uploadFiles(request.files, "schedules")
@@ -129,17 +134,27 @@ class ScheduleService(
 //            }
 //        }
 
-        val retainIds = request.retainFileIds ?: emptyList()
+        val retainMusicIds = request.retainMusicIds ?: emptyList()
+        schedule.musics.removeIf { it.id !in retainMusicIds }
 
-        val filesToRemove = schedule.files.filter { it.id !in retainIds }
+        request.musics?.forEach { musicRequest ->
+            schedule.addMusic(
+                musicTitle = musicRequest.musicTitle,
+                musicArtist = musicRequest.musicArtist,
+                musicPreviewUrl = musicRequest.musicPreviewUrl
+            )
+        }
+
+        val retainFileIds = request.retainFileIds ?: emptyList()
+
+        val filesToRemove = schedule.files.filter { it.id !in retainFileIds }
         filesToRemove.forEach { file ->
             //TODO: fileService delete 함수 반영 시 주석 제거
             //fileService.deleteFile(file.storageKey)
         }
-        schedule.files.removeIf { it.id !in retainIds }
+        schedule.files.removeIf { it.id !in retainFileIds }
 
         if (!request.files.isNullOrEmpty()) {
-
             val uploadedFiles = fileService.uploadFiles(request.files, "schedules")
             uploadedFiles.forEach { fileResult ->
                 schedule.addFile(
@@ -155,10 +170,7 @@ class ScheduleService(
             content = request.content,
             locationId = request.locationId,
             startsAt = request.startsAt!!,
-            endsAt = request.endsAt!!,
-            musicTitle = request.musicTitle,
-            musicArtist = request.musicArtist,
-            musicPreviewUrl = request.musicPreviewUrl
+            endsAt = request.endsAt!!
         )
 
         return ScheduleCreateResponse(
@@ -298,7 +310,13 @@ class ScheduleService(
         val isParticipantsChanged = request.participantUserIds != null &&
                 !schedule.isParticipantsSame(request.participantUserIds)
 
-        return !(isAnyFieldChanged || isParticipantsChanged)
+        val retainMusicIds = request.retainMusicIds ?: emptyList()
+        val isMusicsChanged = (schedule.musics.size != retainMusicIds.size) || !request.musics.isNullOrEmpty()
+
+        val retainFileIds = request.retainFileIds ?: emptyList()
+        val isFilesChanged = (schedule.files.size != retainFileIds.size) || !request.files.isNullOrEmpty()
+
+        return !(isAnyFieldChanged || isParticipantsChanged || isMusicsChanged || isFilesChanged)
     }
 
     private fun findScheduleOrThrow(scheduleId: Long): Schedule {

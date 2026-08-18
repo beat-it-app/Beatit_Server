@@ -20,9 +20,6 @@ class Schedule(
     @Column(name = "schedule_id")
     val scheduleId: Long? = null,
 
-    @Column(name = "public_id", nullable = false, unique = true)
-    val publicId: UUID = UUID.randomUUID(),
-
     @Column(name = "team_id", nullable = false)
     val teamId: Long,
 
@@ -42,16 +39,7 @@ class Schedule(
     var locationId: Long? = null,
 
     @Column(length = 500)
-    var content: String? = null,
-
-    @Column(name = "music_title")
-    var musicTitle: String? = null,
-
-    @Column(name = "music_artist")
-    var musicArtist: String? = null,
-
-    @Column(name = "music_preview_url")
-    var musicPreviewUrl: String? = null
+    var content: String? = null
 
 ) : BaseUpdatedTimeEntity() {
 
@@ -62,6 +50,8 @@ class Schedule(
     @OneToMany(mappedBy = "schedule", cascade = [CascadeType.ALL], orphanRemoval = true)
     val files: MutableList<ScheduleFile> = mutableListOf()
 
+    @OneToMany(mappedBy = "schedule", cascade = [CascadeType.ALL], orphanRemoval = true)
+    val musics: MutableList<ScheduleMusic> = mutableListOf()
 
     fun addParticipant(participantUserId: Long) {
         val participant = ScheduleParticipant(
@@ -69,32 +59,6 @@ class Schedule(
             userId = participantUserId
         )
         this.participants.add(participant)
-    }
-
-    fun update(
-        title: String,
-        content: String?,
-        locationId: Long?,
-        startsAt: OffsetDateTime,
-        endsAt: OffsetDateTime,
-        musicTitle: String?,
-        musicArtist: String?,
-        musicPreviewUrl: String?
-    ) {
-        this.title = title
-        this.content = content
-        this.locationId = locationId
-        this.startsAt = startsAt
-        this.endsAt = endsAt
-        this.musicTitle = musicTitle
-        this.musicArtist = musicArtist
-        this.musicPreviewUrl = musicPreviewUrl
-    }
-
-    fun isParticipantsSame(targetIds: List<Long>): Boolean {
-        val currentIds = this.participants.map { it.userId }.sorted()
-        val newIds = targetIds.sorted()
-        return currentIds == newIds
     }
 
     fun addFile(originalFileName: String, storageKey: String, cdnUrl: String) {
@@ -105,5 +69,35 @@ class Schedule(
             cdnUrl = cdnUrl
         )
         this.files.add(scheduleFile)
+    }
+
+    fun addMusic(musicTitle: String?, musicArtist: String?, musicPreviewUrl: String?) {
+        val scheduleMusic = ScheduleMusic(
+            schedule = this,
+            musicTitle = musicTitle,
+            musicArtist = musicArtist,
+            musicPreviewUrl = musicPreviewUrl
+        )
+        this.musics.add(scheduleMusic)
+    }
+
+    fun update(
+        title: String,
+        content: String?,
+        locationId: Long?,
+        startsAt: OffsetDateTime,
+        endsAt: OffsetDateTime
+    ) {
+        this.title = title
+        this.content = content
+        this.locationId = locationId
+        this.startsAt = startsAt
+        this.endsAt = endsAt
+    }
+
+    fun isParticipantsSame(targetIds: List<Long>): Boolean {
+        val currentIds = this.participants.map { it.userId }.sorted()
+        val newIds = targetIds.sorted()
+        return currentIds == newIds
     }
 }

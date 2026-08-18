@@ -1,8 +1,13 @@
 package com.beat_it.cal.dto
 
-import com.fasterxml.jackson.annotation.JsonProperty
 import org.springframework.web.multipart.MultipartFile
 import java.time.OffsetDateTime
+
+data class MusicRequest(
+    val musicTitle: String,
+    val musicArtist: String,
+    val musicPreviewUrl: String?
+)
 
 data class ScheduleUpdateRequest(
     val locationId: Long?,
@@ -11,9 +16,8 @@ data class ScheduleUpdateRequest(
     val startsAt: OffsetDateTime?,
     val endsAt: OffsetDateTime?,
     val participantUserIds: List<Long>?,
-    val musicTitle: String?,
-    val musicArtist: String?,
-    val musicPreviewUrl: String?,
+    val musics: List<MusicRequest>?,
+    val retainMusicIds: List<Long>?,
     val files: List<MultipartFile>? = null,
     val retainFileIds: List<Long>? = null
 )
