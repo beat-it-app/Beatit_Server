@@ -20,9 +20,6 @@ class Schedule(
     @Column(name = "schedule_id")
     val scheduleId: Long? = null,
 
-    @Column(name = "public_id", nullable = false, unique = true)
-    val publicId: UUID = UUID.randomUUID(),
-
     @Column(name = "team_id", nullable = false)
     val teamId: Long,
 
@@ -50,6 +47,11 @@ class Schedule(
     val participants: MutableList<ScheduleParticipant> = mutableListOf()
 
     // TODO: S3 연동 후 File 엔티티와 연관관계 매핑 (1:N)
+    @OneToMany(mappedBy = "schedule", cascade = [CascadeType.ALL], orphanRemoval = true)
+    val files: MutableList<ScheduleFile> = mutableListOf()
+
+    @OneToMany(mappedBy = "schedule", cascade = [CascadeType.ALL], orphanRemoval = true)
+    val musics: MutableList<ScheduleMusic> = mutableListOf()
 
     fun addParticipant(participantUserId: Long) {
         val participant = ScheduleParticipant(
@@ -57,6 +59,26 @@ class Schedule(
             userId = participantUserId
         )
         this.participants.add(participant)
+    }
+
+    fun addFile(originalFileName: String, storageKey: String, cdnUrl: String) {
+        val scheduleFile = ScheduleFile(
+            schedule = this,
+            originalFileName = originalFileName,
+            storageKey = storageKey,
+            cdnUrl = cdnUrl
+        )
+        this.files.add(scheduleFile)
+    }
+
+    fun addMusic(musicTitle: String?, musicArtist: String?, musicPreviewUrl: String?) {
+        val scheduleMusic = ScheduleMusic(
+            schedule = this,
+            musicTitle = musicTitle,
+            musicArtist = musicArtist,
+            musicPreviewUrl = musicPreviewUrl
+        )
+        this.musics.add(scheduleMusic)
     }
 
     fun update(
