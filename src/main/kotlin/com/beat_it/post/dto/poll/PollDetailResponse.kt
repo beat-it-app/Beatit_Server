@@ -4,6 +4,7 @@ import com.beat_it.post.dto.CommentResponse
 import com.beat_it.post.entity.enum.PollType
 import com.fasterxml.jackson.annotation.JsonSubTypes
 import com.fasterxml.jackson.annotation.JsonTypeInfo
+import java.math.BigDecimal
 
 data class PollDetailResponse(
     val pollId: Long,
@@ -60,5 +61,12 @@ data class LocationItemResponse(
     override val itemId: Long,
     override val voteCount: Int,
     override val isVoted: Boolean,
-    val location: String
+    val location: String,
+    val locationId: Long? = null,
+    val locationName: String? = null,
+    val roadAddress: String? = null,
+    val detailAddress: String? = null,
+    val latitude: BigDecimal? = null,
+    val longitude: BigDecimal? = null,
+    val mapUrl: String? = null
 ) : PollItemResponse

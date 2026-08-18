@@ -1,6 +1,6 @@
-package com.beat_it.map.repository
+package com.beat_it.location.repository
 
-import com.beat_it.map.entity.Locations
+import com.beat_it.location.entity.Locations
 import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.stereotype.Repository
 import java.util.UUID

@@ -1,4 +1,4 @@
-package com.beat_it.map.entity
+package com.beat_it.location.entity
 
 import com.beat_it.global.entity.BaseUpdatedTimeEntity
 import jakarta.persistence.*

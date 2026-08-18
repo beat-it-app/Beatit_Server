@@ -17,5 +17,6 @@ data class PollRequest(
 data class PollItemRequest(
     val content: String? = null,
     val music: String? = null,
-    val location: String? = null
+    val location: String? = null,
+    val locationId: Long? = null
 )
