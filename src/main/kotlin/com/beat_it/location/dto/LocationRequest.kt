@@ -5,8 +5,10 @@ import java.math.BigDecimal
 data class LocationRequest(
     val locationName: String?,
     val roadAddress: String?,
-    val detailAddress: String?,
     val latitude: BigDecimal?,
     val longitude: BigDecimal?,
-    val mapUrl: String?
+    val mapUrl: String?,
+    val phone: String?,
+    val kakaoPlaceId: String?,
+    val jibunAddress: String?
 )

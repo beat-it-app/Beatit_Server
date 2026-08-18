@@ -152,10 +152,12 @@ class PollService(
                     locationId = option.location?.locationId,
                     locationName = option.location?.locationName,
                     roadAddress = option.location?.roadAddress,
-                    detailAddress = option.location?.detailAddress,
                     latitude = option.location?.latitude,
                     longitude = option.location?.longitude,
-                    mapUrl = option.location?.mapUrl
+                    mapUrl = option.location?.mapUrl,
+                    phone = option.location?.phone,
+                    kakaoPlaceId = option.location?.kakaoPlaceId,
+                    jibunAddress = option.location?.jibunAddress
                 )
             }
         }

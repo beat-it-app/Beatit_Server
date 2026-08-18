@@ -25,9 +25,6 @@ class Locations(
     @Column(name = "road_address", length = 255)
     var roadAddress: String? = null,
 
-    @Column(name = "detail_address", length = 255)
-    var detailAddress: String? = null,
-
     @Column(name = "latitude", precision = 10, scale = 7)
     var latitude: BigDecimal? = null,
 
@@ -36,21 +33,34 @@ class Locations(
 
     @Column(name = "map_url", length = 500)
     var mapUrl: String? = null,
+
+    @Column(name = "phone", length = 50)
+    var phone: String? = null,
+
+    @Column(name = "kakao_place_id", length = 50)
+    var kakaoPlaceId: String? = null,
+
+    @Column(name = "jibun_address", length = 255)
+    var jibunAddress: String? = null,
 ) : BaseUpdatedTimeEntity() {
 
     fun updateLocation(
         locationName: String?,
         roadAddress: String?,
-        detailAddress: String?,
         latitude: BigDecimal?,
         longitude: BigDecimal?,
-        mapUrl: String?
+        mapUrl: String?,
+        phone: String?,
+        kakaoPlaceId: String?,
+        jibunAddress: String?
     ) {
         locationName?.let { this.locationName = it }
         roadAddress?.let { this.roadAddress = it }
-        detailAddress?.let { this.detailAddress = it }
         latitude?.let { this.latitude = it }
         longitude?.let { this.longitude = it }
         mapUrl?.let { this.mapUrl = it }
+        phone?.let { this.phone = it }
+        kakaoPlaceId?.let { this.kakaoPlaceId = it }
+        jibunAddress?.let { this.jibunAddress = it }
     }
 }

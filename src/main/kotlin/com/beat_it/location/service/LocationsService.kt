@@ -32,10 +32,12 @@ class LocationsService(
             userId = userId,
             locationName = request.locationName,
             roadAddress = request.roadAddress,
-            detailAddress = request.detailAddress,
             latitude = request.latitude,
             longitude = request.longitude,
-            mapUrl = request.mapUrl
+            mapUrl = request.mapUrl,
+            phone = request.phone,
+            kakaoPlaceId = request.kakaoPlaceId,
+            jibunAddress = request.jibunAddress
         )
         val saved = locationsRepository.save(location)
         return LocationResponse.from(saved)
@@ -49,7 +51,11 @@ class LocationsService(
     }
 
     @Transactional(readOnly = true)
-    fun searchLocations(query: String): List<LocationSearchResponse> {
+    fun searchLocations(
+        query: String,
+        latitude: BigDecimal? = null,
+        longitude: BigDecimal? = null
+    ): List<LocationSearchResponse> {
         if (kakaoRestApiKey.isBlank()) {
             throw BusinessException(ErrorCode.INVALID_REQUEST_BODY)
         }
@@ -59,20 +65,34 @@ class LocationsService(
                 uriBuilder
                     .path("/v2/local/search/keyword.json")
                     .queryParam("query", query)
+                    .apply {
+                        if (longitude != null) queryParam("x", longitude.toPlainString())
+                        if (latitude != null) queryParam("y", latitude.toPlainString())
+                        if (longitude != null && latitude != null) queryParam("sort", "distance")
+                    }
                     .build()
             }
             .retrieve()
             .body(KakaoSearchResponse::class.java)
 
-        return response?.documents?.map { doc ->
+        val searchResults = response?.documents?.map { doc ->
             LocationSearchResponse(
                 locationName = doc.placeName,
                 roadAddress = doc.roadAddressName.ifBlank { doc.addressName },
-                detailAddress = if (doc.roadAddressName.isNotBlank() && doc.addressName != doc.roadAddressName) doc.addressName else null,
                 latitude = BigDecimal(doc.y),
                 longitude = BigDecimal(doc.x),
-                mapUrl = doc.placeUrl
+                mapUrl = doc.placeUrl,
+                phone = doc.phone,
+                kakaoPlaceId = doc.id,
+                jibunAddress = doc.addressName,
+                distance = doc.distance
             )
         } ?: emptyList()
+
+        return if (longitude != null && latitude != null) {
+            searchResults.sortedBy { it.distance?.toIntOrNull() ?: Int.MAX_VALUE }
+        } else {
+            searchResults
+        }
     }
 }

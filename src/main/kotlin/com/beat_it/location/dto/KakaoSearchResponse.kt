@@ -8,6 +8,9 @@ data class KakaoSearchResponse(
 )
 
 data class KakaoDocument(
+    @JsonProperty("id")
+    val id: String,
+
     @JsonProperty("place_name")
     val placeName: String,
     
@@ -17,6 +20,9 @@ data class KakaoDocument(
     @JsonProperty("address_name")
     val addressName: String,
     
+    @JsonProperty("category_name")
+    val categoryName: String,
+
     @JsonProperty("x")
     val x: String,
     
@@ -24,5 +30,11 @@ data class KakaoDocument(
     val y: String,
     
     @JsonProperty("place_url")
-    val placeUrl: String
+    val placeUrl: String,
+
+    @JsonProperty("phone")
+    val phone: String? = null,
+
+    @JsonProperty("distance")
+    val distance: String? = null
 )

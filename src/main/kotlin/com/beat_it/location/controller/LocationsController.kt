@@ -15,6 +15,8 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal
 import org.springframework.security.core.userdetails.UserDetails
 import org.springframework.web.bind.annotation.*
 
+import java.math.BigDecimal
+
 @Tag(name = "7. LOCATION API", description = "장소 등록 및 조회 API")
 @RestController
 @RequestMapping("/locations")
@@ -41,9 +43,11 @@ class LocationsController(
     @Operation(summary = "장소 키워드로 검색하기 (카카오 로컬 API 프록시)")
     @GetMapping("/search")
     fun searchLocations(
-        @RequestParam query: String
+        @RequestParam query: String,
+        @RequestParam(required = false) latitude: BigDecimal?,
+        @RequestParam(required = false) longitude: BigDecimal?
     ): ResponseEntity<BasicResponse<List<LocationSearchResponse>>> {
-        val responseData = locationsService.searchLocations(query)
+        val responseData = locationsService.searchLocations(query, latitude, longitude)
 
         return ResponseEntity
             .status(HttpStatus.OK)

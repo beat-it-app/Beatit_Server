@@ -9,10 +9,12 @@ data class LocationResponse(
     val publicId: UUID,
     val locationName: String?,
     val roadAddress: String?,
-    val detailAddress: String?,
     val latitude: BigDecimal?,
     val longitude: BigDecimal?,
-    val mapUrl: String?
+    val mapUrl: String?,
+    val phone: String?,
+    val kakaoPlaceId: String?,
+    val jibunAddress: String?
 ) {
     companion object {
         fun from(location: Locations): LocationResponse {
@@ -21,10 +23,12 @@ data class LocationResponse(
                 publicId = location.publicId,
                 locationName = location.locationName,
                 roadAddress = location.roadAddress,
-                detailAddress = location.detailAddress,
                 latitude = location.latitude,
                 longitude = location.longitude,
-                mapUrl = location.mapUrl
+                mapUrl = location.mapUrl,
+                phone = location.phone,
+                kakaoPlaceId = location.kakaoPlaceId,
+                jibunAddress = location.jibunAddress
             )
         }
     }

@@ -1,7 +1,9 @@
 package com.beat_it.global.response
 
+import com.fasterxml.jackson.annotation.JsonInclude
 import org.springframework.http.HttpStatus
 
+@JsonInclude(JsonInclude.Include.NON_NULL)
 data class BasicResponse<T>(
     val success: Boolean,
     val status: Any,

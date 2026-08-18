@@ -65,8 +65,10 @@ data class LocationItemResponse(
     val locationId: Long? = null,
     val locationName: String? = null,
     val roadAddress: String? = null,
-    val detailAddress: String? = null,
     val latitude: BigDecimal? = null,
     val longitude: BigDecimal? = null,
-    val mapUrl: String? = null
+    val mapUrl: String? = null,
+    val phone: String? = null,
+    val kakaoPlaceId: String? = null,
+    val jibunAddress: String? = null
 ) : PollItemResponse
