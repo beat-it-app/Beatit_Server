@@ -14,7 +14,7 @@ import org.springframework.security.core.userdetails.UserDetails
 import org.springframework.web.bind.annotation.*
 import org.springframework.web.multipart.MultipartFile
 
-@Tag(name = "2. USER API", description = "사용자 정보 관련 로직")
+@Tag(name = "1-2. USER API", description = "사용자 정보 관련 로직")
 @RestController
 @RequestMapping("/users")
 class UserController (

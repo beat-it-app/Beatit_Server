@@ -12,7 +12,7 @@ import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.*
 
-@Tag(name = "1. AUTH API", description = "회원가입 및 로그인 로직")
+@Tag(name = "1-1. AUTH API", description = "회원가입 및 로그인 로직")
 @RestController
 @RequestMapping("/auth")
 @SecurityRequirements()
