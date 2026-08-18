@@ -32,8 +32,16 @@ class UserAuthAccounts(
 
     @Column(name = "google_id")
     var googleId: String? = null,
-    ) {
-        companion object {
+) {
+    val socialProvider: SocialProvider?
+        get() = when {
+            kakaoId != null -> SocialProvider.KAKAO
+            naverId != null -> SocialProvider.NAVER
+            googleId != null -> SocialProvider.GOOGLE
+            else -> null
+        }
+
+    companion object {
             fun createNormalUser(
                 user: Users,
                 identifier: String,

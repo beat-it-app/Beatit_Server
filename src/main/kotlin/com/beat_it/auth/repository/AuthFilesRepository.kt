@@ -6,4 +6,5 @@ import org.springframework.stereotype.Repository
 
 @Repository
 interface AuthFilesRepository : JpaRepository<AuthFiles, Long> {
+    fun findAllByUser_UserId(userId: Long): List<AuthFiles>
 }

@@ -9,6 +9,7 @@ enum class ErrorCode(
 ) {
     // --- 공통 에러 (COMMON) ---
     INVALID_REQUEST_BODY(HttpStatus.BAD_REQUEST, "COMMON-001", "요청 본문이 올바르지 않습니다."),
+    INVALID_INPUT_VALUE(HttpStatus.BAD_REQUEST, "COMMON-008", "올바르지 않은 입력값입니다."),
     UNAUTHORIZED(HttpStatus.UNAUTHORIZED, "COMMON-002", "로그인이 필요한 서비스입니다."),
     RESOURCE_NOT_FOUND(HttpStatus.NOT_FOUND, "COMMON-003", "찾을 수 없는 리소스입니다."),
     INTERNAL_SERVER_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "COMMON-004", "서버 내부 오류가 발생했습니다."),
@@ -30,6 +31,8 @@ enum class ErrorCode(
     INVALID_PASSWORD(HttpStatus.BAD_REQUEST, "LOGIN-002", "비밀번호가 일치하지 않습니다."),
     PROFILE_ALREADY_EXISTS(HttpStatus.BAD_REQUEST, "LOGIN-003", "이미 프로필이 존재합니다."),
     INVALID_NAME_FORMAT(HttpStatus.BAD_REQUEST, "LOGIN-004", "프로필 이름은 1자 이상 10자 이하로 입력해주세요."),
+    ALREADY_DEFAULT_PROFILE(HttpStatus.BAD_REQUEST, "LOGIN-005", "이미 기본 프로필 이미지 상태입니다."),
+    INVALID_TOKEN(HttpStatus.BAD_REQUEST, "LOGIN-006", "유효하지 않은 토큰입니다."),
 
     // --- 4. 일정 관련 에러 (CALENDAR) ---
     CALENDAR_NO_CONTENT_TO_UPDATE(HttpStatus.BAD_REQUEST, "CALENDAR-001", "변경할 내용이 없습니다."),
@@ -78,6 +81,7 @@ enum class ErrorCode(
     CHAT_ROOM_NOT_FOUND(HttpStatus.NOT_FOUND, "CHAT-003", "채팅방을 찾을 수 없습니다."),
     INVALID_MESSAGE_TYPE(HttpStatus.BAD_REQUEST, "CHAT-004", "올바르지 않은 채팅 메시지 타입입니다."),
     CHAT_MESSAGE_REQUIRED(HttpStatus.BAD_REQUEST, "CHAT-005", "텍스트 메시지 내용은 필수입니다."),
+    CHAT_MEMBER_NOT_FOUND(HttpStatus.NOT_FOUND, "CHAT-006", "채팅방 참여자를 찾을 수 없습니다."),
 
     // --- 5. 공지/투표 관련 에러 (POST) ---
     TITLE_CONTENT_REQUIRED(HttpStatus.BAD_REQUEST, "POST-001", "제목과 내용은 필수 입력 사항입니다."),

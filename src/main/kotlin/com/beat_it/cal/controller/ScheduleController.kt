@@ -18,7 +18,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal
 import org.springframework.security.core.userdetails.UserDetails
 import org.springframework.web.bind.annotation.*
 
-@Tag(name = "4. CALENDAR API", description = "일정 관련 로직")
+@Tag(name = "3. CALENDAR API", description = "일정 관련 로직")
 @RestController
 @RequestMapping("/calendar")
 class ScheduleController(

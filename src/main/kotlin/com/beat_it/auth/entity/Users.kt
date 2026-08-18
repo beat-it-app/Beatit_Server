@@ -48,4 +48,9 @@ class Users (
     fun updateCurrentTeam(teamId: Long?) {
         this.currentTeamId = teamId
     }
+
+    fun withdraw() {
+        this.accountStatus = AccountStatus.WITHDRAWN
+        this.withdrawnAt = OffsetDateTime.now()
+    }
 }

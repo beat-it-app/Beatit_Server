@@ -1,8 +1,10 @@
 package com.beat_it.auth.service
 
 import com.beat_it.auth.dto.UserProfileResponse
+import com.beat_it.auth.dto.UserSimpleInfo
 import com.beat_it.auth.entity.AuthFiles
 import com.beat_it.auth.entity.UserProfiles
+import com.beat_it.auth.entity.enum.DefaultProfileImage
 import com.beat_it.auth.entity.enum.MediaCategory
 import com.beat_it.auth.repository.AuthFilesRepository
 import com.beat_it.auth.repository.UserProfilesRepository
@@ -10,9 +12,11 @@ import com.beat_it.auth.repository.UserRepository
 import com.beat_it.global.error.BusinessException
 import com.beat_it.global.error.ErrorCode
 import com.beat_it.global.service.FileService
+import org.springframework.cache.annotation.Cacheable
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import org.springframework.web.multipart.MultipartFile
+import java.util.UUID
 
 @Service
 class UserService (
@@ -22,7 +26,7 @@ class UserService (
     private val fileService: FileService
 ) {
     @Transactional
-    fun createProfile(userId: Long, name: String, profileImage: MultipartFile?) {
+    fun createProfile(userId: Long, name: String, profileImage: MultipartFile?, defaultImageId: Int?) {
         validateName(name)
 
         if (userProfilesRepository.existsByUser_UserId(userId)) {
@@ -32,8 +36,18 @@ class UserService (
         val user = userRepository.findById(userId).orElse(null)
             ?: throw BusinessException(ErrorCode.USER_NOT_FOUND)
 
-        val savedAuthFile = if (profileImage != null) {
-            val uploadedResult = fileService.uploadFiles(listOf(profileImage), "profile").first()
+        var savedAuthFile: AuthFiles? = null
+        var defaultProfileImage: DefaultProfileImage? = null
+
+        val hasImage = profileImage != null && !profileImage.isEmpty
+        val hasDefaultId = defaultImageId != null
+
+        if (hasImage && hasDefaultId) {
+            throw BusinessException(ErrorCode.INVALID_INPUT_VALUE)
+        }
+
+        if (hasImage) {
+            val uploadedResult = fileService.uploadFiles(listOf(profileImage!!), "profile").first()
             
             val authFile = AuthFiles(
                 user = user,
@@ -43,24 +57,18 @@ class UserService (
                 mediaCategory = MediaCategory.IMAGE,
                 isPublic = true
             )
-            authFilesRepository.save(authFile)
+            savedAuthFile = authFilesRepository.save(authFile)
+        } else if (hasDefaultId) {
+            defaultProfileImage = DefaultProfileImage.getByIndex(defaultImageId!!)
         } else {
-            // TODO : S3 연동 후 기본 프로필 이미지 처리 (현재는 더미값)
-            val authFile = AuthFiles(
-                user = user,
-                originalFileName = "default.jpg",
-                storageKey = "dummy/path/default.jpg",
-                cdnUrl = "https://example.com/default-image.jpg",
-                mediaCategory = MediaCategory.IMAGE,
-                isPublic = true
-            )
-            authFilesRepository.save(authFile)
+            defaultProfileImage = DefaultProfileImage.getRandom()
         }
 
         val userProfile = UserProfiles.create(
             user = user,
             name = name,
-            authFile = savedAuthFile
+            authFile = savedAuthFile,
+            defaultProfileImage = defaultProfileImage
         )
         userProfilesRepository.save(userProfile)
     }
@@ -74,10 +82,56 @@ class UserService (
     }
 
     @Transactional(readOnly = true)
+    fun getUserSimpleInfos(
+        userIds: List<Long>,
+    ): Map<Long, UserSimpleInfo> {
+        val distinctUserIds = userIds.distinct()
+
+        if (distinctUserIds.isEmpty()) {
+            return emptyMap()
+        }
+
+        val usersById = userRepository
+            .findByUserIdIn(distinctUserIds)
+            .associateBy { user ->
+                user.userId
+                    ?: throw BusinessException(ErrorCode.USER_NOT_FOUND)
+            }
+
+        if (usersById.size != distinctUserIds.size) {
+            throw BusinessException(ErrorCode.USER_NOT_FOUND)
+        }
+
+        val profilesById = getUserProfiles(distinctUserIds)
+            .associateBy { profile ->
+                profile.userId
+            }
+
+        return distinctUserIds.associateWith { userId ->
+            val user = usersById[userId]
+                ?: throw BusinessException(ErrorCode.USER_NOT_FOUND)
+
+            val profile = profilesById[userId]
+
+            UserSimpleInfo(
+                userPublicId = user.publicId,
+                userName = profile?.name ?: "이름 없음",
+                profileImageUrl = profile?.profileImageUrl,
+            )
+        }
+    }
+
+    @Transactional(readOnly = true)
     fun validateUserExists(userId: Long) {
         if (!userRepository.existsById(userId)) {
             throw BusinessException(ErrorCode.USER_NOT_FOUND)
         }
+    }
+
+    @Transactional(readOnly = true)
+    fun findUserId(userPublicId: UUID): Long {
+        return userRepository.findByPublicId(userPublicId)?.userId
+            ?: throw BusinessException(ErrorCode.USER_NOT_FOUND)
     }
 
     @Transactional(readOnly = true)
@@ -106,6 +160,8 @@ class UserService (
     }
 
     @Transactional(readOnly = true)
+    @Cacheable(cacheNames = ["userProfiles"], key = "#userIds.sorted().toString()")
+    //TODO: updateProfile 만들면 @CacheEvict 적용
     fun getUserProfiles(userIds: List<Long>): List<UserProfileResponse> {
         if (userIds.isEmpty()) return emptyList()
 
@@ -114,7 +170,7 @@ class UserService (
             UserProfileResponse(
                 userId = profile.user?.userId ?: 0L,
                 name = profile.name,
-                profileImageUrl = profile.authFile.cdnUrl
+                profileImageUrl = profile.authFile?.cdnUrl ?: profile.defaultProfileImage?.url ?: ""
             )
         }
     }

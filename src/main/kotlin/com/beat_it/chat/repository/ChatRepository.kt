@@ -8,14 +8,6 @@ import org.springframework.stereotype.Repository
 
 @Repository
 interface ChatRepository : JpaRepository<ChatRoom, Long> {
-
-    /**
-     * 특정 채팅방에 특정 유저가 참여하고 있는지 여부 확인
-     * ChatRoom과 ChatMember의 조인을 통해 안전하게 검증합니다.
-     */
-    @Query("SELECT COUNT(cm) > 0 FROM ChatRoom cr JOIN cr.members cm WHERE cr.id = :chatRoomId AND cm.userId = :userId")
-    fun existsByChatRoomIdAndUserId(
-        @Param("chatRoomId") chatRoomId: Long,
-        @Param("userId") userId: Long
-    ): Boolean
+    @Query("SELECT DISTINCT r FROM ChatRoom r JOIN r.members m WHERE m.userId = :userId AND m.isParticipating = true")
+    fun findByMembersUserIdAndIsParticipatingTrue(@Param("userId") userId: Long): List<ChatRoom>
 }
