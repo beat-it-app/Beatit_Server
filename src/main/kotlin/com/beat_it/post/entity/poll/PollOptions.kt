@@ -4,6 +4,8 @@ import jakarta.persistence.*
 import org.hibernate.annotations.JdbcTypeCode
 import org.hibernate.type.SqlTypes
 
+import com.beat_it.location.entity.Locations
+
 @Entity
 @Table(name = "poll_options")
 class PollOptions (
@@ -28,5 +30,9 @@ class PollOptions (
 
     @Column(name = "display_order", nullable = false)
     var displayOrder: Int,
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "location_id", nullable = true)
+    var location: Locations? = null,
 ){
 }

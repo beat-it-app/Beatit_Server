@@ -22,6 +22,8 @@ import com.beat_it.post.entity.enum.PostType
 import com.beat_it.post.repository.poll.PollRepository
 import com.beat_it.post.repository.poll.PollVoteRepository
 import com.beat_it.post.repository.PostCommentRepository
+import com.beat_it.location.entity.Locations
+import com.beat_it.location.repository.LocationsRepository
 import org.springframework.transaction.annotation.Transactional
 import org.springframework.data.domain.PageRequest
 import org.springframework.stereotype.Service
@@ -33,6 +35,7 @@ class PollService(
     private val pollRepository: PollRepository,
     private val postCommentRepository: PostCommentRepository,
     private val pollVoteRepository: PollVoteRepository,
+    private val locationsRepository: LocationsRepository,
 ) {
     @Transactional(readOnly = true)
     fun getPollList(userId: Long, page: Int = 0, size: Int = 10): PollListResponse {
@@ -88,15 +91,26 @@ class PollService(
         )
 
         val options = request.pollList.mapIndexed { index, item ->
+            var locationEntity: Locations? = null
             val text = when (request.pollType) {
                 PollType.TEXT -> item.content ?: ""
                 PollType.MUSIC -> item.music ?: ""
-                PollType.LOCATION -> item.location ?: ""
+                PollType.LOCATION -> {
+                    if (item.locationId != null) {
+                        val loc = locationsRepository.findById(item.locationId)
+                            .orElseThrow { BusinessException(ErrorCode.RESOURCE_NOT_FOUND) }
+                        locationEntity = loc
+                        loc.locationName ?: loc.roadAddress ?: item.location ?: ""
+                    } else {
+                        item.location ?: ""
+                    }
+                }
             }
             PollOptions(
                 poll = poll,
                 optionText = text,
-                displayOrder = index
+                displayOrder = index,
+                location = locationEntity
             )
         }
 
@@ -134,7 +148,16 @@ class PollService(
                 )
                 PollType.LOCATION -> LocationItemResponse(
                     itemId = optionId, voteCount = voteCount, isVoted = isVoted,
-                    location = option.optionText
+                    location = option.optionText,
+                    locationId = option.location?.locationId,
+                    locationName = option.location?.locationName,
+                    roadAddress = option.location?.roadAddress,
+                    latitude = option.location?.latitude,
+                    longitude = option.location?.longitude,
+                    mapUrl = option.location?.mapUrl,
+                    phone = option.location?.phone,
+                    kakaoPlaceId = option.location?.kakaoPlaceId,
+                    jibunAddress = option.location?.jibunAddress
                 )
             }
         }
@@ -290,7 +313,7 @@ class PollService(
             val text = when (request.pollType) {
                 PollType.TEXT -> item.content
                 PollType.MUSIC -> item.music
-                PollType.LOCATION -> item.location
+                PollType.LOCATION -> item.location ?: item.locationId?.toString()
             }
             if (text.isNullOrBlank()) {
                 throw BusinessException(ErrorCode.INVALID_REQUEST_BODY)
