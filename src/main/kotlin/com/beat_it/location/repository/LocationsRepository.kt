@@ -10,4 +10,5 @@ interface LocationsRepository : JpaRepository<Locations, Long> {
     fun findByLocationId(locationId: Long): Locations?
     fun findByPublicId(publicId: UUID): Locations?
     fun findAllByUserId(userId: Long): List<Locations>
+    fun findByKakaoPlaceId(kakaoPlaceId: String): Locations?
 }

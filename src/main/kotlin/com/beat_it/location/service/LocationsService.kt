@@ -27,7 +27,12 @@ class LocationsService(
     }
 
     @Transactional
-    fun createLocation(userId: Long, request: LocationRequest): LocationResponse {
+    fun createLocation(userId: Long, request: LocationRequest): Pair<LocationResponse, Boolean> {
+        val existing = request.kakaoPlaceId?.let { locationsRepository.findByKakaoPlaceId(it) }
+        if (existing != null) {
+            return Pair(LocationResponse.from(existing), false)
+        }
+
         val location = Locations(
             userId = userId,
             locationName = request.locationName,
@@ -40,7 +45,7 @@ class LocationsService(
             jibunAddress = request.jibunAddress
         )
         val saved = locationsRepository.save(location)
-        return LocationResponse.from(saved)
+        return Pair(LocationResponse.from(saved), true)
     }
 
     @Transactional(readOnly = true)

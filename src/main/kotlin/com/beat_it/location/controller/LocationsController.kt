@@ -33,11 +33,14 @@ class LocationsController(
         val userId = userDetails.username.toLongOrNull()
             ?: throw BusinessException(ErrorCode.UNAUTHORIZED)
 
-        val responseData = locationsService.createLocation(userId, request)
+        val (responseData, isCreated) = locationsService.createLocation(userId, request)
+        
+        val message = if (isCreated) "장소가 성공적으로 등록되었습니다." else "이미 등록된 장소입니다."
+        val status = if (isCreated) HttpStatus.CREATED else HttpStatus.OK
 
         return ResponseEntity
-            .status(HttpStatus.CREATED)
-            .body(BasicResponse.success(responseData, HttpStatus.CREATED, "장소가 성공적으로 등록되었습니다."))
+            .status(status)
+            .body(BasicResponse.success(responseData, status, message))
     }
 
     @Operation(summary = "장소 키워드로 검색하기 (카카오 로컬 API 프록시)")
