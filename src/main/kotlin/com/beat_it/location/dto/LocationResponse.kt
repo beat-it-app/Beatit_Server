@@ -2,11 +2,9 @@ package com.beat_it.location.dto
 
 import com.beat_it.location.entity.Locations
 import java.math.BigDecimal
-import java.util.UUID
 
 data class LocationResponse(
     val locationId: Long,
-    val publicId: UUID,
     val locationName: String?,
     val roadAddress: String?,
     val latitude: BigDecimal?,
@@ -20,7 +18,6 @@ data class LocationResponse(
         fun from(location: Locations): LocationResponse {
             return LocationResponse(
                 locationId = location.locationId!!,
-                publicId = location.publicId,
                 locationName = location.locationName,
                 roadAddress = location.roadAddress,
                 latitude = location.latitude,

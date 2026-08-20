@@ -3,7 +3,6 @@ package com.beat_it.location.entity
 import com.beat_it.global.entity.BaseUpdatedTimeEntity
 import jakarta.persistence.*
 import java.math.BigDecimal
-import java.util.UUID
 
 @Entity
 @Table(name = "locations")
@@ -15,9 +14,6 @@ class Locations(
 
     @Column(name = "user_id", nullable = false)
     val userId: Long,
-
-    @Column(name = "public_id", nullable = false, unique = true)
-    val publicId: UUID = UUID.randomUUID(),
 
     @Column(name = "location_name", length = 200)
     var locationName: String? = null,
