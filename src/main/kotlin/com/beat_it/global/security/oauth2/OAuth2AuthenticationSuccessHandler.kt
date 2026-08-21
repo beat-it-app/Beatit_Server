@@ -5,11 +5,12 @@ import com.beat_it.global.security.jwt.JwtTokenProvider
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse
 import org.springframework.beans.factory.annotation.Value
+import org.springframework.http.HttpHeaders
+import org.springframework.http.ResponseCookie
 import org.springframework.security.core.Authentication
 import org.springframework.security.oauth2.core.user.OAuth2User
 import org.springframework.security.web.authentication.SimpleUrlAuthenticationSuccessHandler
 import org.springframework.stereotype.Component
-import org.springframework.web.util.UriComponentsBuilder
 import java.io.IOException
 
 @Component
@@ -26,23 +27,7 @@ class OAuth2AuthenticationSuccessHandler(
         response: HttpServletResponse,
         authentication: Authentication
     ) {
-        val targetUrl = determineTargetUrl(request, response, authentication)
-
-        if (response.isCommitted) {
-            logger.debug("Response has already been committed. Unable to redirect to $targetUrl")
-            return
-        }
-
-        clearAuthenticationAttributes(request)
-        redirectStrategy.sendRedirect(request, response, targetUrl)
-    }
-
-    override fun determineTargetUrl(
-        request: HttpServletRequest,
-        response: HttpServletResponse,
-        authentication: Authentication?
-    ): String {
-        val oAuth2User = authentication!!.principal as OAuth2User
+        val oAuth2User = authentication.principal as OAuth2User
         
         // 구글의 고유 sub (Google ID) 값 획득
         val googleId = oAuth2User.attributes["sub"] as? String 
@@ -56,12 +41,27 @@ class OAuth2AuthenticationSuccessHandler(
         val userId = user.userId.toString()
         val role = user.role
 
-        // JWT 토큰 생성
+        // 1. JWT 토큰 생성
         val accessToken = jwtTokenProvider.createAccessToken(userId, role)
 
-        // 프론트엔드 리다이렉트 타겟 URL 빌드 (쿼리 파라미터에 토큰을 싣고 전송)
-        return UriComponentsBuilder.fromUriString(authorizedRedirectUri)
-            .queryParam("token", accessToken)
-            .build().toUriString()
+        // 2. Response Cookie 구워주기 (SameSite=Lax, HttpOnly, Path=/)
+        val responseCookie = ResponseCookie.from("access_token", accessToken)
+            .path("/")
+            .httpOnly(true)
+            .secure(false) // HTTPS 설정 시 true로 전환 권장
+            .maxAge(86400) // 24시간
+            .sameSite("Lax")
+            .build()
+        
+        response.addHeader(HttpHeaders.SET_COOKIE, responseCookie.toString())
+
+        // 3. 토큰이 노출되지 않는 깨끗한 URL로 리다이렉트
+        if (response.isCommitted) {
+            logger.debug("Response has already been committed. Unable to redirect to $authorizedRedirectUri")
+            return
+        }
+        
+        clearAuthenticationAttributes(request)
+        redirectStrategy.sendRedirect(request, response, authorizedRedirectUri)
     }
 }
