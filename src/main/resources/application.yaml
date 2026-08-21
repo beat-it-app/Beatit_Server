@@ -51,8 +51,9 @@ springdoc:
     tags-sorter: alpha
 
 jwt:
-  secret: ${JWT_SECRET:v3rys3cr3tk3yf0rjwtm4k31tL0ng3n0ugh1234567890}
-  expiration: 86400000 # 24 hours
+  secret: ${JWT_SECRET}
+  expiration: 604800000 # 7 days
+  refresh-expiration: 2592000000 # 30 days
 
 kakao:
   rest-api-key: ${KAKAO_REST_API_KEY}

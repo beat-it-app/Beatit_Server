@@ -16,7 +16,8 @@ import javax.crypto.SecretKey
 @Component
 class JwtTokenProvider(
     @Value("\${jwt.secret}") private val secretKey: String,
-    @Value("\${jwt.expiration}") private val accessTokenValidity: Long,
+    @Value("\${jwt.expiration}") val accessTokenValidity: Long,
+    @Value("\${jwt.refresh-expiration}") val refreshTokenValidity: Long,
     private val userDetailsService: UserDetailsService
 ) {
     // 1. 시크릿 키 객체 생성 (JJWT 최신 버전 방식)
@@ -30,6 +31,19 @@ class JwtTokenProvider(
         return Jwts.builder()
             .subject(userId)
             .claim("role", role)
+            .issuedAt(now)
+            .expiration(validity)
+            .signWith(key)
+            .compact()
+    }
+
+    // 2-2. Refresh Token 발급 (subject에 userId만 넣습니다)
+    fun createRefreshToken(userId: String): String {
+        val now = Date()
+        val validity = Date(now.time + refreshTokenValidity)
+
+        return Jwts.builder()
+            .subject(userId)
             .issuedAt(now)
             .expiration(validity)
             .signWith(key)
