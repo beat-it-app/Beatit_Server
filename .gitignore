@@ -45,3 +45,6 @@ out/
 .env
 
 data/
+
+# Private Keys
+*.pem
