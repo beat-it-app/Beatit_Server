@@ -32,21 +32,3 @@ jobs:
 
       - name: Gradle 빌드 (dev 프로파일 활성화)
         run: ./gradlew clean build -x test
-
-
-  dependency-submission:
-
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-
-    steps:
-      - uses: actions/checkout@v4
-      - name: 자바 JDK set up
-        uses: actions/setup-java@v4
-        with:
-          java-version: '21'
-          distribution: 'temurin'
-
-      - name: Generate and submit dependency graph
-        uses: gradle/actions/dependency-submission@af1da67850ed9a4cedd57bfd976089dd991e2582 # v4.0.0
