@@ -3,7 +3,7 @@ server:
 
 spring:
   datasource:
-    url: ${DB_URL}
+    url: ${DB_DEV_URL}
   data:
     redis:
       host: ${REDIS_HOST}
@@ -14,7 +14,7 @@ spring:
       client:
         registration:
           google:
-            redirect-uri: ${GOOGLE_REDIRECT_URI}
+            redirect-uri: http://${EC2_DEV_DNS}:${server.port}/login/oauth2/code/google
 
   kafka:
     bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS}
