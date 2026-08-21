@@ -4,6 +4,7 @@ import com.beat_it.auth.service.UserService
 import com.beat_it.global.error.BusinessException
 import com.beat_it.global.error.ErrorCode
 import com.beat_it.global.response.BasicResponse
+import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.Parameter
 import io.swagger.v3.oas.annotations.tags.Tag
 import org.springframework.http.HttpStatus
@@ -38,6 +39,7 @@ class UserController (
             .body(BasicResponse.success(data, HttpStatus.OK, "현재 사용자 조회가 성공적으로 처리되었습니다."))
     }
 
+    @Operation(summary = "프로필 생성하기")
     @PostMapping("/profile", consumes = [MediaType.MULTIPART_FORM_DATA_VALUE])
     fun createProfile(
         @AuthenticationPrincipal userDetails: UserDetails,
