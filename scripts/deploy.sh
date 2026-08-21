@@ -32,5 +32,6 @@ fi
 DEPLOY_JAR=$DEPLOY_PATH$JAR_NAME
 echo "> DEPLOY_JAR 배포 ($DEPLOY_JAR)" >> $REPOSITORY/deploy.log
 
-# 실행 경로(cd $REPOSITORY)에서 nohup으로 구동하여 스프링이 .env 파일을 정상적으로 읽어들일 수 있도록 유도합니다.
-nohup java -jar $DEPLOY_JAR >> $REPOSITORY/deploy.log 2>> $REPOSITORY/deploy_err.log &
+# 실행 경로(cd $REPOSITORY)에서 nohup으로 구동하며, dev 프로파일을 활성화합니다.
+# TODO : 운영할 땐 --spring.profiles.active=prod 로 바꿔서 하기
+nohup java -jar $DEPLOY_JAR --spring.profiles.active=dev >> $REPOSITORY/deploy.log 2>> $REPOSITORY/deploy_err.log &

@@ -1,11 +1,15 @@
 spring:
+  profiles:
+    default: local
+
   application:
     name: beat-it
+
   datasource:
-    url: jdbc:postgresql://localhost:5432/beatit_db
     username: ${DB_USERNAME}
     password: ${DB_PASSWORD}
     driver-class-name: org.postgresql.Driver
+
   jpa:
     hibernate:
       ddl-auto: update
@@ -13,10 +17,7 @@ spring:
     properties:
       hibernate:
         format_sql: true
-  data:
-    redis:
-      host: localhost
-      port: 6379
+        
   servlet:
     multipart:
       max-file-size: 300MB
@@ -29,13 +30,11 @@ spring:
           google:
             client-id: ${GOOGLE_CLIENT_ID}
             client-secret: ${GOOGLE_CLIENT_PASSWORD}
-            redirect-uri: http://localhost:8080/login/oauth2/code/google
             scope:
               - openid
               - email
 
   kafka:
-    bootstrap-servers: localhost:9092
     consumer:
       group-id: chat-group
       auto-offset-reset: earliest
@@ -47,13 +46,12 @@ spring:
 
 springdoc:
   swagger-ui:
-    operations-sorter: method # API를 HTTP 메서드순 정렬 (또는 alpha)
-    tags-sorter: alpha        # 태그를 알파벳순 정렬
+    operations-sorter: method
+    tags-sorter: alpha
 
 jwt:
   secret: ${JWT_SECRET:v3rys3cr3tk3yf0rjwtm4k31tL0ng3n0ugh1234567890}
   expiration: 86400000 # 24 hours
 
 kakao:
-  rest-api-key: ${KAKAO_REST_API_KEY:}
-
+  rest-api-key: ${KAKAO_REST_API_KEY}
