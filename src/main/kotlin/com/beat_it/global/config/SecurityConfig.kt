@@ -1,8 +1,6 @@
 package com.beat_it.global.config
 
-import com.beat_it.auth.service.CustomOAuth2UserService
 import com.beat_it.global.security.jwt.JwtAuthenticationFilter
-import com.beat_it.global.security.oauth2.OAuth2AuthenticationSuccessHandler
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.security.config.annotation.web.builders.HttpSecurity
@@ -20,9 +18,7 @@ import jakarta.servlet.http.HttpServletResponse
 @Configuration
 @EnableWebSecurity
 class SecurityConfig(
-    private val jwtAuthenticationFilter: JwtAuthenticationFilter,
-    private val customOAuth2UserService: CustomOAuth2UserService,
-    private val oAuth2AuthenticationSuccessHandler: OAuth2AuthenticationSuccessHandler
+    private val jwtAuthenticationFilter: JwtAuthenticationFilter
 ) {
     @Bean
     fun passwordEncoder(): PasswordEncoder = BCryptPasswordEncoder()
@@ -50,15 +46,7 @@ class SecurityConfig(
                     .requestMatchers("/teams/**").permitAll()
                     .requestMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()
                     .requestMatchers("/ws/chat/**").permitAll()
-                    .requestMatchers("/oauth2/**", "/login/oauth2/**").permitAll()
                     .anyRequest().authenticated()
-            }
-            .oauth2Login { oauth2 ->
-                oauth2
-                    .userInfoEndpoint { userInfo ->
-                        userInfo.userService(customOAuth2UserService)
-                    }
-                    .successHandler(oAuth2AuthenticationSuccessHandler)
             }
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter::class.java)
 
