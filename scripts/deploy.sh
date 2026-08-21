@@ -32,6 +32,12 @@ fi
 DEPLOY_JAR=$DEPLOY_PATH$JAR_NAME
 echo "> DEPLOY_JAR 배포 ($DEPLOY_JAR)" >> $REPOSITORY/deploy.log
 
+# .env 파일에서 주석을 제외한 환경변수들을 쉘 세션에 강제 로드(export)합니다.
+if [ -f "$REPOSITORY/.env" ]; then
+  echo "> .env 파일 환경변수를 세션에 로드합니다." >> $REPOSITORY/deploy.log
+  export $(cat $REPOSITORY/.env | grep -v '^#' | xargs)
+fi
+
 # 실행 경로(cd $REPOSITORY)에서 nohup으로 구동하며, dev 프로파일을 활성화합니다.
 # TODO : 운영할 땐 --spring.profiles.active=prod 로 바꿔서 하기
 nohup java -jar $DEPLOY_JAR --spring.profiles.active=dev >> $REPOSITORY/deploy.log 2>> $REPOSITORY/deploy_err.log &
