@@ -9,12 +9,9 @@ spring:
       host: localhost
       port: 6379
 
-  security:
-    oauth2:
-      client:
-        registration:
-          google:
-            redirect-uri: http://localhost:8080/login/oauth2/code/google
-
   kafka:
     bootstrap-servers: localhost:9092
+
+app:
+  oauth2:
+    authorized-redirect-uri: http://localhost:3000/oauth2/redirect

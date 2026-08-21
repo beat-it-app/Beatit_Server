@@ -30,8 +30,9 @@ spring:
           google:
             client-id: ${GOOGLE_CLIENT_ID}
             client-secret: ${GOOGLE_CLIENT_PASSWORD}
+            redirect-uri: ${GOOGLE_REDIRECT_URI:http://localhost:8080/login/oauth2/code/google}
             scope:
-              - openid
+              - profile
               - email
 
   kafka:
@@ -55,3 +56,8 @@ jwt:
 
 kakao:
   rest-api-key: ${KAKAO_REST_API_KEY}
+
+logging:
+  level:
+    org.apache.kafka: ERROR
+    org.springframework.kafka: ERROR
