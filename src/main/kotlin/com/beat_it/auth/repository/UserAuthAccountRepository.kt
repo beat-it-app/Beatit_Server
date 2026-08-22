@@ -11,4 +11,5 @@ interface UserAuthAccountRepository : JpaRepository<UserAuthAccounts, Long> {
     fun findByUserUserId(userId: Long): UserAuthAccounts?
     @Query("select u from UserAuthAccounts u join fetch u.user where u.googleId = :googleId")
     fun findByGoogleId(googleId: String): UserAuthAccounts?
+    fun existsByEmail(email: String): Boolean
 }

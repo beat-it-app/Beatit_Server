@@ -22,6 +22,8 @@ import com.beat_it.global.util.DateTimeUtil
 import jakarta.transaction.Transactional
 import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.stereotype.Service
+import org.springframework.data.redis.core.StringRedisTemplate
+import org.slf4j.LoggerFactory
 
 @Service
 class AuthService (
@@ -32,12 +34,26 @@ class AuthService (
     private val jwtTokenProvider: JwtTokenProvider,
     private val userProfilesRepository: UserProfilesRepository,
     private val googleAuthService: GoogleAuthService,
-    private val refreshTokenService: RefreshTokenService
+    private val refreshTokenService: RefreshTokenService,
+    private val emailService: EmailService,
+    private val redisTemplate: StringRedisTemplate
 ){
+    private val log = LoggerFactory.getLogger(AuthService::class.java)
     @Transactional
     fun signUp(dto : SignUpRequest): SignUpResponse {
         val identifier = dto.identifier
         checkDuplicateIdentifier(identifier)
+
+        val email = dto.email
+        if (userAuthAccountRepository.existsByEmail(email)) {
+            throw BusinessException(ErrorCode.EMAIL_DUPLICATED)
+        }
+
+        val verifiedKey = "email:verified:$email"
+        val isVerified = redisTemplate.opsForValue().get(verifiedKey)
+        if (isVerified != "true") {
+            throw BusinessException(ErrorCode.EMAIL_NOT_VERIFIED)
+        }
 
         var user = Users.createNewUser(
             role = Role.USER,
@@ -62,6 +78,8 @@ class AuthService (
         )
 
         userAuthAccountRepository.save(userAuthAccount)
+
+        redisTemplate.delete(verifiedKey)
 
         return SignUpResponse(
             userId = user.userId!!,
@@ -198,27 +216,41 @@ class AuthService (
     }
 
     fun sendEmailVerificationCode(email: String): Boolean {
+        if (userAuthAccountRepository.existsByEmail(email)) {
+            throw BusinessException(ErrorCode.EMAIL_DUPLICATED)
+        }
+
+        val verificationCode = generateVerificationCode()
+
+        val codeKey = "email:code:$email"
+        redisTemplate.opsForValue().set(codeKey, verificationCode, java.time.Duration.ofSeconds(180))
+
         try {
-            val verificationCode = generateVerificationCode()
-            // emailService.send(email, verificationCode) 등 발송 로직
+            emailService.sendVerificationEmail(email, verificationCode)
         } catch (e: Exception) {
-            // 발송 실패 시 ErrorCode 활용
+            log.error("Failed to send email verification code to $email", e)
+            redisTemplate.delete(codeKey)
             throw BusinessException(ErrorCode.EMAIL_SEND_FAILED)
         }
         return true
     }
 
     private fun generateVerificationCode(): String {
-        val charPool = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+        val charPool = "0123456789"
         return (1..6)
             .map { charPool.random() }
             .joinToString("")
     }
 
     fun verifyEmailVerificationCode(email: String, code: String): Boolean {
-        val storedCode = "123456" // fixme 예시로 고정된 코드, 실제로는 DB나 캐시에서 조회해야 함
+        val codeKey = "email:code:$email"
+        val storedCode = redisTemplate.opsForValue().get(codeKey)
+            ?: throw BusinessException(ErrorCode.EMAIL_VERIFICATION_EXPIRED)
+
         if (storedCode == code) {
-            // todo 인증 성공 시 필요한 추가 로직 (예: 인증 상태 업데이트)
+            redisTemplate.delete(codeKey)
+            val verifiedKey = "email:verified:$email"
+            redisTemplate.opsForValue().set(verifiedKey, "true", java.time.Duration.ofSeconds(600))
             return true
         } else {
             throw BusinessException(ErrorCode.EMAIL_VERIFICATION_CODE_MISMATCH)
