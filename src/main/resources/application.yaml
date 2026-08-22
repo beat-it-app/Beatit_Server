@@ -10,6 +10,22 @@ spring:
     password: ${DB_PASSWORD}
     driver-class-name: org.postgresql.Driver
 
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: 6379
+
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    consumer:
+      group-id: chat-group
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+
   jpa:
     hibernate:
       ddl-auto: update
@@ -29,16 +45,6 @@ spring:
         registration:
           google:
             client-id: ${GOOGLE_CLIENT_ID}
-
-  kafka:
-    consumer:
-      group-id: chat-group
-      auto-offset-reset: earliest
-      key-deserializer: string
-      value-deserializer: string
-    producer:
-      key-serializer: string
-      value-serializer: string
 
 springdoc:
   swagger-ui:
