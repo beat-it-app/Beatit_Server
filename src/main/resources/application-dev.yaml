@@ -11,9 +11,3 @@ spring:
 
   kafka:
     bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
-
-GOOGLE_REDIRECT_URI: http://${EC2_DEV_DNS}:${server.port}/login/oauth2/code/google
-
-app:
-  oauth2:
-    authorized-redirect-uri: http://${EC2_DEV_DNS}:3000/oauth2/redirect
