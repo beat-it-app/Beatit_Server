@@ -24,6 +24,5 @@ data class PollItemRequest(
 data class PollMusicRequest(
     val title: String,
     val artist: String,
-    val previewUrl: String?,
-    val imageUrl: String?
+    val previewUrl: String?
 )

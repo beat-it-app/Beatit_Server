@@ -56,8 +56,7 @@ data class MusicItemResponse(
     override val isVoted: Boolean,
     val title: String,
     val artist: String,
-    val previewUrl: String?,
-    val imageUrl: String?
+    val previewUrl: String?
 ) : PollItemResponse
 
 data class LocationItemResponse(

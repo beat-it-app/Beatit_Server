@@ -168,8 +168,7 @@ class PollService(
                         isVoted = isVoted,
                         title = musicInfo?.title ?: option.optionText,
                         artist = musicInfo?.artist ?: "Unknown Artist",
-                        previewUrl = musicInfo?.previewUrl,
-                        imageUrl = musicInfo?.imageUrl
+                        previewUrl = musicInfo?.previewUrl
                     )
                 }
                 PollType.LOCATION -> LocationItemResponse(

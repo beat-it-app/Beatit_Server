@@ -21,8 +21,5 @@ class ScheduleMusic(
     var musicArtist: String? = null,
 
     @Column(name = "music_preview_url")
-    var musicPreviewUrl: String? = null,
-
-    @Column(name = "music_image_url")
-    var musicImageUrl: String? = null
+    var musicPreviewUrl: String? = null
 )

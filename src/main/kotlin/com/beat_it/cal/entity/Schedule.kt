@@ -71,13 +71,12 @@ class Schedule(
         this.files.add(scheduleFile)
     }
 
-    fun addMusic(musicTitle: String?, musicArtist: String?, musicPreviewUrl: String?, musicImageUrl: String?) {
+    fun addMusic(musicTitle: String?, musicArtist: String?, musicPreviewUrl: String?) {
         val scheduleMusic = ScheduleMusic(
             schedule = this,
             musicTitle = musicTitle,
             musicArtist = musicArtist,
-            musicPreviewUrl = musicPreviewUrl,
-            musicImageUrl = musicImageUrl
+            musicPreviewUrl = musicPreviewUrl
         )
         this.musics.add(scheduleMusic)
     }

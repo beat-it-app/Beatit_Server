@@ -58,8 +58,7 @@ class ScheduleService(
             schedule.addMusic(
                 musicTitle = music.musicTitle,
                 musicArtist = music.musicArtist,
-                musicPreviewUrl = music.musicPreviewUrl,
-                musicImageUrl = music.musicImageUrl
+                musicPreviewUrl = music.musicPreviewUrl
             )
         }
 
@@ -142,8 +141,7 @@ class ScheduleService(
             schedule.addMusic(
                 musicTitle = musicRequest.musicTitle,
                 musicArtist = musicRequest.musicArtist,
-                musicPreviewUrl = musicRequest.musicPreviewUrl,
-                musicImageUrl = musicRequest.musicImageUrl
+                musicPreviewUrl = musicRequest.musicPreviewUrl
             )
         }
 
