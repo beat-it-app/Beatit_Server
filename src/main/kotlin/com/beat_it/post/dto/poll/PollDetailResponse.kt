@@ -54,7 +54,10 @@ data class MusicItemResponse(
     override val itemId: Long,
     override val voteCount: Int,
     override val isVoted: Boolean,
-    val music: String
+    val title: String,
+    val artist: String,
+    val previewUrl: String?,
+    val imageUrl: String?
 ) : PollItemResponse
 
 data class LocationItemResponse(
