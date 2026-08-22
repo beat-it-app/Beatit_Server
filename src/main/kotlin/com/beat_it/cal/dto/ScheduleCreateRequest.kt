@@ -16,6 +16,7 @@ data class ScheduleCreateRequest(
     data class MusicRequest(
         val musicTitle: String?,
         val musicArtist: String?,
-        val musicPreviewUrl: String?
+        val musicPreviewUrl: String?,
+        val musicImageUrl: String?
     )
 }

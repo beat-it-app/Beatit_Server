@@ -11,11 +11,13 @@ data class ItunesSearchResponse(
 data class ItunesTrack(
     val trackName: String?,
     val artistName: String?,
-    val previewUrl: String?
+    val previewUrl: String?,
+    val artworkUrl100: String?
 )
 
 data class MusicInfo(
     val title: String,
     val artist: String,
-    val previewUrl: String?
+    val previewUrl: String?,
+    val imageUrl: String?
 )

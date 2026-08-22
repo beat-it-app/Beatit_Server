@@ -6,7 +6,8 @@ import java.time.OffsetDateTime
 data class MusicRequest(
     val musicTitle: String,
     val musicArtist: String,
-    val musicPreviewUrl: String?
+    val musicPreviewUrl: String?,
+    val musicImageUrl: String?
 )
 
 data class ScheduleUpdateRequest(
