@@ -16,10 +16,6 @@ spring:
           auth: true
           starttls:
             enable: true
-  data:
-    redis:
-      host: ${REDIS_HOST:localhost}
-      port: ${REDIS_PORT:6379}
 
   datasource:
     username: ${DB_USERNAME}

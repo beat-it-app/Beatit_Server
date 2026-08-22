@@ -239,7 +239,7 @@ class AuthService (
     }
 
     private fun generateVerificationCode(): String {
-        val charPool = "0123456789"
+        val charPool = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
         return (1..6)
             .map { charPool.random() }
             .joinToString("")
