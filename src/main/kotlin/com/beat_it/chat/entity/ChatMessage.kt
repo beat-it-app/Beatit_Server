@@ -7,7 +7,7 @@ import jakarta.persistence.*
 @Table(
     name = "chat_messages",
     indexes = [
-        Index(name = "idx_chat_room_created_at", columnList = "chat_room_id, created_at DESC")
+        Index(name = "idx_chat_room_created_at", columnList = "chat_id, created_at DESC")
     ]
 )
 class ChatMessage(
