@@ -20,10 +20,8 @@ class JwtTokenProvider(
     @Value("\${jwt.refresh-expiration}") val refreshTokenValidity: Long,
     private val userDetailsService: UserDetailsService
 ) {
-    // 1. 시크릿 키 객체 생성 (JJWT 최신 버전 방식)
     private val key: SecretKey = Keys.hmacShaKeyFor(secretKey.toByteArray())
 
-    // 2. Access Token 발급 (subject에 userId를 넣습니다)
     fun createAccessToken(userId: String, role: Role): String {
         val now = Date()
         val validity = Date(now.time + accessTokenValidity)
@@ -37,7 +35,6 @@ class JwtTokenProvider(
             .compact()
     }
 
-    // 2-2. Refresh Token 발급 (subject에 userId만 넣습니다)
     fun createRefreshToken(userId: String): String {
         val now = Date()
         val validity = Date(now.time + refreshTokenValidity)
@@ -50,18 +47,15 @@ class JwtTokenProvider(
             .compact()
     }
 
-    // 3. 토큰에서 Authentication 객체 추출 (필터에서 사용)
     fun getAuthentication(token: String): Authentication {
         val userDetails = userDetailsService.loadUserByUsername(getUserId(token))
         return UsernamePasswordAuthenticationToken(userDetails, "", userDetails.authorities)
     }
 
-    // 4. 토큰에서 userId(subject) 추출
     fun getUserId(token: String): String {
         return parseClaims(token).subject
     }
 
-    // 5. 토큰 유효성 검증
     fun validateToken(token: String): Boolean {
         return try {
             val claims = parseClaims(token)
@@ -71,7 +65,6 @@ class JwtTokenProvider(
         }
     }
 
-    // 토큰 파싱 유틸리티
     private fun parseClaims(token: String): Claims {
         return try {
             Jwts.parser()
