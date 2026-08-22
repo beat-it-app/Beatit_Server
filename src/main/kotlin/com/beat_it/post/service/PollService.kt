@@ -11,6 +11,7 @@ import com.beat_it.post.dto.poll.PollDetailResponse
 import com.beat_it.post.dto.poll.PollItems
 import com.beat_it.post.dto.poll.PollListResponse
 import com.beat_it.post.dto.poll.PollRequest
+import com.beat_it.post.dto.poll.PollMusicRequest
 import com.beat_it.post.dto.poll.TextItemResponse
 import com.beat_it.post.dto.poll.VoteRequest
 import com.beat_it.post.entity.poll.PollOptions
@@ -24,6 +25,7 @@ import com.beat_it.post.repository.poll.PollVoteRepository
 import com.beat_it.post.repository.PostCommentRepository
 import com.beat_it.location.entity.Locations
 import com.beat_it.location.repository.LocationsRepository
+import com.fasterxml.jackson.databind.ObjectMapper
 import org.springframework.transaction.annotation.Transactional
 import org.springframework.data.domain.PageRequest
 import org.springframework.stereotype.Service
@@ -36,6 +38,7 @@ class PollService(
     private val postCommentRepository: PostCommentRepository,
     private val pollVoteRepository: PollVoteRepository,
     private val locationsRepository: LocationsRepository,
+    private val objectMapper: ObjectMapper,
 ) {
     @Transactional(readOnly = true)
     fun getPollList(userId: Long, page: Int = 0, size: Int = 10): PollListResponse {
@@ -92,9 +95,17 @@ class PollService(
 
         val options = request.pollList.mapIndexed { index, item ->
             var locationEntity: Locations? = null
+            var metadata: String? = null
             val text = when (request.pollType) {
                 PollType.TEXT -> item.content ?: ""
-                PollType.MUSIC -> item.music ?: ""
+                PollType.MUSIC -> {
+                    if (item.music != null) {
+                        metadata = objectMapper.writeValueAsString(item.music)
+                        "${item.music.title} - ${item.music.artist}"
+                    } else {
+                        ""
+                    }
+                }
                 PollType.LOCATION -> {
                     if (item.locationId != null) {
                         val loc = locationsRepository.findById(item.locationId)
@@ -109,6 +120,7 @@ class PollService(
             PollOptions(
                 poll = poll,
                 optionText = text,
+                optionMetadata = metadata,
                 displayOrder = index,
                 location = locationEntity
             )
@@ -142,10 +154,23 @@ class PollService(
                     itemId = optionId, voteCount = voteCount, isVoted = isVoted,
                     content = option.optionText
                 )
-                PollType.MUSIC -> MusicItemResponse(
-                    itemId = optionId, voteCount = voteCount, isVoted = isVoted,
-                    music = option.optionText
-                )
+                PollType.MUSIC -> {
+                    val musicInfo = option.optionMetadata?.let {
+                        try {
+                            objectMapper.readValue(it, PollMusicRequest::class.java)
+                        } catch (e: Exception) {
+                            null
+                        }
+                    }
+                    MusicItemResponse(
+                        itemId = optionId,
+                        voteCount = voteCount,
+                        isVoted = isVoted,
+                        title = musicInfo?.title ?: option.optionText,
+                        artist = musicInfo?.artist ?: "Unknown Artist",
+                        previewUrl = musicInfo?.previewUrl
+                    )
+                }
                 PollType.LOCATION -> LocationItemResponse(
                     itemId = optionId, voteCount = voteCount, isVoted = isVoted,
                     location = option.optionText,
@@ -310,12 +335,12 @@ class PollService(
             throw BusinessException(ErrorCode.INVALID_REQUEST_BODY)
         }
         request.pollList.forEach { item ->
-            val text = when (request.pollType) {
-                PollType.TEXT -> item.content
-                PollType.MUSIC -> item.music
-                PollType.LOCATION -> item.location ?: item.locationId?.toString()
+            val isValid = when (request.pollType) {
+                PollType.TEXT -> !item.content.isNullOrBlank()
+                PollType.MUSIC -> item.music != null && item.music.title.isNotBlank()
+                PollType.LOCATION -> !item.location.isNullOrBlank() || item.locationId != null
             }
-            if (text.isNullOrBlank()) {
+            if (!isValid) {
                 throw BusinessException(ErrorCode.INVALID_REQUEST_BODY)
             }
         }

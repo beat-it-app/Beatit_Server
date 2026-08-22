@@ -25,7 +25,8 @@ class ItunesService(
         return MusicInfo(
             title = track.trackName ?: "Unknown Title",
             artist = track.artistName ?: "Unknown Artist",
-            previewUrl = track.previewUrl
+            previewUrl = track.previewUrl,
+            imageUrl = track.artworkUrl100
         )
     }
 }
