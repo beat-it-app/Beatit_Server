@@ -5,6 +5,9 @@ import com.beat_it.auth.dto.LoginResponse
 import com.beat_it.auth.dto.SignUpRequest
 import com.beat_it.auth.dto.SignUpResponse
 import com.beat_it.auth.dto.SocialLoginRequest
+import com.beat_it.auth.dto.FindIdentifierResponse
+import com.beat_it.auth.dto.ResetPasswordRequest
+import com.beat_it.auth.dto.ResetPasswordResponse
 import com.beat_it.auth.entity.UserAuthAccounts
 import com.beat_it.auth.entity.UserSettings
 import com.beat_it.auth.entity.Users
@@ -255,5 +258,91 @@ class AuthService (
         } else {
             throw BusinessException(ErrorCode.EMAIL_VERIFICATION_CODE_MISMATCH)
         }
+    }
+
+    fun sendFindIdentifierCode(email: String): Boolean {
+        userAuthAccountRepository.findByEmail(email)
+            ?: throw BusinessException(ErrorCode.USER_NOT_FOUND)
+
+        val verificationCode = generateVerificationCode()
+        val codeKey = "find-id:code:$email"
+        redisTemplate.opsForValue().set(codeKey, verificationCode, java.time.Duration.ofSeconds(180))
+
+        try {
+            emailService.sendVerificationEmail(email, verificationCode)
+        } catch (e: Exception) {
+            redisTemplate.delete(codeKey)
+            log.error("Failed to send find-id verification email to $email", e)
+            throw BusinessException(ErrorCode.EMAIL_SEND_FAILED)
+        }
+        return true
+    }
+
+    fun verifyFindIdentifierCode(email: String, code: String): FindIdentifierResponse {
+        val codeKey = "find-id:code:$email"
+        val storedCode = redisTemplate.opsForValue().get(codeKey)
+            ?: throw BusinessException(ErrorCode.EMAIL_VERIFICATION_EXPIRED)
+
+        if (storedCode == code) {
+            redisTemplate.delete(codeKey)
+            val account = userAuthAccountRepository.findByEmail(email)
+                ?: throw BusinessException(ErrorCode.USER_NOT_FOUND)
+            return FindIdentifierResponse(account.identifier ?: "")
+        } else {
+            throw BusinessException(ErrorCode.EMAIL_VERIFICATION_CODE_MISMATCH)
+        }
+    }
+
+    fun sendResetPasswordCode(identifier: String, email: String): Boolean {
+        userAuthAccountRepository.findByIdentifierAndEmail(identifier, email)
+            ?: throw BusinessException(ErrorCode.USER_NOT_FOUND)
+
+        val verificationCode = generateVerificationCode()
+        val codeKey = "reset-pw:code:$email"
+        redisTemplate.opsForValue().set(codeKey, verificationCode, java.time.Duration.ofSeconds(180))
+
+        try {
+            emailService.sendVerificationEmail(email, verificationCode)
+        } catch (e: Exception) {
+            redisTemplate.delete(codeKey)
+            log.error("Failed to send reset-pw verification email to $email", e)
+            throw BusinessException(ErrorCode.EMAIL_SEND_FAILED)
+        }
+        return true
+    }
+
+    fun verifyResetPasswordCode(email: String, code: String): Boolean {
+        val codeKey = "reset-pw:code:$email"
+        val storedCode = redisTemplate.opsForValue().get(codeKey)
+            ?: throw BusinessException(ErrorCode.EMAIL_VERIFICATION_EXPIRED)
+
+        if (storedCode == code) {
+            redisTemplate.delete(codeKey)
+            val verifiedKey = "reset-pw:verified:$email"
+            redisTemplate.opsForValue().set(verifiedKey, "true", java.time.Duration.ofSeconds(600))
+            return true
+        } else {
+            throw BusinessException(ErrorCode.EMAIL_VERIFICATION_CODE_MISMATCH)
+        }
+    }
+
+    @Transactional
+    fun resetPassword(request: ResetPasswordRequest): ResetPasswordResponse {
+        val verifiedKey = "reset-pw:verified:${request.email}"
+        val isVerified = redisTemplate.opsForValue().get(verifiedKey)
+        if (isVerified != "true") {
+            throw BusinessException(ErrorCode.EMAIL_NOT_VERIFIED)
+        }
+
+        val account = userAuthAccountRepository.findByIdentifierAndEmail(request.identifier, request.email)
+            ?: throw BusinessException(ErrorCode.USER_NOT_FOUND)
+
+        val encodedPassword = passwordEncoder.encode(request.newPassword)
+        account.updatePassword(encodedPassword)
+        userAuthAccountRepository.save(account)
+
+        redisTemplate.delete(verifiedKey)
+
+        return ResetPasswordResponse(request.newPassword)
     }
 }

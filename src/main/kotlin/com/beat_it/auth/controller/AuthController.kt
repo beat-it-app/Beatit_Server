@@ -6,6 +6,9 @@ import com.beat_it.auth.dto.SignUpRequest
 import com.beat_it.auth.dto.SignUpResponse
 import com.beat_it.auth.dto.SocialLoginRequest
 import com.beat_it.auth.dto.ReissueResponse
+import com.beat_it.auth.dto.FindIdentifierResponse
+import com.beat_it.auth.dto.ResetPasswordRequest
+import com.beat_it.auth.dto.ResetPasswordResponse
 import com.beat_it.auth.service.AuthService
 import com.beat_it.global.error.BusinessException
 import com.beat_it.global.error.ErrorCode
@@ -107,5 +110,61 @@ class AuthController (
             .header("Authorization", "Bearer $newAccessToken")
             .header("Refresh-Token", newRefreshToken)
             .body(BasicResponse.success(responseBody, HttpStatus.OK, "토큰이 성공적으로 재발급되었습니다."))
+    }
+
+    @Operation(summary = "아이디 찾기 인증번호 발송")
+    @PostMapping("/find-identifier/send")
+    fun sendFindIdentifierCode(@RequestParam email: String): ResponseEntity<BasicResponse<Nothing>> {
+        authService.sendFindIdentifierCode(email)
+        return ResponseEntity
+            .status(HttpStatus.OK)
+            .body(BasicResponse.success(HttpStatus.OK, "아이디 찾기 인증번호 발송이 성공적으로 처리되었습니다."))
+    }
+
+    @Operation(summary = "아이디 찾기 인증번호 인증")
+    @PostMapping("/find-identifier/verify")
+    fun verifyFindIdentifierCode(
+        @RequestParam email: String, 
+        @RequestParam code: String
+    ): ResponseEntity<BasicResponse<FindIdentifierResponse>> {
+        val response = authService.verifyFindIdentifierCode(email, code)
+        return ResponseEntity
+            .status(HttpStatus.OK)
+            .body(BasicResponse.success(response, HttpStatus.OK, "아이디 조회가 성공적으로 완료되었습니다."))
+    }
+
+    @Operation(summary = "비밀번호 재설정 인증번호 발송")
+    @PostMapping("/reset-password/send")
+    fun sendResetPasswordCode(
+        @RequestParam identifier: String, 
+        @RequestParam email: String
+    ): ResponseEntity<BasicResponse<Nothing>> {
+        authService.sendResetPasswordCode(identifier, email)
+        return ResponseEntity
+            .status(HttpStatus.OK)
+            .body(BasicResponse.success(HttpStatus.OK, "비밀번호 재설정 인증번호 발송이 성공적으로 처리되었습니다."))
+    }
+
+    @Operation(summary = "비밀번호 재설정 인증번호 인증")
+    @PostMapping("/reset-password/verify")
+    fun verifyResetPasswordCode(
+        @RequestParam email: String, 
+        @RequestParam code: String
+    ): ResponseEntity<BasicResponse<Nothing>> {
+        authService.verifyResetPasswordCode(email, code)
+        return ResponseEntity
+            .status(HttpStatus.OK)
+            .body(BasicResponse.success(HttpStatus.OK, "비밀번호 재설정 인증이 완료되었습니다."))
+    }
+
+    @Operation(summary = "비밀번호 재설정")
+    @PostMapping("/reset-password")
+    fun resetPassword(
+        @RequestBody request: ResetPasswordRequest
+    ): ResponseEntity<BasicResponse<ResetPasswordResponse>> {
+        val response = authService.resetPassword(request)
+        return ResponseEntity
+            .status(HttpStatus.OK)
+            .body(BasicResponse.success(response, HttpStatus.OK, "비밀번호 재설정이 성공적으로 처리되었습니다."))
     }
 }
