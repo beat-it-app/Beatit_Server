@@ -33,6 +33,10 @@ class UserAuthAccounts(
     @Column(name = "google_id")
     var googleId: String? = null,
 ) {
+    fun updatePassword(encodedPassword: String?) {
+        this.password = encodedPassword
+    }
+
     val socialProvider: SocialProvider?
         get() = when {
             kakaoId != null -> SocialProvider.KAKAO
