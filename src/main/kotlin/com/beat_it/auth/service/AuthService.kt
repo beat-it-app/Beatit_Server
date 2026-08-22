@@ -31,7 +31,8 @@ class AuthService (
     private val passwordEncoder: PasswordEncoder,
     private val jwtTokenProvider: JwtTokenProvider,
     private val userProfilesRepository: UserProfilesRepository,
-    private val googleAuthService: GoogleAuthService
+    private val googleAuthService: GoogleAuthService,
+    private val refreshTokenService: RefreshTokenService
 ){
     @Transactional
     fun signUp(dto : SignUpRequest): SignUpResponse {
@@ -70,7 +71,7 @@ class AuthService (
         )
     }
 
-    fun login(loginRequest: LoginRequest) : Pair<String,LoginResponse> {
+    fun login(loginRequest: LoginRequest) : Triple<String, String, LoginResponse> {
         val userAuthAccount = userAuthAccountRepository.findByIdentifier(loginRequest.identifier)
             ?: throw BusinessException(ErrorCode.IDENTIFIER_NOT_FOUND)
 
@@ -86,8 +87,16 @@ class AuthService (
             role = user.role
         )
 
-        return Pair(
+        val refreshToken = jwtTokenProvider.createRefreshToken(user.userId.toString())
+        refreshTokenService.saveRefreshToken(
+            userId = user.userId.toString(),
+            refreshToken = refreshToken,
+            expirationMs = jwtTokenProvider.refreshTokenValidity
+        )
+
+        return Triple(
             accessToken,
+            refreshToken,
             LoginResponse(
                 userId = user.userId,
                 role = user.role,
@@ -106,7 +115,7 @@ class AuthService (
     }
 
     @Transactional
-    fun googleLogin(dto: SocialLoginRequest): Pair<String, LoginResponse> {
+    fun googleLogin(dto: SocialLoginRequest): Triple<String, String, LoginResponse> {
         val googlePayload = googleAuthService.verifyToken(dto.idToken)
 
         var userAuthAccount = userAuthAccountRepository.findByGoogleId(googlePayload.googleId)
@@ -141,8 +150,16 @@ class AuthService (
             role = user.role
         )
 
-        return Pair(
+        val refreshToken = jwtTokenProvider.createRefreshToken(user.userId.toString())
+        refreshTokenService.saveRefreshToken(
+            userId = user.userId.toString(),
+            refreshToken = refreshToken,
+            expirationMs = jwtTokenProvider.refreshTokenValidity
+        )
+
+        return Triple(
             accessToken,
+            refreshToken,
             LoginResponse(
                 userId = user.userId,
                 role = user.role,
@@ -150,6 +167,34 @@ class AuthService (
                 socialProvider = SocialProvider.GOOGLE
             )
         )
+    }
+
+    fun reissue(refreshToken: String): Pair<String, String> {
+        if (!jwtTokenProvider.validateToken(refreshToken)) {
+            throw BusinessException(ErrorCode.EXPIRED_REFRESH_TOKEN)
+        }
+
+        val userId = jwtTokenProvider.getUserId(refreshToken)
+        val savedToken = refreshTokenService.getRefreshToken(userId)
+            ?: throw BusinessException(ErrorCode.REFRESH_TOKEN_NOT_FOUND)
+
+        if (savedToken != refreshToken) {
+            throw BusinessException(ErrorCode.INVALID_TOKEN)
+        }
+
+        val user = userRepository.findById(userId.toLongOrNull() ?: throw BusinessException(ErrorCode.USER_NOT_FOUND))
+            .orElseThrow { BusinessException(ErrorCode.USER_NOT_FOUND) }
+
+        val newAccessToken = jwtTokenProvider.createAccessToken(userId, user.role)
+        val newRefreshToken = jwtTokenProvider.createRefreshToken(userId)
+
+        refreshTokenService.saveRefreshToken(
+            userId = userId,
+            refreshToken = newRefreshToken,
+            expirationMs = jwtTokenProvider.refreshTokenValidity
+        )
+
+        return Pair(newAccessToken, newRefreshToken)
     }
 
     fun sendEmailVerificationCode(email: String): Boolean {

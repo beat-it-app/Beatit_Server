@@ -9,12 +9,5 @@ spring:
       host: ${REDIS_HOST:localhost}
       port: ${REDIS_PORT:6370}
 
-  security:
-    oauth2:
-      client:
-        registration:
-          google:
-            redirect-uri: http://${EC2_DEV_DNS}:${server.port}/login/oauth2/code/google
-
   kafka:
     bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
