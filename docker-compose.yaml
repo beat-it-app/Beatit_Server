@@ -20,6 +20,8 @@ services:
       GOOGLE_CLIENT_PASSWORD: ${GOOGLE_CLIENT_PASSWORD}
       KAKAO_REST_API_KEY: ${KAKAO_REST_API_KEY}
       EC2_DEV_DNS: ${EC2_DEV_DNS}
+      MAIL_USERNAME: ${MAIL_USERNAME}
+      MAIL_PASSWORD: ${MAIL_PASSWORD}
     depends_on:
       - dev-db
       - dev-redis
