@@ -1,7 +1,7 @@
 package com.beat_it.post.dto.meetit
 
 import java.time.LocalTime
-import java.time.OffsetDateTime
+import java.time.LocalDateTime
 
 data class MeetitCreateRequest(
     val title: String,
@@ -12,5 +12,5 @@ data class MeetitCreateRequest(
 )
 
 data class MeetitSubmissionRequest(
-    val slotStartTimes: List<OffsetDateTime>
+    val slotStartTimes: List<LocalDateTime>
 )

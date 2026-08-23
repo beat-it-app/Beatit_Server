@@ -214,26 +214,28 @@ class MeetitService(
         val systemZone = ZoneId.systemDefault()
 
         // Validate that submitted times fall within bounds
-        for (slotStartTime in request.slotStartTimes) {
-            val zonedDateTime = slotStartTime.atZoneSameInstant(systemZone)
-            val dateStr = zonedDateTime.toLocalDate().toString()
+        for (localDateTime in request.slotStartTimes) {
+            val dateStr = localDateTime.toLocalDate().toString()
             if (!candidateDates.contains(dateStr)) {
                 throw BusinessException(ErrorCode.INVALID_INPUT_VALUE)
             }
 
-            val localTime = zonedDateTime.toLocalTime()
+            val localTime = localDateTime.toLocalTime()
             if (localTime.isBefore(meetit.startTime) || !localTime.isBefore(meetit.endTime)) {
+                throw BusinessException(ErrorCode.INVALID_INPUT_VALUE)
+            }
+            if (localTime.minute % 30 != 0 || localTime.second != 0 || localTime.nano != 0) {
                 throw BusinessException(ErrorCode.INVALID_INPUT_VALUE)
             }
         }
 
         meetitResponseRepository.deleteByMeetitParticipantMeetitParticipantId(participant.meetitParticipantId!!)
 
-        val newResponses = request.slotStartTimes.map { startTime ->
+        val newResponses = request.slotStartTimes.map { localDateTime ->
             MeetitResponse(
                 meetit = meetit,
                 meetitParticipant = participant,
-                slotStartTime = startTime
+                slotStartTime = localDateTime.atZone(systemZone).toOffsetDateTime()
             )
         }
         meetitResponseRepository.saveAll(newResponses)
