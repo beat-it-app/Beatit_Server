@@ -10,6 +10,7 @@ import com.beat_it.post.entity.meetit.MeetitResponse
 import com.beat_it.post.repository.meetit.MeetitParticipantRepository
 import com.beat_it.post.repository.meetit.MeetitRepository
 import com.beat_it.post.repository.meetit.MeetitResponseRepository
+import com.beat_it.team.repository.TeamMembershipRepository
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
 import org.springframework.data.domain.PageRequest
@@ -26,6 +27,7 @@ class MeetitService(
     private val meetitRepository: MeetitRepository,
     private val meetitParticipantRepository: MeetitParticipantRepository,
     private val meetitResponseRepository: MeetitResponseRepository,
+    private val teamMembershipRepository: TeamMembershipRepository,
     private val objectMapper: ObjectMapper
 ) {
 
@@ -45,6 +47,15 @@ class MeetitService(
         }
 
         val teamId = userService.getCurrentTeamId(userId)
+
+        val activeMemberships = teamMembershipRepository.findAllByTeamTeamIdAndUserIdInAndLeftAtIsNull(
+            teamId = teamId,
+            userIds = request.participantUserIds
+        )
+        val activeMemberUserIds = activeMemberships.map { it.userId }.toSet()
+        if (activeMemberUserIds.size != request.participantUserIds.distinct().size) {
+            throw BusinessException(ErrorCode.INVALID_TEAM_PARTICIPANTS)
+        }
 
         val meetit = Meetit(
             userId = userId,
