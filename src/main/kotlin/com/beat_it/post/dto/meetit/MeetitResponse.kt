@@ -30,7 +30,7 @@ data class MeetitDetailResponse(
     val totalInvitedCount: Int,
     val respondedCount: Int,
     val isParticipant: Boolean,
-    val participants: List<MeetitParticipantInfoResponse>,
+    val respondedParticipants: List<MeetitParticipantInfoResponse>,
     val entireMemberOptimalSlots: List<MeetitOptimalSlotResponse>,
     val maxMemberOptimalSlots: List<MeetitOptimalSlotResponse>,
     val maxOverlappingCount: Int,
@@ -39,17 +39,13 @@ data class MeetitDetailResponse(
 
 data class MeetitParticipantInfoResponse(
     val userId: Long,
-    val name: String,
-    val profileImageUrl: String,
-    val hasResponded: Boolean
+    val name: String
 )
 
 data class MeetitOptimalSlotResponse(
     val date: String, // "yyyy-MM-dd"
     val startTime: String, // "HH:mm"
-    val endTime: String, // "HH:mm"
-    val availableCount: Int,
-    val totalInvitedCount: Int
+    val endTime: String // "HH:mm"
 )
 
 data class MeetitGridSlotResponse(

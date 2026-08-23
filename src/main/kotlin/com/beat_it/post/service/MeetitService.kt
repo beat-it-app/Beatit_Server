@@ -134,13 +134,13 @@ class MeetitService(
         val participantUserIds = participants.map { it.userId }
         val profilesMap = userService.getUserSimpleInfos(participantUserIds)
 
-        val participantsInfo = participants.map { p ->
+        val respondedParticipantsInfo = participants.filter { p ->
+            respondedParticipantIds.contains(p.meetitParticipantId)
+        }.map { p ->
             val profile = profilesMap[p.userId]
             MeetitParticipantInfoResponse(
                 userId = p.userId,
-                name = profile?.userName ?: p.name,
-                profileImageUrl = profile?.profileImageUrl ?: "",
-                hasResponded = respondedParticipantIds.contains(p.meetitParticipantId)
+                name = profile?.userName ?: p.name
             )
         }
 
@@ -175,8 +175,8 @@ class MeetitService(
         val totalCount = participants.size
         val maxOverlappingCount = timetableGrid.maxOfOrNull { it.availableUserIds.size } ?: 0
 
-        val entireMemberOptimalSlots = findOptimalIntervals(timetableGrid, totalCount, totalCount)
-        val maxMemberOptimalSlots = findOptimalIntervals(timetableGrid, maxOverlappingCount, totalCount)
+        val entireMemberOptimalSlots = findOptimalIntervals(timetableGrid, totalCount)
+        val maxMemberOptimalSlots = findOptimalIntervals(timetableGrid, maxOverlappingCount)
 
         val isParticipant = participantUserIds.contains(userId)
 
@@ -190,7 +190,7 @@ class MeetitService(
             totalInvitedCount = totalCount,
             respondedCount = respondedParticipantIds.size,
             isParticipant = isParticipant,
-            participants = participantsInfo,
+            respondedParticipants = respondedParticipantsInfo,
             entireMemberOptimalSlots = entireMemberOptimalSlots,
             maxMemberOptimalSlots = maxMemberOptimalSlots,
             maxOverlappingCount = maxOverlappingCount,
@@ -235,8 +235,7 @@ class MeetitService(
 
     private fun findOptimalIntervals(
         grid: List<MeetitGridSlotResponse>,
-        threshold: Int,
-        totalCount: Int
+        threshold: Int
     ): List<MeetitOptimalSlotResponse> {
         if (threshold <= 0) return emptyList()
         val result = mutableListOf<MeetitOptimalSlotResponse>()
@@ -250,37 +249,28 @@ class MeetitService(
 
             var intervalStart = sortedSlots.first().slotStartTime
             var expectedNext = intervalStart.plusMinutes(30)
-            var currentMinAvailable = sortedSlots.first().availableUserIds.size
 
             for (i in 1 until sortedSlots.size) {
                 val slot = sortedSlots[i]
                 if (slot.slotStartTime == expectedNext) {
                     expectedNext = slot.slotStartTime.plusMinutes(30)
-                    if (slot.availableUserIds.size < currentMinAvailable) {
-                        currentMinAvailable = slot.availableUserIds.size
-                    }
                 } else {
                     result.add(
                         MeetitOptimalSlotResponse(
                             date = date.toString(),
                             startTime = formatTime(intervalStart.toLocalTime()),
-                            endTime = formatTime(expectedNext.toLocalTime()),
-                            availableCount = currentMinAvailable,
-                            totalInvitedCount = totalCount
+                            endTime = formatTime(expectedNext.toLocalTime())
                         )
                     )
                     intervalStart = slot.slotStartTime
                     expectedNext = intervalStart.plusMinutes(30)
-                    currentMinAvailable = slot.availableUserIds.size
                 }
             }
             result.add(
                 MeetitOptimalSlotResponse(
                     date = date.toString(),
                     startTime = formatTime(intervalStart.toLocalTime()),
-                    endTime = formatTime(expectedNext.toLocalTime()),
-                    availableCount = currentMinAvailable,
-                    totalInvitedCount = totalCount
+                    endTime = formatTime(expectedNext.toLocalTime())
                 )
             )
         }
