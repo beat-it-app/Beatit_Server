@@ -13,8 +13,8 @@ fi
 
 # 2. Docker Compose로 전체 컨테이너 다운 및 재빌드 실행
 echo "> Docker Compose 재구동 시작" >> $REPOSITORY/deploy.log
-docker-compose down >> $REPOSITORY/deploy.log 2>&1
-docker-compose up -d --build >> $REPOSITORY/deploy.log 2>&1
+docker compose down >> $REPOSITORY/deploy.log 2>&1
+docker compose up -d --build >> $REPOSITORY/deploy.log 2>&1
 
 # 3. 사용하지 않는 구버전 Docker 이미지 정리 (용량 확보)
 echo "> Dangling Docker 이미지 정리" >> $REPOSITORY/deploy.log
