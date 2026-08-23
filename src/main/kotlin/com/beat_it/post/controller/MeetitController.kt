@@ -60,12 +60,14 @@ class MeetitController(
     @GetMapping("/{meetitId}")
     fun getMeetitDetail(
         @AuthenticationPrincipal userDetails: UserDetails,
-        @PathVariable meetitId: Long
+        @PathVariable meetitId: Long,
+        @RequestParam(defaultValue = "ALL") filter: String,
+        @RequestParam(required = false) userIds: List<Long>?
     ): ResponseEntity<BasicResponse<MeetitDetailResponse>> {
         val userId = userDetails.username.toLongOrNull()
             ?: throw BusinessException(ErrorCode.UNAUTHORIZED)
 
-        val response = meetitService.getMeetitDetail(userId, meetitId)
+        val response = meetitService.getMeetitDetail(userId, meetitId, filter, userIds)
 
         return ResponseEntity
             .status(HttpStatus.OK)

@@ -118,7 +118,7 @@ class MeetitService(
     }
 
     @Transactional(readOnly = true)
-    fun getMeetitDetail(userId: Long, meetitId: Long): MeetitDetailResponse {
+    fun getMeetitDetail(userId: Long, meetitId: Long, filter: String, userIds: List<Long>?): MeetitDetailResponse {
         val meetit = meetitRepository.findById(meetitId)
             .orElseThrow { BusinessException(ErrorCode.RESOURCE_NOT_FOUND) }
 
@@ -147,7 +147,7 @@ class MeetitService(
         val candidateDates = objectMapper.readValue<List<String>>(meetit.candidateDates)
 
         val systemZone = ZoneId.systemDefault()
-        val slotStartToUsers = mutableMapOf<OffsetDateTime, MutableList<Long>>()
+        val allSlotStartToUsers = mutableMapOf<OffsetDateTime, MutableList<Long>>()
 
         for (dateStr in candidateDates) {
             val date = LocalDate.parse(dateStr)
@@ -155,28 +155,50 @@ class MeetitService(
             val end = date.atTime(meetit.endTime)
             while (current.isBefore(end)) {
                 val offsetTime = current.atZone(systemZone).toOffsetDateTime()
-                slotStartToUsers[offsetTime] = mutableListOf()
+                allSlotStartToUsers[offsetTime] = mutableListOf()
                 current = current.plusMinutes(30)
             }
         }
 
         for (resp in responses) {
             val respInstant = resp.slotStartTime.toInstant()
-            val matchedSlot = slotStartToUsers.keys.find { it.toInstant() == respInstant }
+            val matchedSlot = allSlotStartToUsers.keys.find { it.toInstant() == respInstant }
             if (matchedSlot != null) {
-                slotStartToUsers[matchedSlot]?.add(resp.meetitParticipant.userId)
+                allSlotStartToUsers[matchedSlot]?.add(resp.meetitParticipant.userId)
             }
         }
 
-        val timetableGrid = slotStartToUsers.map { (slotTime, userIds) ->
+        val allTimetableGrid = allSlotStartToUsers.map { (slotTime, userIds) ->
             MeetitGridSlotResponse(slotStartTime = slotTime, availableUserIds = userIds)
         }.sortedBy { it.slotStartTime }
 
         val totalCount = participants.size
-        val maxOverlappingCount = timetableGrid.maxOfOrNull { it.availableUserIds.size } ?: 0
+        val maxOverlappingCount = allTimetableGrid.maxOfOrNull { it.availableUserIds.size } ?: 0
 
-        val entireMemberOptimalSlots = findOptimalIntervals(timetableGrid, totalCount)
-        val maxMemberOptimalSlots = findOptimalIntervals(timetableGrid, maxOverlappingCount)
+        val entireMemberOptimalSlots = findOptimalIntervals(allTimetableGrid, totalCount)
+        val maxMemberOptimalSlots = findOptimalIntervals(allTimetableGrid, maxOverlappingCount)
+
+        val timetableGrid = if (userIds != null && userIds.isNotEmpty()) {
+            allTimetableGrid.map { slot ->
+                MeetitGridSlotResponse(
+                    slotStartTime = slot.slotStartTime,
+                    availableUserIds = slot.availableUserIds.filter { userIds.contains(it) }
+                )
+            }
+        } else if (filter == "OPTIMAL") {
+            allTimetableGrid.map { slot ->
+                MeetitGridSlotResponse(
+                    slotStartTime = slot.slotStartTime,
+                    availableUserIds = if (slot.availableUserIds.size >= maxOverlappingCount && maxOverlappingCount > 0) {
+                        slot.availableUserIds
+                    } else {
+                        emptyList()
+                    }
+                )
+            }
+        } else {
+            allTimetableGrid
+        }
 
         val isParticipant = participantUserIds.contains(userId)
 
