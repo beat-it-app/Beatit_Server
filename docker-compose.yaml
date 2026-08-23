@@ -5,7 +5,7 @@ services:
     build: .
     container_name: beat-it-app
     ports:
-      - "8080:8080"
+      - "8083:8080"
     env_file:
       - .env
     environment:
