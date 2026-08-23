@@ -37,6 +37,12 @@ class MeetitService(
         if (request.candidateDates.isEmpty()) {
             throw BusinessException(ErrorCode.INVALID_INPUT_VALUE)
         }
+        if (request.startTime.minute % 30 != 0 || request.startTime.second != 0 || request.startTime.nano != 0) {
+            throw BusinessException(ErrorCode.INVALID_INPUT_VALUE)
+        }
+        if (request.endTime.minute % 30 != 0 || request.endTime.second != 0 || request.endTime.nano != 0) {
+            throw BusinessException(ErrorCode.INVALID_INPUT_VALUE)
+        }
 
         val teamId = userService.getCurrentTeamId(userId)
 
