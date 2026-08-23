@@ -29,6 +29,7 @@ data class MeetitDetailResponse(
     val candidateDates: List<String>,
     val totalInvitedCount: Int,
     val respondedCount: Int,
+    val isParticipant: Boolean,
     val participants: List<MeetitParticipantInfoResponse>,
     val entireMemberOptimalSlots: List<MeetitOptimalSlotResponse>,
     val maxMemberOptimalSlots: List<MeetitOptimalSlotResponse>,

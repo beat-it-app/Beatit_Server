@@ -183,6 +183,8 @@ class MeetitService(
         val entireMemberOptimalSlots = findOptimalIntervals(timetableGrid, totalCount, totalCount)
         val maxMemberOptimalSlots = findOptimalIntervals(timetableGrid, maxOverlappingCount, totalCount)
 
+        val isParticipant = participantUserIds.contains(userId)
+
         return MeetitDetailResponse(
             meetitId = meetit.meetitId!!,
             title = meetit.title,
@@ -192,6 +194,7 @@ class MeetitService(
             candidateDates = candidateDates,
             totalInvitedCount = totalCount,
             respondedCount = respondedParticipantIds.size,
+            isParticipant = isParticipant,
             participants = participantsInfo,
             entireMemberOptimalSlots = entireMemberOptimalSlots,
             maxMemberOptimalSlots = maxMemberOptimalSlots,
