@@ -12,21 +12,35 @@ class ItunesService(
 ) {
     private val restClient = RestClient.create()
 
-    fun searchTrack(query: String): MusicInfo? {
+    fun searchTracks(query: String, page: Int = 0, limit: Int = 10): List<MusicInfo> {
         val jsonResponse = restClient.get()
-            .uri("https://itunes.apple.com/search?term={query}&media=music&country=KR&limit=1", query)
+            .uri("https://itunes.apple.com/search?term={query}&media=music&entity=song&country=KR&limit=100", query)
             .retrieve()
-            .body(String::class.java) ?: return null
+            .body(String::class.java) ?: return emptyList()
 
         val response = objectMapper.readValue(jsonResponse, ItunesSearchResponse::class.java)
 
-        val track = response?.results?.firstOrNull() ?: return null
+        val allTracks = response?.results?.map { track ->
+            MusicInfo(
+                title = track.trackName ?: "Unknown Title",
+                artist = track.artistName ?: "Unknown Artist",
+                previewUrl = track.previewUrl,
+                imageUrl = track.artworkUrl100,
+                duration = track.trackTimeMillis?.let { formatDuration(it) }
+            )
+        } ?: emptyList()
 
-        return MusicInfo(
-            title = track.trackName ?: "Unknown Title",
-            artist = track.artistName ?: "Unknown Artist",
-            previewUrl = track.previewUrl,
-            imageUrl = track.artworkUrl100
-        )
+        val fromIndex = page * limit
+        if (fromIndex >= allTracks.size) {
+            return emptyList()
+        }
+        val toIndex = minOf(fromIndex + limit, allTracks.size)
+        return allTracks.subList(fromIndex, toIndex)
+    }
+
+    private fun formatDuration(millis: Long): String {
+        val minutes = (millis / 1000) / 60
+        val seconds = (millis / 1000) % 60
+        return String.format("%02d:%02d", minutes, seconds)
     }
 }
