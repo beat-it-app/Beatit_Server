@@ -30,8 +30,7 @@ class MeetitController(
         @RequestParam(defaultValue = "0") page: Int,
         @RequestParam(defaultValue = "10") size: Int
     ): ResponseEntity<BasicResponse<MeetitListResponse>> {
-        val userId = userDetails.username.toLongOrNull()
-            ?: throw BusinessException(ErrorCode.UNAUTHORIZED)
+        val userId = extractUserId(userDetails)
 
         val response = meetitService.getMeetitList(userId, page, size)
 
@@ -46,8 +45,7 @@ class MeetitController(
         @AuthenticationPrincipal userDetails: UserDetails,
         @RequestBody request: MeetitCreateRequest
     ): ResponseEntity<BasicResponse<Nothing>> {
-        val userId = userDetails.username.toLongOrNull()
-            ?: throw BusinessException(ErrorCode.UNAUTHORIZED)
+        val userId = extractUserId(userDetails)
 
         meetitService.createMeetit(userId, request)
 
@@ -64,8 +62,7 @@ class MeetitController(
         @RequestParam(defaultValue = "ALL") filter: String,
         @RequestParam(required = false) userIds: List<Long>?
     ): ResponseEntity<BasicResponse<MeetitDetailResponse>> {
-        val userId = userDetails.username.toLongOrNull()
-            ?: throw BusinessException(ErrorCode.UNAUTHORIZED)
+        val userId = extractUserId(userDetails)
 
         val response = meetitService.getMeetitDetail(userId, meetitId, filter, userIds)
 
@@ -81,13 +78,17 @@ class MeetitController(
         @PathVariable meetitId: Long,
         @RequestBody request: MeetitSubmissionRequest
     ): ResponseEntity<BasicResponse<Nothing>> {
-        val userId = userDetails.username.toLongOrNull()
-            ?: throw BusinessException(ErrorCode.UNAUTHORIZED)
+        val userId = extractUserId(userDetails)
 
         meetitService.respondMeetit(userId, meetitId, request)
 
         return ResponseEntity
             .status(HttpStatus.OK)
             .body(BasicResponse.success(HttpStatus.OK, "성공적으로 응답하였습니다."))
+    }
+
+    private fun extractUserId(userDetails: UserDetails): Long {
+        return userDetails.username.toLongOrNull()
+            ?: throw BusinessException(ErrorCode.UNAUTHORIZED)
     }
 }
