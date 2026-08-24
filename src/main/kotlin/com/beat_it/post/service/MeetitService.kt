@@ -124,7 +124,7 @@ class MeetitService(
 
         val teamId = userService.getCurrentTeamId(userId)
         if (meetit.teamId != teamId) {
-            throw BusinessException(ErrorCode.FORBIDDEN)
+            throw BusinessException(ErrorCode.MEETIT_TEAM_MISMATCH)
         }
 
         val participants = meetitParticipantRepository.findByMeetitMeetitId(meetitId)
@@ -223,7 +223,7 @@ class MeetitService(
     @Transactional
     fun respondMeetit(userId: Long, meetitId: Long, request: MeetitSubmissionRequest) {
         val participant = meetitParticipantRepository.findByMeetitMeetitIdAndUserId(meetitId, userId)
-            ?: throw BusinessException(ErrorCode.FORBIDDEN)
+            ?: throw BusinessException(ErrorCode.MEETIT_NOT_PARTICIPANT)
 
         val meetit = participant.meetit
         val candidateDates = objectMapper.readValue<List<String>>(meetit.candidateDates).toSet()
