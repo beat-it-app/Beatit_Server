@@ -9,13 +9,13 @@ enum class ErrorCode(
 ) {
     // --- 공통 에러 (COMMON) ---
     INVALID_REQUEST_BODY(HttpStatus.BAD_REQUEST, "COMMON-001", "요청 본문이 올바르지 않습니다."),
-    INVALID_INPUT_VALUE(HttpStatus.BAD_REQUEST, "COMMON-008", "올바르지 않은 입력값입니다."),
     UNAUTHORIZED(HttpStatus.UNAUTHORIZED, "COMMON-002", "로그인이 필요한 서비스입니다."),
     RESOURCE_NOT_FOUND(HttpStatus.NOT_FOUND, "COMMON-003", "찾을 수 없는 리소스입니다."),
     INTERNAL_SERVER_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "COMMON-004", "서버 내부 오류가 발생했습니다."),
     USER_NOT_FOUND(HttpStatus.NOT_FOUND, "COMMON-005", "해당 유저를 찾을 수 없습니다."),
     FORBIDDEN(HttpStatus.FORBIDDEN, "COMMON-006", "해당 요청에 대한 접근 권한이 없습니다."),
     NOT_AUTHOR(HttpStatus.FORBIDDEN, "COMMON-007", "해당 리소스를 편집할 권한이 없습니다."),
+    INVALID_INPUT_VALUE(HttpStatus.BAD_REQUEST, "COMMON-008", "올바르지 않은 입력값입니다."),
 
     // --- 1. 사용자 관련 에러 (AUTH - SIGNUP/LOGIN/USER)  ---
     IDENTIFIER_DUPLICATED(HttpStatus.BAD_REQUEST, "SIGNUP-001", "이미 사용 중인 아이디입니다."),
@@ -32,12 +32,13 @@ enum class ErrorCode(
     IDENTIFIER_NOT_FOUND(HttpStatus.NOT_FOUND, "LOGIN-001", "존재하지 않는 아이디입니다."),
     INVALID_PASSWORD(HttpStatus.BAD_REQUEST, "LOGIN-002", "비밀번호가 일치하지 않습니다."),
     PROFILE_ALREADY_EXISTS(HttpStatus.BAD_REQUEST, "LOGIN-003", "이미 프로필이 존재합니다."),
-    INVALID_NAME_FORMAT(HttpStatus.BAD_REQUEST, "LOGIN-004", "프로필 이름은 1자 이상 10자 이하로 입력해주세요."),
+    INVALID_NAME_FORMAT(HttpStatus.BAD_REQUEST, "LOGIN-004", "프로필 이름은 2자 이상 10자 이하로 입력해주세요."),
     ALREADY_DEFAULT_PROFILE(HttpStatus.BAD_REQUEST, "LOGIN-005", "이미 기본 프로필 이미지 상태입니다."),
     INVALID_TOKEN(HttpStatus.BAD_REQUEST, "LOGIN-006", "유효하지 않은 토큰입니다."),
     EXPIRED_REFRESH_TOKEN(HttpStatus.UNAUTHORIZED, "LOGIN-007", "만료된 Refresh 토큰입니다. 다시 로그인 해주세요."),
     REFRESH_TOKEN_NOT_FOUND(HttpStatus.UNAUTHORIZED, "LOGIN-008", "존재하지 않거나 만료된 Refresh 토큰입니다."),
     PROFILE_NOT_FOUND(HttpStatus.NOT_FOUND, "LOGIN-009", "프로필이 생성되지 않았습니다."),
+    DUPLICATE_NAME(HttpStatus.BAD_REQUEST, "LOGIN-010", "기존 이름과 동일한 이름으로 변경할 수 없습니다."),
 
     // --- 4. 일정 관련 에러 (CALENDAR) ---
     CALENDAR_NO_CONTENT_TO_UPDATE(HttpStatus.BAD_REQUEST, "CALENDAR-001", "변경할 내용이 없습니다."),

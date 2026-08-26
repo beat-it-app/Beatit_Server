@@ -79,7 +79,16 @@ class MyPageService (
     fun updateName(userId: Long, request: UpdateNameRequest) {
         val userProfile = getUserProfile(userId)
 
-        userProfile.updateName(request.name)
+        val newName = request.name.trim()
+        if (newName.isBlank() || newName.length < 2 || newName.length > 10) {
+            throw BusinessException(ErrorCode.INVALID_NAME_FORMAT)
+        }
+
+        if (userProfile.name == newName) {
+            throw BusinessException(ErrorCode.DUPLICATE_NAME)
+        }
+
+        userProfile.updateName(newName)
     }
 
     @Transactional
