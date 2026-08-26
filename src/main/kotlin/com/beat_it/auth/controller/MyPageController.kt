@@ -98,6 +98,20 @@ class MyPageController (
         )
     }
 
+    @Operation(summary = "로그아웃")
+    @PostMapping("/logout")
+    fun logout(
+        @AuthenticationPrincipal userDetails: UserDetails,
+    ): ResponseEntity<BasicResponse<Nothing>> {
+        val userId = extractUserId(userDetails)
+
+        myPageService.logout(userId)
+
+        return ResponseEntity.ok(
+            BasicResponse.success(HttpStatus.OK, "로그아웃이 성공적으로 처리되었습니다.")
+        )
+    }
+
     private fun extractUserId(userDetails: UserDetails): Long {
         return userDetails.username.toLongOrNull()
             ?: throw BusinessException(ErrorCode.UNAUTHORIZED)

@@ -32,6 +32,7 @@ class MyPageService (
     private val authFilesRepository: AuthFilesRepository,
     private val fileService: FileService,
     private val passwordEncoder: PasswordEncoder,
+    private val refreshTokenService: RefreshTokenService,
 ){
     fun getMyPage(userId: Long): MyPageResponse {
         val userProfile = getUserProfile(userId)
@@ -178,5 +179,9 @@ class MyPageService (
     private fun getUserAuthAccount(userId: Long): UserAuthAccounts{
         return userAuthAccountRepository.findByUserUserId(userId)
             ?: throw BusinessException(ErrorCode.USER_NOT_FOUND)
+    }
+
+    fun logout(userId: Long) {
+        refreshTokenService.deleteRefreshToken(userId.toString())
     }
 }
