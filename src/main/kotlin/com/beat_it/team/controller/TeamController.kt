@@ -1,5 +1,7 @@
 package com.beat_it.team.controller
 
+import com.beat_it.auth.dto.WithdrawalRequest
+import com.beat_it.auth.dto.WithdrawalResponse
 import com.beat_it.global.error.BusinessException
 import com.beat_it.global.error.ErrorCode
 import com.beat_it.team.dto.TeamCreateRequest
@@ -22,6 +24,7 @@ import java.util.UUID
 import io.swagger.v3.oas.annotations.Parameter
 import io.swagger.v3.oas.annotations.security.SecurityRequirements
 import io.swagger.v3.oas.annotations.tags.Tag
+import jakarta.validation.Valid
 import org.springframework.security.core.annotation.AuthenticationPrincipal
 import org.springframework.security.core.userdetails.UserDetails
 
@@ -38,9 +41,7 @@ class TeamController(
         @AuthenticationPrincipal userDetails: UserDetails,
         @RequestBody request: TeamCreateRequest
     ): ResponseEntity<BasicResponse<TeamCreateResponse>> {
-        val userId = userDetails.username.toLongOrNull()
-            ?: throw BusinessException(ErrorCode.UNAUTHORIZED)
-
+        val userId = extractUserId(userDetails)
         val responseData = teamService.createTeam(userId, request)
 
         return ResponseEntity
@@ -54,8 +55,7 @@ class TeamController(
         @AuthenticationPrincipal userDetails: UserDetails,
         @RequestBody request: TeamDetailUpdateRequest,
     ): ResponseEntity<BasicResponse<TeamDetailUpdateResponse>> {
-        val userId = userDetails.username.toLongOrNull()
-            ?: throw BusinessException(ErrorCode.UNAUTHORIZED)
+        val userId = extractUserId(userDetails)
         val responseData = teamService.updateTeamDetail(userId, request)
 
         return ResponseEntity
@@ -69,8 +69,7 @@ class TeamController(
         @AuthenticationPrincipal userDetails: UserDetails,
         @PathVariable teamPublicId: UUID
     ): ResponseEntity<BasicResponse<Nothing>> {
-        val userId = userDetails.username.toLongOrNull()
-            ?: throw BusinessException(ErrorCode.UNAUTHORIZED)
+        val userId = extractUserId(userDetails)
         teamService.deleteTeam(userId, teamPublicId)
 
         return ResponseEntity
@@ -83,8 +82,7 @@ class TeamController(
     fun getTeamDetail(
         @AuthenticationPrincipal userDetails: UserDetails
     ): ResponseEntity<BasicResponse<out Any>> {
-        val userId = userDetails.username.toLongOrNull()
-            ?: throw BusinessException(ErrorCode.UNAUTHORIZED)
+        val userId = extractUserId(userDetails)
 
         val teamDetail = teamService.getTeamDetail(userId)
 
@@ -113,8 +111,7 @@ class TeamController(
         @AuthenticationPrincipal userDetails: UserDetails,
         @PathVariable teamPublicId: UUID,
     ): ResponseEntity<BasicResponse<Nothing>> {
-        val userId = userDetails.username.toLongOrNull()
-            ?: throw BusinessException(ErrorCode.UNAUTHORIZED)
+        val userId = extractUserId(userDetails)
 
         teamService.selectTeam(userId, teamPublicId)
 
@@ -129,8 +126,7 @@ class TeamController(
         @AuthenticationPrincipal userDetails: UserDetails,
         @PathVariable inviteCode: String,
     ): ResponseEntity<BasicResponse<TeamJoinResponse>> {
-        val userId = userDetails.username.toLongOrNull()
-            ?: throw BusinessException(ErrorCode.UNAUTHORIZED)
+        val userId = extractUserId(userDetails)
 
         val responseData = teamService.joinTeam(userId, inviteCode)
 
@@ -144,8 +140,7 @@ class TeamController(
     fun getMyTeams(
         @AuthenticationPrincipal userDetails: UserDetails,
     ): ResponseEntity<BasicResponse<UserTeamListResponse>> {
-        val userId = userDetails.username.toLongOrNull()
-            ?: throw BusinessException(ErrorCode.UNAUTHORIZED)
+        val userId = extractUserId(userDetails)
 
         val responseData = teamService.getUserTeams(userId)
 
@@ -171,8 +166,7 @@ class TeamController(
     fun getMembers(
         @AuthenticationPrincipal userDetails: UserDetails,
     ): ResponseEntity<BasicResponse<TeamMemberListResponse>>{
-        val userId = userDetails.username.toLongOrNull()
-            ?: throw BusinessException(ErrorCode.UNAUTHORIZED)
+        val userId = extractUserId(userDetails)
 
         val responseData = teamService.getTeamMembers(userId)
 
@@ -188,14 +182,33 @@ class TeamController(
         @PathVariable userPublicId: UUID,
         @RequestBody request: TeamManageRequest,
     ): ResponseEntity<BasicResponse<TeamManageResponse>> {
-        val userId = userDetails.username.toLongOrNull()
-            ?: throw BusinessException(ErrorCode.UNAUTHORIZED)
+        val userId = extractUserId(userDetails)
 
         val responseData = teamService.updateMemberRole(request, userId, userPublicId)
 
         return ResponseEntity
             .status(HttpStatus.OK)
             .body(BasicResponse.success(responseData, HttpStatus.OK, "멤버 권한이 성공적으로 변경되었습니다."))
+    }
+
+    @Operation(summary = "팀 탈퇴하기")
+    @PostMapping("/withdraw/{teamPublicId}")
+    fun withdrawTeam(
+        @AuthenticationPrincipal userDetails: UserDetails,
+        @PathVariable teamPublicId: UUID
+    ): ResponseEntity<BasicResponse<com.beat_it.team.dto.TeamWithdrawalResponse>> {
+        val userId = extractUserId(userDetails)
+
+        val responseData = teamService.teamWithdraw(userId, teamPublicId)
+
+        return ResponseEntity.ok(
+            BasicResponse.success(responseData, HttpStatus.OK, "팀 탈퇴 요청이 정상적으로 접수되었습니다. 7일의 유예기간 후 완전히 탈퇴 처리됩니다.")
+        )
+    }
+
+    private fun extractUserId(userDetails: UserDetails): Long {
+        return userDetails.username.toLongOrNull()
+            ?: throw BusinessException(ErrorCode.UNAUTHORIZED)
     }
 }
 

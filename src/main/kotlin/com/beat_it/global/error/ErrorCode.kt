@@ -66,6 +66,7 @@ enum class ErrorCode(
     NOT_TEAM_MEMBER(HttpStatus.FORBIDDEN, "TEAM-011", "해당 팀의 멤버가 아닙니다."),
     TEAM_NOT_SELECTED(HttpStatus.BAD_REQUEST, "TEAM-012", "현재 선택된 팀이 없습니다. 팀을 먼저 선택해주세요."),
     TEAM_NO_DELETE_PERMISSION(HttpStatus.FORBIDDEN, "TEAM-013", "팀 삭제 권한이 없습니다."),
+    TEAM_LEADER_CANNOT_WITHDRAW(HttpStatus.BAD_REQUEST, "TEAM-014", "리더는 팀을 탈퇴할 수 없습니다. 권한을 양도하거나 팀을 삭제해주세요."),
 
     // --- 4. 연습실 관련 에러 (Archive) ---
     ARCHIVE_NO_CONTENT_TO_UPDATE(HttpStatus.BAD_REQUEST, "ARCHIVE-001", "연습실에 대해 변경할 내용이 없습니다."),

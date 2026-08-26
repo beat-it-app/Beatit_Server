@@ -84,7 +84,7 @@ class MyPageController (
     }
 
     @Operation(summary = "회원 탈퇴")
-    @PatchMapping
+    @PatchMapping("/withdraw")
     fun withdraw(
         @AuthenticationPrincipal userDetails: UserDetails,
         @Valid @RequestBody request: WithdrawalRequest
