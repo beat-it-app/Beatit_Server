@@ -21,17 +21,23 @@ enum class ErrorCode(
     IDENTIFIER_DUPLICATED(HttpStatus.BAD_REQUEST, "SIGNUP-001", "이미 사용 중인 아이디입니다."),
     EMAIL_SEND_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "SIGNUP-002", "이메일 인증번호 발송에 실패했습니다."),
     EMAIL_VERIFICATION_EXPIRED(HttpStatus.BAD_REQUEST, "SIGNUP-003", "인증 시간이 만료되었습니다."),
-    EMAIL_VERIFICATION_CODE_MISMATCH(HttpStatus.BAD_REQUEST, "SIGNUP-004", "잘못된 인증번호입니다."),
+    EMAIL_VERIFICATION_CODE_MISMATCH(HttpStatus.BAD_REQUEST, "SIGNUP-004", "인증번호가 일치하지 않습니다."),
     EMAIL_VERIFICATION_NOT_FOUND(HttpStatus.NOT_FOUND, "SIGNUP-005", "진행 중인 인증 요청을 찾을 수 없습니다."),
     MISSING_PROVIDER(HttpStatus.BAD_REQUEST, "SIGNUP-006", "소셜 회원가입 시 제공자 정보는 필수입니다."),
     MISSING_IDENTIFIER(HttpStatus.BAD_REQUEST, "SIGNUP-007", "일반 회원가입 시 아이디는 필수입니다."),
     MISSING_PASSWORD(HttpStatus.BAD_REQUEST, "SIGNUP-008", "일반 회원가입 시 비밀번호는 필수입니다."),
+    EMAIL_NOT_VERIFIED(HttpStatus.BAD_REQUEST, "SIGNUP-009", "인증되지 않은 이메일입니다."),
+    EMAIL_DUPLICATED(HttpStatus.BAD_REQUEST, "SIGNUP-010", "이미 가입된 이메일입니다."),
 
     IDENTIFIER_NOT_FOUND(HttpStatus.NOT_FOUND, "LOGIN-001", "존재하지 않는 아이디입니다."),
     INVALID_PASSWORD(HttpStatus.BAD_REQUEST, "LOGIN-002", "비밀번호가 일치하지 않습니다."),
     PROFILE_ALREADY_EXISTS(HttpStatus.BAD_REQUEST, "LOGIN-003", "이미 프로필이 존재합니다."),
     INVALID_NAME_FORMAT(HttpStatus.BAD_REQUEST, "LOGIN-004", "프로필 이름은 1자 이상 10자 이하로 입력해주세요."),
     ALREADY_DEFAULT_PROFILE(HttpStatus.BAD_REQUEST, "LOGIN-005", "이미 기본 프로필 이미지 상태입니다."),
+    INVALID_TOKEN(HttpStatus.BAD_REQUEST, "LOGIN-006", "유효하지 않은 토큰입니다."),
+    EXPIRED_REFRESH_TOKEN(HttpStatus.UNAUTHORIZED, "LOGIN-007", "만료된 Refresh 토큰입니다. 다시 로그인 해주세요."),
+    REFRESH_TOKEN_NOT_FOUND(HttpStatus.UNAUTHORIZED, "LOGIN-008", "존재하지 않거나 만료된 Refresh 토큰입니다."),
+    PROFILE_NOT_FOUND(HttpStatus.NOT_FOUND, "LOGIN-009", "프로필이 생성되지 않았습니다."),
 
     // --- 4. 일정 관련 에러 (CALENDAR) ---
     CALENDAR_NO_CONTENT_TO_UPDATE(HttpStatus.BAD_REQUEST, "CALENDAR-001", "변경할 내용이 없습니다."),
@@ -93,6 +99,10 @@ enum class ErrorCode(
     POLL_OPTION_NOT_FOUND(HttpStatus.NOT_FOUND, "POST-008", "존재하지 않는 투표 항목입니다."),
     POLL_MULTIPLE_CHOICE_NOT_ALLOWED(HttpStatus.BAD_REQUEST, "POST-009", "중복 투표가 허용되지 않는 투표입니다."),
 
+    // --- 6. 모임 조율 관련 에러 (MEETIT) ---
+    MEETIT_TEAM_MISMATCH(HttpStatus.FORBIDDEN, "MEETIT-001", "현재 팀에서 접근할 수 없는 모임 조율입니다."),
+    MEETIT_NOT_PARTICIPANT(HttpStatus.FORBIDDEN, "MEETIT-002", "해당 모임 조율의 참여 대상이 아닙니다."),
+
     // --- 장소 관련 에러 ---
     LOCATION_NOT_FOUND(HttpStatus.NOT_FOUND, "LOCATION-001", "장소를 찾을 수 없습니다."),
 
@@ -105,4 +115,16 @@ enum class ErrorCode(
 
     // --- 멤버 관련 에러 ---
     MEMBER_NOT_FOUND(HttpStatus.NOT_FOUND, "MEMBER-001", "참여 사용자를 찾을 수 없습니다."),
+
+    // --- 팀 클라우드 관련 에러 (TEAM_CLOUD) ---
+    TEAM_CLOUD_FOLDER_NOT_FOUND(HttpStatus.NOT_FOUND, "TEAM_CLOUD-001", "팀 클라우드 폴더를 찾을 수 없습니다."),
+    TEAM_CLOUD_ITEM_NOT_FOUND(HttpStatus.NOT_FOUND, "TEAM_CLOUD-002", "팀 클라우드 아이템을 찾을 수 없습니다."),
+    TEAM_CLOUD_FOLDER_TEAM_MISMATCH(HttpStatus.FORBIDDEN, "TEAM_CLOUD-003", "해당 팀의 폴더가 아닙니다."),
+    TEAM_CLOUD_ITEM_TEAM_MISMATCH(HttpStatus.FORBIDDEN, "TEAM_CLOUD-004", "해당 팀 클라우드 아이템의 팀 정보가 일치하지 않습니다."),
+    TEAM_CLOUD_FILE_NOT_FOUND(HttpStatus.NOT_FOUND, "TEAM_CLOUD-005", "해당 파일 아이템을 찾을 수 없습니다."),
+    TEAM_CLOUD_STORAGE_EXCEEDED(HttpStatus.BAD_REQUEST, "TEAM_CLOUD-006", "팀 클라우드 용량(10GB)이 초과되었습니다."),
+    TEAM_CLOUD_FOLDER_ALREADY_EXISTS(HttpStatus.CONFLICT, "TEAM_CLOUD-006","이미 존재하는 폴더 이름입니다."),
+    TEAM_CLOUD_FILE_UPLOAD_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "TEAM_CLOUD-007", "파일 업로드에 실패했습니다."),
+
+
 }

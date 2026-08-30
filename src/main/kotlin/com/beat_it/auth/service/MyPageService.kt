@@ -172,7 +172,7 @@ class MyPageService (
 
     private fun getUserProfile(userId: Long): UserProfiles{
         return userProfilesRepository.findByUserUserId(userId)
-            ?: throw BusinessException(ErrorCode.USER_NOT_FOUND)
+            ?: throw BusinessException(ErrorCode.PROFILE_NOT_FOUND)
     }
 
     private fun getUserAuthAccount(userId: Long): UserAuthAccounts{

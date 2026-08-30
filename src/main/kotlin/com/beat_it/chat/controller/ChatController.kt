@@ -11,6 +11,7 @@ import com.beat_it.chat.service.ChatService
 import com.beat_it.global.response.BasicResponse
 import com.beat_it.global.error.BusinessException
 import com.beat_it.global.error.ErrorCode
+import io.swagger.v3.oas.annotations.tags.Tag
 import org.springframework.http.MediaType
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
@@ -27,6 +28,7 @@ import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
 
+@Tag(name = "5. CHAT API", description = "채팅 모듈")
 @RestController
 @RequestMapping("/chatrooms")
 class ChatController(

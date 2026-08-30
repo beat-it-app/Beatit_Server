@@ -1,0 +1,12 @@
+server:
+  port: 8083
+
+spring:
+  datasource:
+    url: ${DB_DEV_URL}
+  data:
+    redis:
+      host: dev-redis
+
+  kafka:
+    bootstrap-servers: dev-kafka:29092

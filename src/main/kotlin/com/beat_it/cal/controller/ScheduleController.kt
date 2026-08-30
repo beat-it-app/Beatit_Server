@@ -12,22 +12,23 @@ import com.beat_it.global.error.ErrorCode
 import com.beat_it.global.response.BasicResponse
 import io.swagger.v3.oas.annotations.tags.Tag
 import org.springframework.http.HttpStatus
+import org.springframework.http.MediaType
 import org.springframework.http.ResponseEntity
 import org.springframework.security.core.annotation.AuthenticationPrincipal
 import org.springframework.security.core.userdetails.UserDetails
 import org.springframework.web.bind.annotation.*
 
-@Tag(name = "4. CALENDAR API", description = "일정 관련 로직")
+@Tag(name = "3. CALENDAR API", description = "일정 관련 로직")
 @RestController
 @RequestMapping("/calendar")
 class ScheduleController(
     private val scheduleService: ScheduleService
 ) {
 
-    @PostMapping
+    @PostMapping(consumes = [MediaType.MULTIPART_FORM_DATA_VALUE])
     fun createSchedule(
         @AuthenticationPrincipal userDetails: UserDetails,
-        @RequestBody request: ScheduleCreateRequest
+        @ModelAttribute request: ScheduleCreateRequest
     ): ResponseEntity<BasicResponse<ScheduleCreateResponse>> {
 
         val userId = userDetails.username.toLongOrNull()
@@ -39,11 +40,11 @@ class ScheduleController(
             .body(BasicResponse.success(responseData, HttpStatus.CREATED, "일정 생성에 성공했습니다."))
     }
 
-    @PatchMapping("/{scheduleId}")
+    @PatchMapping("/{scheduleId}", consumes = [MediaType.MULTIPART_FORM_DATA_VALUE])
     fun updateSchedule(
         @AuthenticationPrincipal userDetails: UserDetails,
         @PathVariable scheduleId: Long,
-        @RequestBody request: ScheduleUpdateRequest
+        @ModelAttribute request: ScheduleUpdateRequest
     ): ResponseEntity<BasicResponse<ScheduleCreateResponse>> {
         val userId = userDetails.username.toLongOrNull()
             ?: throw BusinessException(ErrorCode.UNAUTHORIZED)

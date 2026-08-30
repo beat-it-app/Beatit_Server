@@ -1,11 +1,41 @@
 spring:
+  profiles:
+    default: local
+
   application:
     name: beat-it
+
+  mail:
+    host: smtp.gmail.com
+    port: 587
+    username: ${MAIL_USERNAME}
+    password: ${MAIL_PASSWORD}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+
   datasource:
-    url: jdbc:postgresql://localhost:5432/beatit_db
     username: ${DB_USERNAME}
     password: ${DB_PASSWORD}
     driver-class-name: org.postgresql.Driver
+
+  data:
+    redis:
+      port: 6379
+
+  kafka:
+    consumer:
+      group-id: chat-group
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+
   jpa:
     hibernate:
       ddl-auto: update
@@ -13,29 +43,33 @@ spring:
     properties:
       hibernate:
         format_sql: true
+        
+  servlet:
+    multipart:
+      max-file-size: 300MB
+      max-request-size: 300MB
 
-  data:
-    redis:
-      host: localhost
-      port: 6379
-
-
-  kafka:
-    bootstrap-servers: localhost:9092
-    consumer:
-      group-id: chat-group
-      auto-offset-reset: earliest
-      key-deserializer: string
-      value-deserializer: string
-    producer:
-      key-serializer: string
-      value-serializer: string
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            client-id: ${GOOGLE_CLIENT_ID}
 
 springdoc:
   swagger-ui:
-    operations-sorter: method # API를 HTTP 메서드순 정렬 (또는 alpha)
-    tags-sorter: alpha        # 태그를 알파벳순 정렬
+    operations-sorter: method
+    tags-sorter: alpha
 
 jwt:
-  secret: ${JWT_SECRET:v3rys3cr3tk3yf0rjwtm4k31tL0ng3n0ugh1234567890}
-  expiration: 86400000 # 24 hours
+  secret: ${JWT_SECRET}
+  expiration: 604800000 # 7 days
+  refresh-expiration: 2592000000 # 30 days
+
+kakao:
+  rest-api-key: ${KAKAO_REST_API_KEY}
+
+logging:
+  level:
+    org.apache.kafka: ERROR
+    org.springframework.kafka: ERROR

@@ -16,6 +16,13 @@ data class PollRequest(
 
 data class PollItemRequest(
     val content: String? = null,
-    val music: String? = null,
-    val location: String? = null
+    val music: PollMusicRequest? = null,
+    val location: String? = null,
+    val locationId: Long? = null
+)
+
+data class PollMusicRequest(
+    val title: String,
+    val artist: String,
+    val previewUrl: String?
 )

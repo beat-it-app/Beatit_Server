@@ -1,0 +1,70 @@
+name: CD
+
+on:
+  push:
+    branches: [ "develop" ]
+
+env:
+  AWS_REGION: ap-northeast-2
+  # S3 및 CodeDeploy 정보는 보안과 관리 편의를 위해 GitHub Secrets에 등록해두고 사용하는 것을 권장합니다.
+  S3_BUCKET_NAME: ${{ secrets.S3_BUCKET_NAME }}
+  CODE_DEPLOY_APPLICATION_NAME: ${{ secrets.CODE_DEPLOY_APPLICATION_NAME }}
+  CODE_DEPLOY_DEPLOYMENT_GROUP_NAME: ${{ secrets.CODE_DEPLOY_DEPLOYMENT_GROUP_NAME }}
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    name: Deploy
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      - name: 체크아웃 Github-Action
+        uses: actions/checkout@v4
+
+      - name: 자바 JDK set up
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+
+      - name: Gradle set up
+        uses: gradle/actions/setup-gradle@af1da67850ed9a4cedd57bfd976089dd991e2582 # v4.0.0
+
+      - name: gradlew 권한 부여
+        run: chmod +x ./gradlew
+
+      - name: Gradle 빌드
+        run: ./gradlew clean build -x test
+
+      - name: AWS 인증 (IAM 사용자 Access key, Secret Key 사용)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      # appspec.yml 파일을 프로젝트 최상단(루트)에 생성하여 보관할 경우 아래 이동 스텝은 필요 없습니다.
+      # 만약 특정 폴더(예: cicd/) 아래에 보관하신다면 주석을 해제하고 실제 폴더 경로로 채워주세요.
+      # - name: Move appspec.yml to root (최상단으로 이동)
+      #   run: mv cicd/appspec.yml .
+
+      - name: AWS S3 에 build 결과 업로드
+        run: |
+          aws deploy push \
+            --application-name ${{ env.CODE_DEPLOY_APPLICATION_NAME }} \
+            --ignore-hidden-files \
+            --s3-location s3://${{ env.S3_BUCKET_NAME }}/${{ github.sha }}.zip \
+            --source . \
+            --region ${{ env.AWS_REGION }}
+
+      - name: S3 버킷 내 파일 CodeDeploy 실행
+        run: |
+          aws deploy create-deployment \
+            --deployment-config-name CodeDeployDefault.AllAtOnce \
+            --application-name ${{ env.CODE_DEPLOY_APPLICATION_NAME }} \
+            --deployment-group-name ${{ env.CODE_DEPLOY_DEPLOYMENT_GROUP_NAME }} \
+            --s3-location bucket=${{ env.S3_BUCKET_NAME }},key=${{ github.sha }}.zip,bundleType=zip \
+            --region ${{ env.AWS_REGION }}

@@ -1,9 +1,37 @@
 version: '3.8'
 
 services:
-  local-db:
+  beat-it-app:
+    build: .
+    container_name: beat-it-app
+    ports:
+      - "8083:8080"
+    env_file:
+      - .env
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://dev-db:5432/${DB_NAME}
+      SPRING_DATASOURCE_USERNAME: ${DB_USERNAME}
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD}
+      SPRING_DATA_REDIS_HOST: dev-redis
+      SPRING_DATA_REDIS_PORT: 6379
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: dev-kafka:29092
+      JWT_SECRET: ${JWT_SECRET}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
+      GOOGLE_CLIENT_PASSWORD: ${GOOGLE_CLIENT_PASSWORD}
+      KAKAO_REST_API_KEY: ${KAKAO_REST_API_KEY}
+      EC2_DEV_DNS: ${EC2_DEV_DNS}
+      MAIL_USERNAME: ${MAIL_USERNAME}
+      MAIL_PASSWORD: ${MAIL_PASSWORD}
+    depends_on:
+      - dev-db
+      - dev-redis
+      - dev-kafka
+    networks:
+      - chat-network
+
+  dev-db:
     image: postgres:15-alpine
-    container_name: local-db
+    container_name: dev-db
     ports:
       - "5432:5432"
     environment:
@@ -15,9 +43,9 @@ services:
     networks:
       - chat-network
 
-  local-redis:
+  dev-redis:
     image: redis:alpine
-    container_name: local-redis
+    container_name: dev-redis
     ports:
       - "6379:6379"
     networks:
@@ -25,16 +53,17 @@ services:
 
   zookeeper:
     image: confluentinc/cp-zookeeper:7.3.0
-    container_name: local-zookeeper
+    container_name: dev-zookeeper
     environment:
       ZOOKEEPER_CLIENT_PORT: 2181
       ZOOKEEPER_TICK_TIME: 2000
+      KAFKA_JVM_PERFORMANCE_OPTS: "-XX:-UseContainerSupport"
     networks:
       - chat-network
 
-  local-kafka:
+  dev-kafka:
     image: confluentinc/cp-kafka:7.3.0
-    container_name: local-kafka
+    container_name: dev-kafka
     depends_on:
       - zookeeper
     ports:
@@ -43,8 +72,10 @@ services:
       KAFKA_BROKER_ID: 1
       KAFKA_ZOOKEEPER_CONNECT: 'zookeeper:2181'
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_INTERNAL:PLAINTEXT
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092,PLAINTEXT_INTERNAL://local-kafka:29092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092,PLAINTEXT_INTERNAL://dev-kafka:29092
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_HEAP_OPTS: "-Xmx256m -Xms256m"
+      KAFKA_JVM_PERFORMANCE_OPTS: "-XX:-UseContainerSupport"
     networks:
       - chat-network
 

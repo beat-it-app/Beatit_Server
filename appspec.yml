@@ -1,0 +1,21 @@
+version: 0.0
+os: linux
+files:
+  - source: /                        # s3에서 가져올 경로
+    destination: /home/ubuntu/app    # EC2 내 배포 위치 설정
+    overwrite: yes
+
+permissions:
+  - object: /
+    pattern: '**'
+    owner: ubuntu
+    group: ubuntu
+    mode: 755
+
+hooks:
+  # 배포 완료 이후, 실행할 작업 설정
+  AfterInstall:
+    # deploy.sh 라는 스크립트 실행
+    - location: scripts/deploy.sh
+      timeout: 180
+      runas: root

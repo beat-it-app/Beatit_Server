@@ -29,6 +29,7 @@ dependencies {
 	implementation("org.springframework.boot:spring-boot-starter-web")
 	implementation("com.fasterxml.jackson.module:jackson-module-kotlin")
 	implementation ("org.springframework.boot:spring-boot-starter-json")
+	implementation("org.springframework.boot:spring-boot-starter-mail")
 
 	compileOnly("org.projectlombok:lombok")
 	developmentOnly("org.springframework.boot:spring-boot-devtools")
@@ -42,7 +43,6 @@ dependencies {
 	testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 	testAnnotationProcessor("org.projectlombok:lombok")
 
-
 	// Swagger (SpringDoc)
 	implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.7.0")
 
@@ -50,6 +50,10 @@ dependencies {
 	implementation("io.jsonwebtoken:jjwt-api:0.12.6")
 	runtimeOnly("io.jsonwebtoken:jjwt-impl:0.12.6")
 	runtimeOnly("io.jsonwebtoken:jjwt-jackson:0.12.6")
+
+	// SOCIAL LOGIN
+	implementation("com.google.api-client:google-api-client:2.7.0")
+	implementation("org.springframework.boot:spring-boot-starter-oauth2-client")
 
 	// Database (postgreSQL)
 	runtimeOnly("org.postgresql:postgresql")

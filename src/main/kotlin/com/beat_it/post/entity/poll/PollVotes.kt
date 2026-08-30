@@ -5,7 +5,6 @@ import jakarta.persistence.*
 
 @Entity
 @Table(name = "poll_votes",
-    // 성능 향상 및 정합성을 위해 유저가 동일한 선택지에 중복 데이터(Row)를 넣지 못하도록 유니크 제약조건 설정
     uniqueConstraints = [
         UniqueConstraint(
             name = "uk_user_poll_option",

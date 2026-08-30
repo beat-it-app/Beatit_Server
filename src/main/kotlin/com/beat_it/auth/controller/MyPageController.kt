@@ -19,7 +19,7 @@ import org.springframework.security.core.userdetails.UserDetails
 import org.springframework.web.bind.annotation.*
 import org.springframework.web.multipart.MultipartFile
 
-@Tag(name = "n. MY PAGE API", description = "마이페이지 관련 로직")
+@Tag(name = "1-3. MY PAGE API", description = "마이페이지 관련 로직")
 @RestController
 @RequestMapping("/mypage")
 class MyPageController (

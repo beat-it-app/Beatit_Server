@@ -42,7 +42,7 @@ class UserService (
         val hasImage = profileImage != null && !profileImage.isEmpty
         val hasDefaultId = defaultImageId != null
 
-        if (hasImage && hasDefaultId) {
+        if ((!hasImage && !hasDefaultId) || (hasImage && hasDefaultId)) {
             throw BusinessException(ErrorCode.INVALID_INPUT_VALUE)
         }
 
@@ -58,10 +58,8 @@ class UserService (
                 isPublic = true
             )
             savedAuthFile = authFilesRepository.save(authFile)
-        } else if (hasDefaultId) {
-            defaultProfileImage = DefaultProfileImage.getByIndex(defaultImageId!!)
         } else {
-            defaultProfileImage = DefaultProfileImage.getRandom()
+            defaultProfileImage = DefaultProfileImage.getByIndex(defaultImageId!!)
         }
 
         val userProfile = UserProfiles.create(

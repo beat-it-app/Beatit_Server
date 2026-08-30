@@ -4,6 +4,7 @@ import com.beat_it.auth.service.UserService
 import com.beat_it.global.error.BusinessException
 import com.beat_it.global.error.ErrorCode
 import com.beat_it.global.response.BasicResponse
+import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.Parameter
 import io.swagger.v3.oas.annotations.tags.Tag
 import org.springframework.http.HttpStatus
@@ -14,30 +15,14 @@ import org.springframework.security.core.userdetails.UserDetails
 import org.springframework.web.bind.annotation.*
 import org.springframework.web.multipart.MultipartFile
 
-@Tag(name = "2. USER API", description = "사용자 정보 관련 로직")
+@Tag(name = "1-2. USER API", description = "사용자 정보 관련 로직")
 @RestController
 @RequestMapping("/users")
 class UserController (
     private val userService: UserService
 ) {
-
-    @GetMapping("/me")
-    fun getCurrentUser(@AuthenticationPrincipal userDetails: UserDetails?) : ResponseEntity<BasicResponse<Map<String, String?>>> {
-        if (userDetails == null) {
-            throw BusinessException(ErrorCode.UNAUTHORIZED)
-        }
-
-        val userId = userDetails.username
-        
-        val data = mapOf(
-            "tokenUserId" to userId
-        )
-
-        return ResponseEntity
-            .status(HttpStatus.OK)
-            .body(BasicResponse.success(data, HttpStatus.OK, "현재 사용자 조회가 성공적으로 처리되었습니다."))
-    }
-
+    
+    @Operation(summary = "프로필 생성하기")
     @PostMapping("/profile", consumes = [MediaType.MULTIPART_FORM_DATA_VALUE])
     fun createProfile(
         @AuthenticationPrincipal userDetails: UserDetails,

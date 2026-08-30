@@ -60,4 +60,11 @@ class FileService {
         // TODO: S3 실제 삭제 로직 구현
         println("Deleting file from storage: $storageKey")
     }
+
+    @Transactional
+    fun deleteFiles(storageKeys: List<String>) {
+        for (storageKey in storageKeys) {
+            deleteFile(storageKey)
+        }
+    }
 }
