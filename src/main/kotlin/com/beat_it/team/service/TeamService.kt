@@ -314,6 +314,38 @@ class TeamService(
         )
     }
 
+    @Transactional
+    fun teamWithdraw(userId: Long, teamPublicId: java.util.UUID): TeamWithdrawalResponse {
+        userService.validateUserExists(userId)
+        val team = findTeamForCommandOrThrow(teamPublicId)
+        val teamId = team.teamId!!
+
+        val membership = teamMembershipRepository.findByTeamTeamIdAndUserIdAndLeftAtIsNull(teamId, userId)
+            ?: throw BusinessException(ErrorCode.NOT_TEAM_MEMBER)
+
+        if (membership.teamRole == TeamRole.LEADER) {
+            throw BusinessException(ErrorCode.TEAM_LEADER_CANNOT_WITHDRAW)
+        }
+
+        membership.leaveTeam()
+
+        val currentTeamId = userService.getCurrentTeamIdOrNull(userId)
+        if (currentTeamId == teamId) {
+            userService.updateCurrentTeamId(userId, null)
+        }
+
+        val formatter = java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")
+        val requestedAtStr = membership.leftAt!!.format(formatter)
+        val scheduledDeletionDateStr = membership.leftAt!!.plusDays(7).format(formatter)
+
+        return TeamWithdrawalResponse(
+            teamPublicId = team.publicId,
+            userId = userId,
+            requestedAt = requestedAtStr,
+            scheduledDeletionDate = scheduledDeletionDateStr
+        )
+    }
+
     private fun findInviteCodeOrThrow(inviteCode: String): Teams {
         return teamRepository.findByInviteCode(inviteCode)
             ?: throw BusinessException(ErrorCode.TEAM_INVITE_CODE_NOT_FOUND)
