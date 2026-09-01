@@ -3,7 +3,6 @@ package com.beat_it.post.service
 import com.beat_it.auth.service.UserService
 import com.beat_it.global.error.BusinessException
 import com.beat_it.global.error.ErrorCode
-import com.beat_it.global.util.DateTimeUtil
 import com.beat_it.post.dto.CommentRequest
 import com.beat_it.post.dto.CommentResponse
 import com.beat_it.post.dto.MentionUserResponse
@@ -99,7 +98,7 @@ class CommentService(
                 parentCommentId = comment.parentCommentId,
                 writerName = writerProfile?.name ?: "알 수 없음",
                 content = comment.content,
-                createdAt = DateTimeUtil.format(comment.createdAt),
+                createdAt = comment.createdAt,
                 profileImageUrl = writerProfile?.profileImageUrl,
                 isWriter = comment.userId == postWriterId,
                 isMine = comment.userId == currentUserId,

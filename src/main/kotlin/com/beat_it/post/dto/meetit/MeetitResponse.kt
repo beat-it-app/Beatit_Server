@@ -45,9 +45,8 @@ data class MeetitParticipantInfoResponse(
 )
 
 data class MeetitOptimalSlotResponse(
-    val date: String, // "yyyy-MM-dd"
-    val startTime: String? = null, // "HH:mm"
-    val endTime: String? = null // "HH:mm"
+    val startDateTime: OffsetDateTime,
+    val endDateTime: OffsetDateTime
 )
 
 data class MeetitGridSlotResponse(
