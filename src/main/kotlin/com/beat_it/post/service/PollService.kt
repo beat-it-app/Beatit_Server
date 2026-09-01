@@ -234,6 +234,10 @@ class PollService(
             throw BusinessException(ErrorCode.POLL_CLOSED)
         }
 
+        if (request.optionIds.isEmpty()) {
+            throw BusinessException(ErrorCode.POLL_OPTION_REQUIRED)
+        }
+
         val distinctOptionIds = request.optionIds.distinct()
 
         if (!poll.allowMultipleChoice && distinctOptionIds.size > 1) {

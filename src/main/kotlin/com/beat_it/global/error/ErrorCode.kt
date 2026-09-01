@@ -98,6 +98,7 @@ enum class ErrorCode(
     POLL_CLOSED(HttpStatus.BAD_REQUEST, "POST-007", "이미 종료된 투표입니다."),
     POLL_OPTION_NOT_FOUND(HttpStatus.NOT_FOUND, "POST-008", "존재하지 않는 투표 항목입니다."),
     POLL_MULTIPLE_CHOICE_NOT_ALLOWED(HttpStatus.BAD_REQUEST, "POST-009", "중복 투표가 허용되지 않는 투표입니다."),
+    POLL_OPTION_REQUIRED(HttpStatus.BAD_REQUEST, "POST-010", "투표할 항목을 선택해주세요."),
 
     // --- 6. 모임 조율 관련 에러 (MEETIT) ---
     MEETIT_TEAM_MISMATCH(HttpStatus.FORBIDDEN, "MEETIT-001", "현재 팀에서 접근할 수 없는 모임 조율입니다."),
