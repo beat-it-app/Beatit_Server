@@ -320,7 +320,7 @@ class NoticeService(
         validateTeam(notice, teamId)
         // Fixme: 17:18분에 생성했는데 8:13으로 찍힘. 시간 조정이 좀 필요해보임.
 
-        commentService.createComment(userId, PostType.NOTICE, noticeId, dto)
+        commentService.createComment(userId, teamId, PostType.NOTICE, noticeId, dto)
 
         notice.increaseComment()
         noticeRepository.save(notice)

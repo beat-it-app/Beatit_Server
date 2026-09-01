@@ -278,7 +278,7 @@ class PollService(
         val teamId = userService.getCurrentTeamId(userId)
         validateTeam(poll, teamId)
 
-        commentService.createComment(userId, PostType.POLL, pollId, request)
+        commentService.createComment(userId, teamId, PostType.POLL, pollId, request)
 
         poll.increaseComment()
         pollRepository.save(poll)

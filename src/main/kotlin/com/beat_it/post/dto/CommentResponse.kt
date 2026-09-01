@@ -7,5 +7,6 @@ data class CommentResponse(
     val createdAt: String,
     val profileImageUrl: String?,
     val isWriter: Boolean,
-    val isMine: Boolean
+    val isMine: Boolean,
+    val mentionedUsers: List<MentionUserResponse> = emptyList()
 )
