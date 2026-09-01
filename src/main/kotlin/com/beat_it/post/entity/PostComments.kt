@@ -25,32 +25,44 @@ class PostComments(
     @Column(nullable = false, length = 1000)
     var content: String,
 
+    @Column(name = "parent_comment_id", nullable = true)
+    val parentCommentId: Long? = null,
+
 ): BaseUpdatedTimeEntity(){
     companion object {
-        fun createNoticeComment(noticeId: Long, userId: Long, content: String): PostComments {
+        fun createNoticeComment(noticeId: Long, userId: Long, content: String, parentCommentId: Long? = null): PostComments {
             return PostComments(
                 postType = PostType.NOTICE,
                 postId = noticeId,
                 userId = userId,
-                content = content
+                content = content,
+                parentCommentId = parentCommentId
             )
         }
 
-        fun createPollComment(pollId: Long, userId: Long, content: String): PostComments {
+        fun createPollComment(pollId: Long, userId: Long, content: String, parentCommentId: Long? = null): PostComments {
             return PostComments(
                 postType = PostType.POLL,
                 postId = pollId,
                 userId = userId,
-                content = content
+                content = content,
+                parentCommentId = parentCommentId
             )
         }
 
-        fun createComment(postType: PostType, postId: Long, userId: Long, content: String): PostComments {
+        fun createComment(
+            postType: PostType,
+            postId: Long,
+            userId: Long,
+            content: String,
+            parentCommentId: Long? = null
+        ): PostComments {
             return PostComments(
                 postType = postType,
                 postId = postId,
                 userId = userId,
-                content = content
+                content = content,
+                parentCommentId = parentCommentId
             )
         }
     }

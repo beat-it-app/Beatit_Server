@@ -6,5 +6,7 @@ import org.springframework.data.jpa.repository.JpaRepository
 
 interface PostCommentRepository : JpaRepository<PostComments, Long> {
     fun findByPostTypeAndPostIdOrderByCreatedAtAsc(postType: PostType, postId: Long): List<PostComments>
+    fun findByParentCommentId(parentCommentId: Long): List<PostComments>
     fun deleteByPostTypeAndPostId(postType: PostType, postId: Long)
+    fun deleteByParentCommentId(parentCommentId: Long)
 }

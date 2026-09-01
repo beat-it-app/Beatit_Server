@@ -36,11 +36,25 @@ class CommentService(
     ): PostComments {
         validateComment(dto.content)
 
+        var effectiveParentId: Long? = null
+
+        dto.parentCommentId?.let { requestedParentId ->
+            val parentComment = postCommentRepository.findById(requestedParentId)
+                .orElseThrow { BusinessException(ErrorCode.RESOURCE_NOT_FOUND) }
+
+            if (parentComment.postType != postType || parentComment.postId != postId) {
+                throw BusinessException(ErrorCode.RESOURCE_NOT_FOUND)
+            }
+
+            effectiveParentId = parentComment.parentCommentId ?: parentComment.commentId
+        }
+
         val comment = PostComments.createComment(
             postType = postType,
             postId = postId,
             userId = userId,
-            content = dto.content
+            content = dto.content,
+            parentCommentId = effectiveParentId
         )
         val savedComment = postCommentRepository.save(comment)
         saveMentions(savedComment, teamId, dto.content, dto.mentionedUserIds)
@@ -55,12 +69,12 @@ class CommentService(
         postWriterId: Long,
         currentUserId: Long
     ): List<CommentResponse> {
-        val comments = postCommentRepository.findByPostTypeAndPostIdOrderByCreatedAtAsc(postType, postId)
-        if (comments.isEmpty()) return emptyList()
+        val allComments = postCommentRepository.findByPostTypeAndPostIdOrderByCreatedAtAsc(postType, postId)
+        if (allComments.isEmpty()) return emptyList()
 
-        val commentUserIds = comments.map { it.userId }
+        val commentUserIds = allComments.map { it.userId }
 
-        val mentions = postCommentMentionRepository.findByCommentIn(comments)
+        val mentions = postCommentMentionRepository.findByCommentIn(allComments)
         val mentionsByCommentId = mentions.groupBy { it.comment.commentId }
         val mentionedUserIds = mentions.map { it.mentionedUserId }
 
@@ -68,7 +82,7 @@ class CommentService(
         val userProfilesMap = userService.getUserProfiles(allUserIds)
             .associateBy { it.userId }
 
-        return comments.map { comment ->
+        val allCommentDtos = allComments.map { comment ->
             val writerProfile = userProfilesMap[comment.userId]
             val commentMentions = mentionsByCommentId[comment.commentId] ?: emptyList()
             val mentionedUserResponses = commentMentions.map { mention ->
@@ -82,14 +96,23 @@ class CommentService(
 
             CommentResponse(
                 commentId = comment.commentId!!,
+                parentCommentId = comment.parentCommentId,
                 writerName = writerProfile?.name ?: "알 수 없음",
                 content = comment.content,
                 createdAt = DateTimeUtil.format(comment.createdAt),
                 profileImageUrl = writerProfile?.profileImageUrl,
                 isWriter = comment.userId == postWriterId,
                 isMine = comment.userId == currentUserId,
-                mentionedUsers = mentionedUserResponses
+                mentionedUsers = mentionedUserResponses,
+                replies = emptyList()
             )
+        }
+
+        val (rootComments, replyComments) = allCommentDtos.partition { it.parentCommentId == null }
+        val repliesByParentId = replyComments.groupBy { it.parentCommentId }
+
+        return rootComments.map { root ->
+            root.copy(replies = repliesByParentId[root.commentId] ?: emptyList())
         }
     }
 
@@ -100,15 +123,31 @@ class CommentService(
         postId: Long,
         commentId: Long,
         postWriterId: Long
-    ) {
+    ): Int {
         val comment = postCommentRepository.findById(commentId)
             .orElseThrow { BusinessException(ErrorCode.RESOURCE_NOT_FOUND) }
 
         validateCommentBelongsToPost(comment, postType, postId)
         validateCommentDeletePermission(comment, userId, postWriterId)
 
+        var totalDeletedCount = 1
+
+        if (comment.parentCommentId == null) {
+            val childReplies = postCommentRepository.findByParentCommentId(commentId)
+            if (childReplies.isNotEmpty()) {
+                val childReplyIds = childReplies.mapNotNull { it.commentId }
+                if (childReplyIds.isNotEmpty()) {
+                    postCommentMentionRepository.deleteByCommentCommentIdIn(childReplyIds)
+                }
+                postCommentRepository.deleteAll(childReplies)
+                totalDeletedCount += childReplies.size
+            }
+        }
+
         postCommentMentionRepository.deleteByComment(comment)
         postCommentRepository.delete(comment)
+
+        return totalDeletedCount
     }
 
     @Transactional
@@ -140,7 +179,6 @@ class CommentService(
         val mentionsToSave = mutableListOf<PostCommentMentions>()
         val alreadyMentionedUserIds = mutableSetOf<Long>()
 
-        // 1. 드롭다운에서 선택된 mentionedUserIds 처리
         explicitMentionedUserIds?.distinct()?.forEach { userId ->
             if (userId in activeMemberUserIds) {
                 profileById[userId]?.let { profile ->
@@ -156,7 +194,6 @@ class CommentService(
             }
         }
 
-        // 2. 본문 텍스트 내 @{username} 및 @username 파싱
         val extractedNames = extractMentionNames(content)
         extractedNames.forEach { name ->
             profileByName[name]?.let { profile ->

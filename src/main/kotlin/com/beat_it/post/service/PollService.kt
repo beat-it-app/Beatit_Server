@@ -290,9 +290,11 @@ class PollService(
         val poll = getPoll(pollId)
         validateTeam(poll, teamId)
 
-        commentService.deleteComment(userId, PostType.POLL, pollId, commentId, poll.userId)
+        val deletedCount = commentService.deleteComment(userId, PostType.POLL, pollId, commentId, poll.userId)
 
-        poll.decreaseComment()
+        repeat(deletedCount) {
+            poll.decreaseComment()
+        }
         pollRepository.save(poll)
     }
 

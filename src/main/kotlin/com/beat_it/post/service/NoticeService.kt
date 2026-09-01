@@ -332,9 +332,11 @@ class NoticeService(
         val notice = getNotice(noticeId)
         validateTeam(notice, teamId)
 
-        commentService.deleteComment(userId, PostType.NOTICE, noticeId, commentId, notice.userId)
+        val deletedCount = commentService.deleteComment(userId, PostType.NOTICE, noticeId, commentId, notice.userId)
 
-        notice.decreaseComment()
+        repeat(deletedCount) {
+            notice.decreaseComment()
+        }
         noticeRepository.save(notice)
     }
 
