@@ -26,7 +26,6 @@ class Archives(
     @Column(name = "user_id", nullable = false)
     val writerId: Long,
 
-    //TODO: Location id 추가할 것.
     @Column(name = "location_id", nullable = false)
     var locationId: Long,
 
@@ -42,8 +41,11 @@ class Archives(
     @Column(name = "archive_image_url", nullable = true)
     var archiveImageUrl: String? = null,
 
-    @Column(name = "like_count", nullable = false)
-    var likeCount: Int = 0,
+    @Column(name = "rating_sum", nullable = false)
+    var ratingSum: Int = 0,
+
+    @Column(name = "rating_count", nullable = false)
+    var ratingCount: Int = 0,
 
     @Column(name = "comment_count", nullable = false)
     var commentCount: Int = 0,
@@ -65,14 +67,21 @@ class Archives(
         this.archiveImageUrl = archiveImageUrl
     }
 
-    fun increaseLike() {
-        likeCount++
+    fun addRating(score: Int) {
+        ratingSum += score
+        ratingCount++
     }
 
-    fun decreaseLike() {
-        if (likeCount > 0) {
-            likeCount--
+    fun updateRating(previousScore: Int, newScore: Int) {
+        ratingSum += newScore - previousScore
+    }
+
+    fun calculateAverageRating(): Double {
+        if (ratingCount == 0) {
+            return 0.0
         }
+
+        return Math.round((ratingSum.toDouble() / ratingCount) * 10) / 10.0
     }
 
     fun increaseComment() {

@@ -4,19 +4,18 @@ import com.beat_it.auth.entity.enum.MediaCategory
 import com.beat_it.auth.service.UserService
 import com.beat_it.global.error.BusinessException
 import com.beat_it.global.error.ErrorCode
-import com.beat_it.global.service.FileService
 import com.beat_it.global.util.DateTimeUtil
+import com.beat_it.location.service.LocationsService
 import com.beat_it.post.dto.CommentRequest
 import com.beat_it.post.dto.CommentResponse
 import com.beat_it.team.dto.*
 import com.beat_it.team.entity.ArchiveComments
-import com.beat_it.team.entity.ArchiveReactions
+import com.beat_it.team.entity.ArchiveRatings
 import com.beat_it.team.entity.Archives
 import com.beat_it.team.entity.ArchivesFiles
 import com.beat_it.team.entity.Teams
-import com.beat_it.team.entity.enum.ReactionType
 import com.beat_it.team.repository.ArchiveCommentsRepository
-import com.beat_it.team.repository.ArchiveReactionsRepository
+import com.beat_it.team.repository.ArchiveRatingsRepository
 import com.beat_it.team.repository.ArchiveRepository
 import com.beat_it.team.repository.ArchivesFilesRepository
 import org.springframework.stereotype.Service
@@ -27,10 +26,10 @@ import org.springframework.web.multipart.MultipartFile
 class ArchiveService(
     private val archiveRepository: ArchiveRepository,
     private val archiveCommentsRepository: ArchiveCommentsRepository,
-    private val archiveReactionsRepository: ArchiveReactionsRepository,
+    private val archiveRatingsRepository: ArchiveRatingsRepository,
     private val userService: UserService,
     private val teamService: TeamService,
-    private val fileService: FileService,
+    private val locationsService: LocationsService,
     private val archivesFilesRepository: ArchivesFilesRepository,
 ) {
 
@@ -38,51 +37,85 @@ class ArchiveService(
     fun createArchive(
         userId: Long,
         request: ArchiveCreateRequest,
-        archiveImage: MultipartFile?,
+        archiveImages: List<MultipartFile>?,
     ): ArchiveCreateResponse {
         validateTitle(request.title)
         validateDescription(request.description)
 
         val team = findCurrentTeamForArchiveOrThrow(userId)
+        val location = locationsService.getLocation(request.locationId)
 
         val archive = Archives(
             writerId = userId,
             team = team,
             title = request.title,
-            placeName = request.placeName,
-            locationId = request.locationId,
+            placeName = location.locationName,
+            locationId = location.locationId,
             description = request.description,
             archiveImageUrl = null,
-            likeCount = 0,
+            ratingSum = 0,
+            ratingCount = 0,
             commentCount = 0,
         )
 
         val savedArchive = archiveRepository.save(archive)
 
-        val savedArchiveFile = saveArchiveImage(
+        val savedArchiveFiles = saveArchiveImages(
             archive = savedArchive,
             userId = userId,
-            archiveImage = archiveImage,
+            archiveImages = archiveImages,
         )
 
-        savedArchive.updateArchiveImageUrl(savedArchiveFile.cdnUrl)
+        savedArchive.updateArchiveImageUrl(savedArchiveFiles.firstOrNull()?.cdnUrl)
 
         return ArchiveCreateResponse(
             archiveId = savedArchive.archiveId!!,
+            teamId = team.teamId!!,
+            writerId = savedArchive.writerId,
             title = savedArchive.title,
             placeName = savedArchive.placeName,
             locationId = savedArchive.locationId,
-            archiveImageUrl = savedArchive.archiveImageUrl,
+            archiveImageUrls = savedArchiveFiles.map { archiveFile -> archiveFile.cdnUrl },
             createdAt = DateTimeUtil.format(savedArchive.createdAt),
         )
+    }
+
+    @Transactional(readOnly = true)
+    fun getTeamArchives(userId: Long): ArchiveListResponse {
+        val team = findCurrentTeamForArchiveOrThrow(userId)
+        val teamId = team.teamId!!
+
+        val archives = archiveRepository
+            .findAllByTeamTeamIdOrderByCreatedAtDesc(teamId)
+            .map { archive ->
+                ArchiveListItemResponse(
+                    archiveId = archive.archiveId!!,
+                    teamId = teamId,
+                    writerId = archive.writerId,
+                    title = archive.title,
+                    placeName = archive.placeName,
+                    locationId = archive.locationId,
+                    archiveImageUrl = archive.archiveImageUrl,
+                    averageRating = archive.calculateAverageRating(),
+                    ratingCount = archive.ratingCount,
+                    commentCount = archive.commentCount,
+                    createdAt = DateTimeUtil.format(archive.createdAt),
+                )
+            }
+
+        return ArchiveListResponse(archives = archives)
     }
 
     @Transactional(readOnly = true)
     fun getArchiveDetail(userId: Long, archiveId: Long): ArchiveDetailResponse {
         val archive = findAccessibleArchiveOrThrow(userId, archiveId)
         val writerProfile = userService.getUserProfile(archive.writerId)
+        val location = locationsService.getLocation(archive.locationId)
+        val archiveImageUrls = archivesFilesRepository
+            .findAllByArchiveArchiveIdOrderByArchiveFileIdAsc(archiveId)
+            .map { archiveFile -> archiveFile.cdnUrl }
 
-        val myReaction = archiveReactionsRepository
+        val myRating = archiveRatingsRepository
             .findByArchiveArchiveIdAndUserId(archiveId, userId)
 
         val comments = archiveCommentsRepository
@@ -96,19 +129,30 @@ class ArchiveService(
 
         return ArchiveDetailResponse(
             archiveId = archive.archiveId!!,
+            teamId = archive.team.teamId!!,
+            writerId = archive.writerId,
             title = archive.title,
             placeName = archive.placeName,
+            locationId = archive.locationId,
             description = archive.description,
-            archiveImageUrl = archive.archiveImageUrl,
-            //TODO: 장소 LocaitonResponse도 추가해야 함.
+            archiveImageUrls = archiveImageUrls,
+            location = ArchiveLocationResponse(
+                locationId = location.locationId,
+                locationName = location.locationName,
+                roadAddress = location.roadAddress,
+                latitude = location.latitude,
+                longitude = location.longitude,
+                mapUrl = location.mapUrl,
+            ),
             writerName = writerProfile?.name ?: "알 수 없음",
             writerProfileImageUrl = writerProfile?.authFile?.cdnUrl,
             isWriter = archive.writerId == userId,
-            reaction = ArchiveReactionResponse(
-                likeCount = archive.likeCount,
-                isLiked = myReaction?.reactionType == ReactionType.LIKE,
-                commentCount = archive.commentCount,
+            rating = ArchiveRatingResponse(
+                averageRating = archive.calculateAverageRating(),
+                ratingCount = archive.ratingCount,
+                myRating = myRating?.score,
             ),
+            commentCount = archive.commentCount,
             commentList = commentResponses,
             createdAt = DateTimeUtil.format(archive.createdAt),
             updatedAt = DateTimeUtil.format(archive.updatedAt),
@@ -120,7 +164,7 @@ class ArchiveService(
         userId: Long,
         archiveId: Long,
         request: ArchiveUpdateRequest,
-        archiveImage: MultipartFile?,
+        archiveImages: List<MultipartFile>?,
     ): ArchiveUpdateResponse {
         request.title?.let { validateTitle(it) }
         validateDescription(request.description)
@@ -130,21 +174,29 @@ class ArchiveService(
         validateArchiveChanged(
             archive = archive,
             request = request,
-            archiveImage = archiveImage,
+            archiveImages = archiveImages,
         )
+
+        val location = request.locationId?.let { locationId ->
+            locationsService.getLocation(locationId)
+        }
 
         archive.updateArchive(
             title = request.title,
             description = request.description,
-            placeName = request.placeName,
-            locationId = request.locationId,
+            placeName = location?.locationName,
+            locationId = location?.locationId,
         )
 
-        updateArchiveImageIfExists(
+        updateArchiveImagesIfExists(
             archive = archive,
             userId = userId,
-            archiveImage = archiveImage,
+            archiveImages = archiveImages,
         )
+
+        val archiveImageUrls = archivesFilesRepository
+            .findAllByArchiveArchiveIdOrderByArchiveFileIdAsc(archiveId)
+            .map { archiveFile -> archiveFile.cdnUrl }
 
         return ArchiveUpdateResponse(
             archiveId = archive.archiveId!!,
@@ -152,7 +204,7 @@ class ArchiveService(
             description = archive.description,
             placeName = archive.placeName,
             locationId = archive.locationId,
-            archiveImageUrl = archive.archiveImageUrl,
+            archiveImageUrls = archiveImageUrls,
             updatedAt = DateTimeUtil.format(archive.updatedAt),
         )
     }
@@ -163,34 +215,46 @@ class ArchiveService(
         validateArchiveDeletePermission(userId, archive)
 
         archiveCommentsRepository.deleteByArchiveArchiveId(archiveId)
-        archiveReactionsRepository.deleteByArchiveArchiveId(archiveId)
+        archiveRatingsRepository.deleteByArchiveArchiveId(archiveId)
         archivesFilesRepository.deleteAllByArchiveArchiveId(archiveId)
 
         archiveRepository.delete(archive)
     }
 
     @Transactional
-    fun toggleLike(userId: Long, archiveId: Long): Boolean {
+    fun saveRating(
+        userId: Long,
+        archiveId: Long,
+        request: ArchiveRatingRequest,
+    ): ArchiveRatingResponse {
+        validateRating(request.score)
+
         val archive = findAccessibleArchiveOrThrow(userId, archiveId)
-        val existingReaction = archiveReactionsRepository
+        val existingRating = archiveRatingsRepository
             .findByArchiveArchiveIdAndUserId(archiveId, userId)
 
-        if (existingReaction != null) {
-            archiveReactionsRepository.delete(existingReaction)
-            archive.decreaseLike()
-            return false
+        if (existingRating == null) {
+            archiveRatingsRepository.save(
+                ArchiveRatings(
+                    archive = archive,
+                    userId = userId,
+                    score = request.score,
+                )
+            )
+            archive.addRating(request.score)
+        } else {
+            archive.updateRating(
+                previousScore = existingRating.score,
+                newScore = request.score,
+            )
+            existingRating.updateScore(request.score)
         }
 
-        archiveReactionsRepository.save(
-            ArchiveReactions(
-                archive = archive,
-                userId = userId,
-                reactionType = ReactionType.LIKE,
-            )
+        return ArchiveRatingResponse(
+            averageRating = archive.calculateAverageRating(),
+            ratingCount = archive.ratingCount,
+            myRating = request.score,
         )
-
-        archive.increaseLike()
-        return true
     }
 
     @Transactional
@@ -233,59 +297,71 @@ class ArchiveService(
         archive.decreaseComment()
     }
 
-    private fun saveArchiveImage(
+    private fun saveArchiveImages(
         archive: Archives,
         userId: Long,
-        archiveImage: MultipartFile?,
-    ): ArchivesFiles {
-        val archiveFile = if (archiveImage != null && !archiveImage.isEmpty) {
-            // TODO : S3 연동 전 임시 처리. S3 붙으면 fileService.uploadFiles 로직으로 교체.
-            ArchivesFiles(
-                archive = archive,
-                userId = userId,
-                originalFileName = archiveImage.originalFilename ?: "archive-image.jpg",
-                storageKey = "dummy/path/archive-image.jpg",
-                cdnUrl = "https://example.com/default-archive-image.jpg",
-                mimeType = archiveImage.contentType,
-                mediaCategory = MediaCategory.IMAGE,
-                fileSizeBytes = archiveImage.size,
-                isPublic = true,
+        archiveImages: List<MultipartFile>?,
+    ): List<ArchivesFiles> {
+        val validImages = archiveImages
+            .orEmpty()
+            .filterNot { archiveImage -> archiveImage.isEmpty }
+
+        val archiveFiles = if (validImages.isEmpty()) {
+            listOf(
+                ArchivesFiles(
+                    archive = archive,
+                    userId = userId,
+                    originalFileName = "default-archive.jpg",
+                    storageKey = "dummy/path/default-archive.jpg",
+                    cdnUrl = "https://example.com/default-archive-image.jpg",
+                    mimeType = "image/jpeg",
+                    mediaCategory = MediaCategory.IMAGE,
+                    fileSizeBytes = 0L,
+                    isPublic = true,
+                )
             )
         } else {
-            ArchivesFiles(
-                archive = archive,
-                userId = userId,
-                originalFileName = "default-archive.jpg",
-                storageKey = "dummy/path/default-archive.jpg",
-                cdnUrl = "https://example.com/default-archive-image.jpg",
-                mimeType = "image/jpeg",
-                mediaCategory = MediaCategory.IMAGE,
-                fileSizeBytes = 0L,
-                isPublic = true,
-            )
+            validImages.mapIndexed { index, archiveImage ->
+                // TODO : S3 연동 전 임시 처리. S3 붙으면 fileService.uploadFiles 로직으로 교체.
+                ArchivesFiles(
+                    archive = archive,
+                    userId = userId,
+                    originalFileName = archiveImage.originalFilename ?: "archive-image-${index + 1}.jpg",
+                    storageKey = "dummy/path/archive-image-${index + 1}.jpg",
+                    cdnUrl = "https://example.com/archive-image-${index + 1}.jpg",
+                    mimeType = archiveImage.contentType,
+                    mediaCategory = MediaCategory.IMAGE,
+                    fileSizeBytes = archiveImage.size,
+                    isPublic = true,
+                )
+            }
         }
 
-        return archivesFilesRepository.save(archiveFile)
+        return archivesFilesRepository.saveAll(archiveFiles)
     }
 
-    private fun updateArchiveImageIfExists(
+    private fun updateArchiveImagesIfExists(
         archive: Archives,
         userId: Long,
-        archiveImage: MultipartFile?,
+        archiveImages: List<MultipartFile>?,
     ) {
-        if (archiveImage == null || archiveImage.isEmpty) {
+        val validImages = archiveImages
+            .orEmpty()
+            .filterNot { archiveImage -> archiveImage.isEmpty }
+
+        if (validImages.isEmpty()) {
             return
         }
 
         archivesFilesRepository.deleteAllByArchiveArchiveId(archive.archiveId!!)
 
-        val savedArchiveFile = saveArchiveImage(
+        val savedArchiveFiles = saveArchiveImages(
             archive = archive,
             userId = userId,
-            archiveImage = archiveImage,
+            archiveImages = validImages,
         )
 
-        archive.updateArchiveImageUrl(savedArchiveFile.cdnUrl)
+        archive.updateArchiveImageUrl(savedArchiveFiles.firstOrNull()?.cdnUrl)
     }
 
     private fun toCommentResponses(
@@ -375,6 +451,12 @@ class ArchiveService(
         }
     }
 
+    private fun validateRating(score: Int) {
+        if (score !in 1..5) {
+            throw BusinessException(ErrorCode.INVALID_INPUT_VALUE)
+        }
+    }
+
     private fun validateCommentDeletePermission(
         comment: ArchiveComments,
         userId: Long,
@@ -388,14 +470,15 @@ class ArchiveService(
     private fun validateArchiveChanged(
         archive: Archives,
         request: ArchiveUpdateRequest,
-        archiveImage: MultipartFile?,
+        archiveImages: List<MultipartFile>?,
     ) {
-        val isImageChanged = archiveImage != null && !archiveImage.isEmpty
+        val isImageChanged = archiveImages
+            .orEmpty()
+            .any { archiveImage -> !archiveImage.isEmpty }
 
         val isAnyFieldChanged =
             (request.title != null && request.title != archive.title) ||
                     (request.description != null && request.description != archive.description) ||
-                    (request.placeName != null && request.placeName != archive.placeName) ||
                     (request.locationId != null && request.locationId != archive.locationId) ||
                     isImageChanged
 

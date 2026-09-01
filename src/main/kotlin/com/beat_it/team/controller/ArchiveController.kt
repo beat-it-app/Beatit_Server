@@ -7,6 +7,9 @@ import com.beat_it.post.dto.CommentRequest
 import com.beat_it.team.dto.ArchiveCreateRequest
 import com.beat_it.team.dto.ArchiveCreateResponse
 import com.beat_it.team.dto.ArchiveDetailResponse
+import com.beat_it.team.dto.ArchiveListResponse
+import com.beat_it.team.dto.ArchiveRatingRequest
+import com.beat_it.team.dto.ArchiveRatingResponse
 import com.beat_it.team.dto.ArchiveUpdateRequest
 import com.beat_it.team.dto.ArchiveUpdateResponse
 import com.beat_it.team.service.ArchiveService
@@ -19,34 +22,27 @@ import org.springframework.http.MediaType
 import org.springframework.security.core.annotation.AuthenticationPrincipal
 import org.springframework.security.core.userdetails.UserDetails
 import org.springframework.web.multipart.MultipartFile
-import tools.jackson.databind.ObjectMapper
 
 @Tag(name = "2-2. TEAM ARCHIVE API", description = "팀 연습실 수정 및 생성 관리 로직")
 @RestController
 @RequestMapping("/teams/archives")
 class ArchiveController(
     private val archiveService: ArchiveService,
-    private val objectMapper: ObjectMapper,
 ) {
     @Operation(summary = "연습실 생성하기")
     @PostMapping(consumes = [MediaType.MULTIPART_FORM_DATA_VALUE])
     fun createArchive(
         @AuthenticationPrincipal userDetails: UserDetails,
-        @RequestParam("request") requestJson: String,
-        @RequestPart(value = "archiveImage", required = false) archiveImage: MultipartFile?
+        @RequestPart("request") request: ArchiveCreateRequest,
+        @RequestPart(value = "archiveImages", required = false) archiveImages: List<MultipartFile>?,
     ): ResponseEntity<BasicResponse<ArchiveCreateResponse>> {
         val userId = userDetails.username.toLongOrNull()
             ?: throw BusinessException(ErrorCode.UNAUTHORIZED)
 
-        val request = objectMapper.readValue(
-            requestJson,
-            ArchiveCreateRequest::class.java,
-        )
-
         val responseData = archiveService.createArchive(
             userId = userId,
             request = request,
-            archiveImage = archiveImage,
+            archiveImages = archiveImages,
         )
 
         return ResponseEntity
@@ -62,27 +58,17 @@ class ArchiveController(
     fun updateArchive(
         @AuthenticationPrincipal userDetails: UserDetails,
         @PathVariable archiveId: Long,
-        @RequestParam(value = "request", required = false) requestJson: String?,
-        @RequestPart(value = "archiveImage", required = false) archiveImage: MultipartFile?,
+        @RequestPart(value = "request", required = false) request: ArchiveUpdateRequest?,
+        @RequestPart(value = "archiveImages", required = false) archiveImages: List<MultipartFile>?,
     ): ResponseEntity<BasicResponse<ArchiveUpdateResponse>> {
         val userId = userDetails.username.toLongOrNull()
             ?: throw BusinessException(ErrorCode.UNAUTHORIZED)
 
-        val request = requestJson
-            ?.takeIf { it.isNotBlank() }
-            ?.let {
-                objectMapper.readValue(
-                    it,
-                    ArchiveUpdateRequest::class.java,
-                )
-            }
-            ?: ArchiveUpdateRequest()
-
         val responseData = archiveService.updateArchive(
             userId = userId,
             archiveId = archiveId,
-            request = request,
-            archiveImage = archiveImage,
+            request = request ?: ArchiveUpdateRequest(),
+            archiveImages = archiveImages,
         )
 
         return ResponseEntity
@@ -122,21 +108,21 @@ class ArchiveController(
             .body(BasicResponse.success(archiveDetail, HttpStatus.OK, "연습실 상세 내용 조회에 성공했습니다."))
     }
 
-    @Operation(summary = "연습실 좋아요 토글")
-    @PostMapping("/{archiveId}/like")
-    fun toggleLike(
+    @Operation(summary = "연습실 별점 등록 및 수정")
+    @PostMapping("/{archiveId}/ratings")
+    fun saveRating(
         @AuthenticationPrincipal userDetails: UserDetails,
         @PathVariable archiveId: Long,
-    ): ResponseEntity<BasicResponse<Boolean>> {
+        @RequestBody request: ArchiveRatingRequest,
+    ): ResponseEntity<BasicResponse<ArchiveRatingResponse>> {
         val userId = userDetails.username.toLongOrNull()
             ?: throw BusinessException(ErrorCode.UNAUTHORIZED)
 
-        val isLiked = archiveService.toggleLike(userId, archiveId)
-        val message = if (isLiked) "좋아요를 눌렀습니다." else "좋아요를 취소했습니다."
+        val responseData = archiveService.saveRating(userId, archiveId, request)
 
         return ResponseEntity
             .status(HttpStatus.OK)
-            .body(BasicResponse.success(isLiked, HttpStatus.OK, message))
+            .body(BasicResponse.success(responseData, HttpStatus.OK, "별점이 저장되었습니다."))
     }
 
     @Operation(summary = "연습실 댓글 작성하기")
@@ -174,19 +160,18 @@ class ArchiveController(
     }
 
 
-//    @Operation(summary = "연습실 목록 확인하기")
-//    @GetMapping
-//    fun getMyTeamArchives(
-//        @AuthenticationPrincipal userDetails: UserDetails?,
-//    ): ResponseEntity<BasicResponse<UserTeamListResponse>> {
-//        val userId = userDetails?.username?.toLong()
-//            ?: throw BusinessException(ErrorCode.UNAUTHORIZED)
+    @Operation(summary = "연습실 목록 확인하기")
+    @GetMapping
+    fun getTeamArchives(
+        @AuthenticationPrincipal userDetails: UserDetails,
+    ): ResponseEntity<BasicResponse<ArchiveListResponse>> {
+        val userId = userDetails.username.toLongOrNull()
+            ?: throw BusinessException(ErrorCode.UNAUTHORIZED)
 
-//        val responseData = archiveService.getTeamArchives(userId)
+        val responseData = archiveService.getTeamArchives(userId)
 
-//        return ResponseEntity.ok(
-//            BasicResponse.success(responseData, HttpStatus.OK, "나의 팀 리스트 조회에 성공했습니다.")
-//        )
-//    }
+        return ResponseEntity
+            .status(HttpStatus.OK)
+            .body(BasicResponse.success(responseData, HttpStatus.OK, "연습실 목록 조회에 성공했습니다."))
+    }
 }
-
