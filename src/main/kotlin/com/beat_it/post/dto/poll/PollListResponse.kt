@@ -1,14 +1,13 @@
 package com.beat_it.post.dto.poll
 
 data class PollListResponse(
-    val pollListResponse: List<PollItems>,
-    val totalCount: Int,
-    val hasNext: Boolean
+    val pollListInProgress: List<PollItems>,
+    val pollListClosed: List<PollItems>,
+    val totalCount: Int
 )
 
 data class PollItems(
     val pollId: Long,
-    val teamId: Long,
     val title: String,
     val closeAt: String,
     val pollCount: Int,

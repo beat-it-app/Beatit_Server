@@ -40,38 +40,41 @@ class PollService(
     private val objectMapper: ObjectMapper,
 ) {
     @Transactional(readOnly = true)
-    fun getPollList(userId: Long, page: Int = 0, size: Int = 10): PollListResponse {
+    fun getPollList(userId: Long, keyword: String? = null): PollListResponse {
         val teamId = userService.getCurrentTeamId(userId)
-        val pageRequest = PageRequest.of(page, size)
+        val searchKeyword = keyword?.trim() ?: ""
 
-        val pollsPage = pollRepository.getPolls(teamId, pageRequest)
-        val polls = pollsPage.content
+        val polls = pollRepository.searchPolls(teamId, searchKeyword)
 
         if (polls.isEmpty()) {
             return PollListResponse(
-                pollListResponse = emptyList(),
-                totalCount = pollsPage.totalElements.toInt(),
-                hasNext = pollsPage.hasNext()
+                pollListInProgress = emptyList(),
+                pollListClosed = emptyList(),
+                totalCount = 0
             )
         }
 
-        val pollIds = polls.map { it.pollId }.filterNotNull()
+        val pollIds = polls.mapNotNull { it.pollId }
         val votedPollIds = pollRepository.findVotedPollIdsByUserIdAndPollIds(userId, pollIds).toSet()
 
-        val pollItems = polls.map { poll ->
-            PollItems(
-                pollId = poll.pollId!!,
-                teamId = teamId,
-                title = poll.title,
-                closeAt = poll.closeAt?.let { DateTimeUtil.format(it) } ?: "",
-                pollCount = poll.pollCount,
-                isVoted = votedPollIds.contains(poll.pollId)
-            )
+        val now = OffsetDateTime.now()
+
+        val (closedPolls, inProgressPolls) = polls.partition { poll ->
+            poll.closeAt != null && now.isAfter(poll.closeAt)
         }
+
+        fun Polls.toPollItem() = PollItems(
+            pollId = this.pollId!!,
+            title = this.title,
+            closeAt = this.closeAt?.let { DateTimeUtil.format(it) } ?: "",
+            pollCount = this.pollCount,
+            isVoted = votedPollIds.contains(this.pollId)
+        )
+
         return PollListResponse(
-            pollListResponse = pollItems,
-            totalCount = pollsPage.totalElements.toInt(),
-            hasNext = pollsPage.hasNext()
+            pollListInProgress = inProgressPolls.map { it.toPollItem() },
+            pollListClosed = closedPolls.map { it.toPollItem() },
+            totalCount = polls.size
         )
     }
 

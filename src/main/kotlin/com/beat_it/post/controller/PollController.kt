@@ -25,16 +25,18 @@ class PollController (
 ){
     @Operation(summary = "투표 목록 불러오기")
     @GetMapping
-    fun getPollList(@AuthenticationPrincipal userDetails: UserDetails
+    fun getPollList(
+        @AuthenticationPrincipal userDetails: UserDetails,
+        @RequestParam(required = false) keyword: String?
     ): ResponseEntity<BasicResponse<PollListResponse>> {
         val userId = userDetails.username.toLongOrNull()
             ?: throw BusinessException(ErrorCode.UNAUTHORIZED)
 
-        val resopnse = pollService.getPollList(userId)
+        val response = pollService.getPollList(userId, keyword)
 
         return ResponseEntity
             .status(HttpStatus.OK)
-            .body(BasicResponse.success(resopnse, HttpStatus.OK, "투표 목록을 성공적으로 불러왔습니다."))
+            .body(BasicResponse.success(response, HttpStatus.OK, "투표 목록을 성공적으로 불러왔습니다."))
     }
 
     @Operation(summary = "투표 생성하기")
