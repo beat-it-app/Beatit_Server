@@ -44,5 +44,14 @@ class PostComments(
                 content = content
             )
         }
+
+        fun createComment(postType: PostType, postId: Long, userId: Long, content: String): PostComments {
+            return PostComments(
+                postType = postType,
+                postId = postId,
+                userId = userId,
+                content = content
+            )
+        }
     }
 }
