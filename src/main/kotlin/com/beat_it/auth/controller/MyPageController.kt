@@ -84,7 +84,7 @@ class MyPageController (
     }
 
     @Operation(summary = "회원 탈퇴")
-    @PatchMapping
+    @PatchMapping("/withdraw")
     fun withdraw(
         @AuthenticationPrincipal userDetails: UserDetails,
         @Valid @RequestBody request: WithdrawalRequest
@@ -95,6 +95,20 @@ class MyPageController (
 
         return ResponseEntity.ok(
             BasicResponse.success(data, HttpStatus.OK, "회원 탈퇴 요청이 정상적으로 접수되었습니다.")
+        )
+    }
+
+    @Operation(summary = "로그아웃")
+    @PostMapping("/logout")
+    fun logout(
+        @AuthenticationPrincipal userDetails: UserDetails,
+    ): ResponseEntity<BasicResponse<Nothing>> {
+        val userId = extractUserId(userDetails)
+
+        myPageService.logout(userId)
+
+        return ResponseEntity.ok(
+            BasicResponse.success(HttpStatus.OK, "로그아웃이 성공적으로 처리되었습니다.")
         )
     }
 

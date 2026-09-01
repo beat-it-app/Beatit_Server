@@ -32,6 +32,7 @@ class MyPageService (
     private val authFilesRepository: AuthFilesRepository,
     private val fileService: FileService,
     private val passwordEncoder: PasswordEncoder,
+    private val refreshTokenService: RefreshTokenService,
 ){
     fun getMyPage(userId: Long): MyPageResponse {
         val userProfile = getUserProfile(userId)
@@ -78,7 +79,16 @@ class MyPageService (
     fun updateName(userId: Long, request: UpdateNameRequest) {
         val userProfile = getUserProfile(userId)
 
-        userProfile.updateName(request.name)
+        val newName = request.name.trim()
+        if (newName.isBlank() || newName.length < 2 || newName.length > 10) {
+            throw BusinessException(ErrorCode.INVALID_NAME_FORMAT)
+        }
+
+        if (userProfile.name == newName) {
+            throw BusinessException(ErrorCode.DUPLICATE_NAME)
+        }
+
+        userProfile.updateName(newName)
     }
 
     @Transactional
@@ -178,5 +188,9 @@ class MyPageService (
     private fun getUserAuthAccount(userId: Long): UserAuthAccounts{
         return userAuthAccountRepository.findByUserUserId(userId)
             ?: throw BusinessException(ErrorCode.USER_NOT_FOUND)
+    }
+
+    fun logout(userId: Long) {
+        refreshTokenService.deleteRefreshToken(userId.toString())
     }
 }
