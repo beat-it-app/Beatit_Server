@@ -3,7 +3,8 @@ package com.beat_it.post.dto.poll
 data class PollListResponse(
     val pollListInProgress: List<PollItems>,
     val pollListClosed: List<PollItems>,
-    val totalCount: Int
+    val totalCount: Int,
+    val hasNext: Boolean
 )
 
 data class PollItems(

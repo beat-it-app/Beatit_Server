@@ -27,12 +27,14 @@ class PollController (
     @GetMapping
     fun getPollList(
         @AuthenticationPrincipal userDetails: UserDetails,
-        @RequestParam(required = false) keyword: String?
+        @RequestParam(required = false) keyword: String?,
+        @RequestParam(defaultValue = "0") page: Int,
+        @RequestParam(defaultValue = "10") size: Int
     ): ResponseEntity<BasicResponse<PollListResponse>> {
         val userId = userDetails.username.toLongOrNull()
             ?: throw BusinessException(ErrorCode.UNAUTHORIZED)
 
-        val response = pollService.getPollList(userId, keyword)
+        val response = pollService.getPollList(userId, keyword, page, size)
 
         return ResponseEntity
             .status(HttpStatus.OK)

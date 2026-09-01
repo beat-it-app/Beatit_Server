@@ -43,15 +43,21 @@ class NoticeService(
 ) {
 
     @Transactional(readOnly = true)
-    fun getNoticeList(userId: Long, keyword: String?, sort: NoticeSortType): NoticeListResponse {
+    fun getNoticeList(
+        userId: Long,
+        keyword: String?,
+        sort: NoticeSortType,
+        page: Int = 0,
+        size: Int = 10
+    ): NoticeListResponse {
         val teamId = userService.getCurrentTeamId(userId)
 
-        val sort = when (sort) {
+        val sortObj = when (sort) {
             NoticeSortType.OLDEST -> Sort.by(Sort.Direction.ASC, "createdAt")
             NoticeSortType.LATEST -> Sort.by(Sort.Direction.DESC, "createdAt")
         }
 
-        val pageRequest = PageRequest.of(0, 10, sort)
+        val pageRequest = PageRequest.of(page, size, sortObj)
 
         val searchKeyword = keyword ?: ""
         val noticesPage = noticeRepository.searchNotices(teamId, searchKeyword, pageRequest)

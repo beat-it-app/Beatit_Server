@@ -40,24 +40,31 @@ class PollService(
     private val objectMapper: ObjectMapper,
 ) {
     @Transactional(readOnly = true)
-    fun getPollList(userId: Long, keyword: String? = null): PollListResponse {
+    fun getPollList(
+        userId: Long,
+        keyword: String? = null,
+        page: Int = 0,
+        size: Int = 10
+    ): PollListResponse {
         val teamId = userService.getCurrentTeamId(userId)
         val searchKeyword = keyword?.trim() ?: ""
+        val now = OffsetDateTime.now()
+        val pageable = PageRequest.of(page, size)
 
-        val polls = pollRepository.searchPolls(teamId, searchKeyword)
+        val pollsPage = pollRepository.searchPolls(teamId, searchKeyword, now, pageable)
+        val polls = pollsPage.content
 
         if (polls.isEmpty()) {
             return PollListResponse(
                 pollListInProgress = emptyList(),
                 pollListClosed = emptyList(),
-                totalCount = 0
+                totalCount = pollsPage.totalElements.toInt(),
+                hasNext = pollsPage.hasNext()
             )
         }
 
         val pollIds = polls.mapNotNull { it.pollId }
         val votedPollIds = pollRepository.findVotedPollIdsByUserIdAndPollIds(userId, pollIds).toSet()
-
-        val now = OffsetDateTime.now()
 
         val (closedPolls, inProgressPolls) = polls.partition { poll ->
             poll.closeAt != null && now.isAfter(poll.closeAt)
@@ -74,7 +81,8 @@ class PollService(
         return PollListResponse(
             pollListInProgress = inProgressPolls.map { it.toPollItem() },
             pollListClosed = closedPolls.map { it.toPollItem() },
-            totalCount = polls.size
+            totalCount = pollsPage.totalElements.toInt(),
+            hasNext = pollsPage.hasNext()
         )
     }
 
