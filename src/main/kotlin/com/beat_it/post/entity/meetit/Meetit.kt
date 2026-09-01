@@ -27,11 +27,14 @@ class Meetit(
     @Column(name = "candidate_dates", columnDefinition = "json", nullable = false)
     var candidateDates: String,
 
-    @Column(name = "start_time", nullable = false)
-    var startTime: LocalTime,
+    @Column(name = "start_time", nullable = true)
+    var startTime: LocalTime? = null,
 
-    @Column(name = "end_time", nullable = false)
-    var endTime: LocalTime,
+    @Column(name = "end_time", nullable = true)
+    var endTime: LocalTime? = null,
+
+    @Column(name = "date_only", nullable = false)
+    var dateOnly: Boolean = false,
 
     @Column(name = "total_invited_count", nullable = false)
     var totalInvitedCount: Int

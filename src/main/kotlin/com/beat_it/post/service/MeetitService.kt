@@ -40,8 +40,17 @@ class MeetitService(
         if (request.candidateDates.isEmpty()) {
             throw BusinessException(ErrorCode.INVALID_INPUT_VALUE)
         }
-        validateTime30MinInterval(request.startTime)
-        validateTime30MinInterval(request.endTime)
+        if (!request.dateOnly) {
+            if (request.startTime == null || request.endTime == null) {
+                throw BusinessException(ErrorCode.INVALID_INPUT_VALUE)
+            }
+            validateTime30MinInterval(request.startTime)
+            validateTime30MinInterval(request.endTime)
+        } else {
+            if (request.startTime != null || request.endTime != null) {
+                throw BusinessException(ErrorCode.INVALID_INPUT_VALUE)
+            }
+        }
 
         val teamId = userService.getCurrentTeamId(userId)
 
@@ -59,8 +68,9 @@ class MeetitService(
             teamId = teamId,
             title = request.title,
             candidateDates = objectMapper.writeValueAsString(request.candidateDates),
-            startTime = request.startTime,
-            endTime = request.endTime,
+            startTime = if (request.dateOnly) null else request.startTime,
+            endTime = if (request.dateOnly) null else request.endTime,
+            dateOnly = request.dateOnly,
             totalInvitedCount = request.participantUserIds.size
         )
         val savedMeetit = meetitRepository.save(meetit)
@@ -106,7 +116,8 @@ class MeetitService(
                 title = meetit.title,
                 totalInvitedCount = meetit.totalInvitedCount,
                 respondedCount = respondedCount,
-                myResponseStatus = myResponseStatus
+                myResponseStatus = myResponseStatus,
+                dateOnly = meetit.dateOnly
             )
         }
 
@@ -151,12 +162,17 @@ class MeetitService(
 
         for (dateStr in candidateDates) {
             val date = LocalDate.parse(dateStr)
-            var current = date.atTime(meetit.startTime)
-            val end = date.atTime(meetit.endTime)
-            while (current.isBefore(end)) {
-                val offsetTime = current.atZone(systemZone).toOffsetDateTime()
+            if (meetit.dateOnly) {
+                val offsetTime = date.atTime(LocalTime.MIN).atZone(systemZone).toOffsetDateTime()
                 allSlotStartToUsers[offsetTime] = mutableListOf()
-                current = current.plusMinutes(30)
+            } else {
+                var current = date.atTime(meetit.startTime!!)
+                val end = date.atTime(meetit.endTime!!)
+                while (current.isBefore(end)) {
+                    val offsetTime = current.atZone(systemZone).toOffsetDateTime()
+                    allSlotStartToUsers[offsetTime] = mutableListOf()
+                    current = current.plusMinutes(30)
+                }
             }
         }
 
@@ -175,8 +191,8 @@ class MeetitService(
         val totalCount = participants.size
         val maxOverlappingCount = allTimetableGrid.maxOfOrNull { it.availableUserIds.size } ?: 0
 
-        val entireMemberOptimalSlots = findOptimalIntervals(allTimetableGrid, totalCount)
-        val maxMemberOptimalSlots = findOptimalIntervals(allTimetableGrid, maxOverlappingCount)
+        val entireMemberOptimalSlots = findOptimalIntervals(allTimetableGrid, totalCount, meetit.dateOnly)
+        val maxMemberOptimalSlots = findOptimalIntervals(allTimetableGrid, maxOverlappingCount, meetit.dateOnly)
 
         val timetableGrid = if (userIds != null && userIds.isNotEmpty()) {
             allTimetableGrid.map { slot ->
@@ -206,8 +222,9 @@ class MeetitService(
             meetitId = meetit.meetitId!!,
             title = meetit.title,
             creatorId = meetit.userId,
-            startTime = formatTime(meetit.startTime),
-            endTime = formatTime(meetit.endTime),
+            startTime = meetit.startTime?.let { formatTime(it) },
+            endTime = meetit.endTime?.let { formatTime(it) },
+            dateOnly = meetit.dateOnly,
             candidateDates = candidateDates,
             totalInvitedCount = totalCount,
             respondedCount = respondedParticipantIds.size,
@@ -237,10 +254,16 @@ class MeetitService(
             }
 
             val localTime = localDateTime.toLocalTime()
-            if (localTime.isBefore(meetit.startTime) || !localTime.isBefore(meetit.endTime)) {
-                throw BusinessException(ErrorCode.INVALID_INPUT_VALUE)
+            if (!meetit.dateOnly) {
+                if (localTime.isBefore(meetit.startTime!!) || !localTime.isBefore(meetit.endTime!!)) {
+                    throw BusinessException(ErrorCode.INVALID_INPUT_VALUE)
+                }
+                validateTime30MinInterval(localTime)
+            } else {
+                if (localTime != LocalTime.MIN) {
+                    throw BusinessException(ErrorCode.INVALID_INPUT_VALUE)
+                }
             }
-            validateTime30MinInterval(localTime)
         }
 
         meetitResponseRepository.deleteByMeetitParticipantMeetitParticipantId(participant.meetitParticipantId!!)
@@ -257,7 +280,8 @@ class MeetitService(
 
     private fun findOptimalIntervals(
         grid: List<MeetitGridSlotResponse>,
-        threshold: Int
+        threshold: Int,
+        dateOnly: Boolean
     ): List<MeetitOptimalSlotResponse> {
         if (threshold <= 0) return emptyList()
         val result = mutableListOf<MeetitOptimalSlotResponse>()
@@ -268,6 +292,17 @@ class MeetitService(
         for ((date, slots) in slotsByDate) {
             val sortedSlots = slots.sortedBy { it.slotStartTime }
             if (sortedSlots.isEmpty()) continue
+
+            if (dateOnly) {
+                result.add(
+                    MeetitOptimalSlotResponse(
+                        date = date.toString(),
+                        startTime = null,
+                        endTime = null
+                    )
+                )
+                continue
+            }
 
             var intervalStart = sortedSlots.first().slotStartTime
             var expectedNext = intervalStart.plusMinutes(30)
@@ -296,7 +331,7 @@ class MeetitService(
                 )
             )
         }
-        return result.sortedWith(compareBy({ it.date }, { it.startTime }))
+        return result.sortedWith(compareBy({ it.date }, { it.startTime ?: "" }))
     }
 
     private fun validateTime30MinInterval(time: LocalTime) {
