@@ -21,7 +21,6 @@ import com.beat_it.auth.repository.UserSettingsRepository
 import com.beat_it.global.error.BusinessException
 import com.beat_it.global.error.ErrorCode
 import com.beat_it.global.security.jwt.JwtTokenProvider
-import com.beat_it.global.util.DateTimeUtil
 import jakarta.transaction.Transactional
 import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.stereotype.Service
@@ -88,7 +87,7 @@ class AuthService (
             userId = user.userId!!,
             identifier = userAuthAccount.identifier!!,
             email = userAuthAccount.email,
-            createdAt = DateTimeUtil.format(user.createdAt),
+            createdAt = user.createdAt,
         )
     }
 

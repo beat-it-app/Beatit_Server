@@ -1,5 +1,7 @@
 package com.beat_it.team.dto
 
+import java.time.OffsetDateTime
+
 data class TeamCloudListResponse(
     val currentFolderName: String?,
     val folders: List<FolderResponse>,
@@ -19,6 +21,6 @@ data class TeamCloudListResponse(
         val mimeType: String?,
         val linkUrl: String?,
         val uploaderName: String,
-        val createdAt: String
+        val createdAt: OffsetDateTime
     )
 }

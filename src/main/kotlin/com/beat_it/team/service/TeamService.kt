@@ -3,7 +3,6 @@ package com.beat_it.team.service
 import com.beat_it.auth.service.UserService
 import com.beat_it.global.error.BusinessException
 import com.beat_it.global.error.ErrorCode
-import com.beat_it.global.util.DateTimeUtil
 import com.beat_it.team.dto.*
 import com.beat_it.team.entity.TeamLinks
 import com.beat_it.team.entity.TeamMemberships
@@ -64,7 +63,7 @@ class TeamService(
             establishedOn = savedTeam.establishedOn,
             inviteCode = savedTeam.inviteCode,
             teamRole = "LEADER",
-            createdAt =  DateTimeUtil.format(savedTeam.createdAt)
+            createdAt = savedTeam.createdAt
         )
     }
 
@@ -124,7 +123,7 @@ class TeamService(
             teamName = team.teamName,
             description = team.description,
             establishedOn = team.establishedOn,
-            updatedAt = DateTimeUtil.format(team.updatedAt),
+            updatedAt = team.updatedAt,
             links = links
         )
     }
@@ -191,8 +190,8 @@ class TeamService(
             establishedOn = team.establishedOn,
             inviteCode = team.inviteCode,
             memberCount = memberCount,
-            createdAt = DateTimeUtil.format(team.createdAt),
-            updatedAt = DateTimeUtil.format(team.updatedAt),
+            createdAt = team.createdAt,
+            updatedAt = team.updatedAt,
             links = links,
             parts = parts,
             archiveCount = 0,
@@ -224,7 +223,7 @@ class TeamService(
             teamPublicId = team.publicId,
             teamName = team.teamName,
             teamRole = savedMembership.teamRole,
-            joinedAt = DateTimeUtil.format(savedMembership.joinedAt),
+            joinedAt = savedMembership.joinedAt,
         )
     }
 
@@ -242,7 +241,7 @@ class TeamService(
                 teamName = team.teamName,
                 teamType = team.teamType,
                 teamImageUrl = team.teamImageUrl,
-                createdAt =  DateTimeUtil.format(team.createdAt)
+                createdAt = team.createdAt
             )
         }
 
@@ -261,7 +260,7 @@ class TeamService(
             teamName = team.teamName,
             teamType = team.teamType,
             teamImageUrl = team.teamImageUrl,
-            createdAt =  DateTimeUtil.format(team.createdAt)
+            createdAt = team.createdAt
         )
     }
 

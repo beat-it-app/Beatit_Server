@@ -289,16 +289,16 @@ class MeetitService(
         val slotsByDate = grid.filter { it.availableUserIds.size >= threshold }
             .groupBy { it.slotStartTime.toLocalDate() }
 
-        for ((date, slots) in slotsByDate) {
+        for (slots in slotsByDate.values) {
             val sortedSlots = slots.sortedBy { it.slotStartTime }
             if (sortedSlots.isEmpty()) continue
 
             if (dateOnly) {
+                val start = sortedSlots.first().slotStartTime
                 result.add(
                     MeetitOptimalSlotResponse(
-                        date = date.toString(),
-                        startTime = null,
-                        endTime = null
+                        startDateTime = start,
+                        endDateTime = start.plusDays(1)
                     )
                 )
                 continue
@@ -309,14 +309,13 @@ class MeetitService(
 
             for (i in 1 until sortedSlots.size) {
                 val slot = sortedSlots[i]
-                if (slot.slotStartTime == expectedNext) {
+                if (slot.slotStartTime.isEqual(expectedNext)) {
                     expectedNext = slot.slotStartTime.plusMinutes(30)
                 } else {
                     result.add(
                         MeetitOptimalSlotResponse(
-                            date = date.toString(),
-                            startTime = formatTime(intervalStart.toLocalTime()),
-                            endTime = formatTime(expectedNext.toLocalTime())
+                            startDateTime = intervalStart,
+                            endDateTime = expectedNext
                         )
                     )
                     intervalStart = slot.slotStartTime
@@ -325,13 +324,12 @@ class MeetitService(
             }
             result.add(
                 MeetitOptimalSlotResponse(
-                    date = date.toString(),
-                    startTime = formatTime(intervalStart.toLocalTime()),
-                    endTime = formatTime(expectedNext.toLocalTime())
+                    startDateTime = intervalStart,
+                    endDateTime = expectedNext
                 )
             )
         }
-        return result.sortedWith(compareBy({ it.date }, { it.startTime ?: "" }))
+        return result.sortedBy { it.startDateTime }
     }
 
     private fun validateTime30MinInterval(time: LocalTime) {

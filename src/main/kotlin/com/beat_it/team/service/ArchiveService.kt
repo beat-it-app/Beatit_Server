@@ -5,7 +5,6 @@ import com.beat_it.auth.service.UserService
 import com.beat_it.global.error.BusinessException
 import com.beat_it.global.error.ErrorCode
 import com.beat_it.global.service.FileService
-import com.beat_it.global.util.DateTimeUtil
 import com.beat_it.team.dto.*
 import com.beat_it.team.entity.Archives
 import com.beat_it.team.entity.ArchivesFiles
@@ -70,7 +69,7 @@ class ArchiveService(
             placeName = savedArchive.placeName,
             locationId = savedArchive.locationId,
             archiveImageUrl = savedArchive.archiveImageUrl,
-            createdAt = DateTimeUtil.format(savedArchive.createdAt),
+            createdAt = savedArchive.createdAt,
         )
     }
 
@@ -91,8 +90,8 @@ class ArchiveService(
             likeCount = archive.likeCount,
             dislikeCount = archive.dislikeCount,
             commentCount = archive.commentCount,
-            createdAt = DateTimeUtil.format(archive.createdAt),
-            updatedAt = DateTimeUtil.format(archive.updatedAt),
+            createdAt = archive.createdAt,
+            updatedAt = archive.updatedAt,
         )
     }
 
@@ -137,7 +136,7 @@ class ArchiveService(
             placeName = archive.placeName,
             locationId = archive.locationId,
             archiveImageUrl = archive.archiveImageUrl,
-            updatedAt = DateTimeUtil.format(archive.updatedAt),
+            updatedAt = archive.updatedAt,
         )
     }
 
