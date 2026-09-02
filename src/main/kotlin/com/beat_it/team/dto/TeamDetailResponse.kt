@@ -2,7 +2,6 @@ package com.beat_it.team.dto
 
 import com.beat_it.team.entity.enum.PlatformCode
 import java.time.LocalDate
-import java.time.OffsetDateTime
 import java.util.UUID
 
 data class TeamDetailResponse(

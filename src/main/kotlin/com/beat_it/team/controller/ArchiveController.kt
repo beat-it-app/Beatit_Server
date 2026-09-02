@@ -3,17 +3,10 @@ package com.beat_it.team.controller
 import com.beat_it.global.error.BusinessException
 import com.beat_it.global.error.ErrorCode
 import com.beat_it.global.response.BasicResponse
-import com.beat_it.post.dto.CommentRequest
-import com.beat_it.team.dto.ArchiveCreateRequest
-import com.beat_it.team.dto.ArchiveCreateResponse
-import com.beat_it.team.dto.ArchiveDetailResponse
-import com.beat_it.team.dto.ArchiveListResponse
-import com.beat_it.team.dto.ArchiveRatingRequest
-import com.beat_it.team.dto.ArchiveRatingResponse
-import com.beat_it.team.dto.ArchiveUpdateRequest
-import com.beat_it.team.dto.ArchiveUpdateResponse
+import com.beat_it.team.dto.*
 import com.beat_it.team.service.ArchiveService
 import io.swagger.v3.oas.annotations.Operation
+import io.swagger.v3.oas.annotations.Parameter
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.*
@@ -23,7 +16,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal
 import org.springframework.security.core.userdetails.UserDetails
 import org.springframework.web.multipart.MultipartFile
 
-@Tag(name = "2-2. TEAM ARCHIVE API", description = "팀 연습실 수정 및 생성 관리 로직")
+@Tag(name = "2-2. TEAM ARCHIVE API", description = "팀 연습실 관리 로직")
 @RestController
 @RequestMapping("/teams/archives")
 class ArchiveController(
@@ -33,11 +26,20 @@ class ArchiveController(
     @PostMapping(consumes = [MediaType.MULTIPART_FORM_DATA_VALUE])
     fun createArchive(
         @AuthenticationPrincipal userDetails: UserDetails,
-        @RequestPart("request") request: ArchiveCreateRequest,
+        @RequestParam title: String,
+        @Parameter(description = "장소 ID", required = true)
+        @RequestParam(required = false) locationId: Long?,
+        @RequestParam(required = false) description: String?,
         @RequestPart(value = "archiveImages", required = false) archiveImages: List<MultipartFile>?,
     ): ResponseEntity<BasicResponse<ArchiveCreateResponse>> {
         val userId = userDetails.username.toLongOrNull()
             ?: throw BusinessException(ErrorCode.UNAUTHORIZED)
+
+        val request = ArchiveCreateRequest(
+            title = title,
+            locationId = locationId,
+            description = description,
+        )
 
         val responseData = archiveService.createArchive(
             userId = userId,
@@ -58,16 +60,24 @@ class ArchiveController(
     fun updateArchive(
         @AuthenticationPrincipal userDetails: UserDetails,
         @PathVariable archiveId: Long,
-        @RequestPart(value = "request", required = false) request: ArchiveUpdateRequest?,
+        @RequestParam(required = false) title: String?,
+        @RequestParam(required = false) locationId: Long?,
+        @RequestParam(required = false) description: String?,
         @RequestPart(value = "archiveImages", required = false) archiveImages: List<MultipartFile>?,
     ): ResponseEntity<BasicResponse<ArchiveUpdateResponse>> {
         val userId = userDetails.username.toLongOrNull()
             ?: throw BusinessException(ErrorCode.UNAUTHORIZED)
 
+        val request = ArchiveUpdateRequest(
+            title = title,
+            locationId = locationId,
+            description = description,
+        )
+
         val responseData = archiveService.updateArchive(
             userId = userId,
             archiveId = archiveId,
-            request = request ?: ArchiveUpdateRequest(),
+            request = request,
             archiveImages = archiveImages,
         )
 
@@ -113,12 +123,12 @@ class ArchiveController(
     fun saveRating(
         @AuthenticationPrincipal userDetails: UserDetails,
         @PathVariable archiveId: Long,
-        @RequestBody request: ArchiveRatingRequest,
+        @RequestParam rating: Int,
     ): ResponseEntity<BasicResponse<ArchiveRatingResponse>> {
         val userId = userDetails.username.toLongOrNull()
             ?: throw BusinessException(ErrorCode.UNAUTHORIZED)
 
-        val responseData = archiveService.saveRating(userId, archiveId, request)
+        val responseData = archiveService.saveRating(userId, archiveId, rating)
 
         return ResponseEntity
             .status(HttpStatus.OK)
@@ -130,12 +140,12 @@ class ArchiveController(
     fun createComment(
         @AuthenticationPrincipal userDetails: UserDetails,
         @PathVariable archiveId: Long,
-        @RequestBody request: CommentRequest,
+        @RequestParam comment: String,
     ): ResponseEntity<BasicResponse<Nothing>> {
         val userId = userDetails.username.toLongOrNull()
             ?: throw BusinessException(ErrorCode.UNAUTHORIZED)
 
-        archiveService.createComment(userId, archiveId, request)
+        archiveService.createComment(userId, archiveId, comment)
 
         return ResponseEntity
             .status(HttpStatus.OK)

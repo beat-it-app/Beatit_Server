@@ -3,12 +3,7 @@ package com.beat_it.team.controller
 import com.beat_it.global.error.BusinessException
 import com.beat_it.global.error.ErrorCode
 import com.beat_it.global.response.BasicResponse
-import com.beat_it.team.dto.TeamCloudFileDetailResponse
-import com.beat_it.team.dto.TeamCloudFolderRequest
-import com.beat_it.team.dto.TeamCloudItemsDeleteRequest
-import com.beat_it.team.dto.TeamCloudItemsMoveRequest
-import com.beat_it.team.dto.TeamCloudLinkCreateRequest
-import com.beat_it.team.dto.TeamCloudListResponse
+import com.beat_it.team.dto.*
 import com.beat_it.team.service.TeamCloudService
 import org.springframework.http.HttpStatus
 import org.springframework.http.MediaType

@@ -64,7 +64,7 @@ class TeamService(
             establishedOn = savedTeam.establishedOn,
             inviteCode = savedTeam.inviteCode,
             teamRole = "LEADER",
-            createdAt =  DateTimeUtil.format(savedTeam.createdAt)
+            createdAt = DateTimeUtil.format(savedTeam.createdAt)
         )
     }
 
@@ -242,7 +242,7 @@ class TeamService(
                 teamName = team.teamName,
                 teamType = team.teamType,
                 teamImageUrl = team.teamImageUrl,
-                createdAt =  DateTimeUtil.format(team.createdAt)
+                createdAt = DateTimeUtil.format(team.createdAt)
             )
         }
 
@@ -261,7 +261,7 @@ class TeamService(
             teamName = team.teamName,
             teamType = team.teamType,
             teamImageUrl = team.teamImageUrl,
-            createdAt =  DateTimeUtil.format(team.createdAt)
+            createdAt = DateTimeUtil.format(team.createdAt)
         )
     }
 

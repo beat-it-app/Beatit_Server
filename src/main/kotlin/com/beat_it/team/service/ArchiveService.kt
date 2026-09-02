@@ -6,7 +6,6 @@ import com.beat_it.global.error.BusinessException
 import com.beat_it.global.error.ErrorCode
 import com.beat_it.global.util.DateTimeUtil
 import com.beat_it.location.service.LocationsService
-import com.beat_it.post.dto.CommentRequest
 import com.beat_it.post.dto.CommentResponse
 import com.beat_it.team.dto.*
 import com.beat_it.team.entity.ArchiveComments
@@ -43,13 +42,15 @@ class ArchiveService(
         validateDescription(request.description)
 
         val team = findCurrentTeamForArchiveOrThrow(userId)
-        val location = locationsService.getLocation(request.locationId)
+        val locationId = request.locationId
+            ?: throw BusinessException(ErrorCode.ARCHIVE_LOCATION_REQUIRED)
+        val location = locationsService.getLocation(locationId)
 
         val archive = Archives(
             writerId = userId,
             team = team,
             title = request.title,
-            placeName = location.locationName,
+            roadAddress = location.roadAddress,
             locationId = location.locationId,
             description = request.description,
             archiveImageUrl = null,
@@ -73,7 +74,7 @@ class ArchiveService(
             teamId = team.teamId!!,
             writerId = savedArchive.writerId,
             title = savedArchive.title,
-            placeName = savedArchive.placeName,
+            roadAddress = savedArchive.roadAddress,
             locationId = savedArchive.locationId,
             archiveImageUrls = savedArchiveFiles.map { archiveFile -> archiveFile.cdnUrl },
             createdAt = DateTimeUtil.format(savedArchive.createdAt),
@@ -93,7 +94,7 @@ class ArchiveService(
                     teamId = teamId,
                     writerId = archive.writerId,
                     title = archive.title,
-                    placeName = archive.placeName,
+                    roadAddress = archive.roadAddress,
                     locationId = archive.locationId,
                     archiveImageUrl = archive.archiveImageUrl,
                     averageRating = archive.calculateAverageRating(),
@@ -110,7 +111,6 @@ class ArchiveService(
     fun getArchiveDetail(userId: Long, archiveId: Long): ArchiveDetailResponse {
         val archive = findAccessibleArchiveOrThrow(userId, archiveId)
         val writerProfile = userService.getUserProfile(archive.writerId)
-        val location = locationsService.getLocation(archive.locationId)
         val archiveImageUrls = archivesFilesRepository
             .findAllByArchiveArchiveIdOrderByArchiveFileIdAsc(archiveId)
             .map { archiveFile -> archiveFile.cdnUrl }
@@ -132,18 +132,10 @@ class ArchiveService(
             teamId = archive.team.teamId!!,
             writerId = archive.writerId,
             title = archive.title,
-            placeName = archive.placeName,
+            roadAddress = archive.roadAddress,
             locationId = archive.locationId,
             description = archive.description,
             archiveImageUrls = archiveImageUrls,
-            location = ArchiveLocationResponse(
-                locationId = location.locationId,
-                locationName = location.locationName,
-                roadAddress = location.roadAddress,
-                latitude = location.latitude,
-                longitude = location.longitude,
-                mapUrl = location.mapUrl,
-            ),
             writerName = writerProfile?.name ?: "알 수 없음",
             writerProfileImageUrl = writerProfile?.authFile?.cdnUrl,
             isWriter = archive.writerId == userId,
@@ -184,7 +176,7 @@ class ArchiveService(
         archive.updateArchive(
             title = request.title,
             description = request.description,
-            placeName = location?.locationName,
+            roadAddress = location?.roadAddress,
             locationId = location?.locationId,
         )
 
@@ -202,7 +194,7 @@ class ArchiveService(
             archiveId = archive.archiveId!!,
             title = archive.title,
             description = archive.description,
-            placeName = archive.placeName,
+            roadAddress = archive.roadAddress,
             locationId = archive.locationId,
             archiveImageUrls = archiveImageUrls,
             updatedAt = DateTimeUtil.format(archive.updatedAt),
@@ -225,9 +217,9 @@ class ArchiveService(
     fun saveRating(
         userId: Long,
         archiveId: Long,
-        request: ArchiveRatingRequest,
+        rating: Int,
     ): ArchiveRatingResponse {
-        validateRating(request.score)
+        validateRating(rating)
 
         val archive = findAccessibleArchiveOrThrow(userId, archiveId)
         val existingRating = archiveRatingsRepository
@@ -238,22 +230,22 @@ class ArchiveService(
                 ArchiveRatings(
                     archive = archive,
                     userId = userId,
-                    score = request.score,
+                    score = rating,
                 )
             )
-            archive.addRating(request.score)
+            archive.addRating(rating)
         } else {
             archive.updateRating(
                 previousScore = existingRating.score,
-                newScore = request.score,
+                newScore = rating,
             )
-            existingRating.updateScore(request.score)
+            existingRating.updateScore(rating)
         }
 
         return ArchiveRatingResponse(
             averageRating = archive.calculateAverageRating(),
             ratingCount = archive.ratingCount,
-            myRating = request.score,
+            myRating = rating,
         )
     }
 
@@ -261,15 +253,15 @@ class ArchiveService(
     fun createComment(
         userId: Long,
         archiveId: Long,
-        request: CommentRequest,
+        comment: String,
     ) {
         val archive = findAccessibleArchiveOrThrow(userId, archiveId)
-        validateComment(request.content)
+        validateComment(comment)
 
         val comment = ArchiveComments.create(
             archive = archive,
             userId = userId,
-            content = request.content,
+            content = comment,
         )
 
         archiveCommentsRepository.save(comment)
@@ -285,7 +277,7 @@ class ArchiveService(
         val archive = findAccessibleArchiveOrThrow(userId, archiveId)
         val comment = archiveCommentsRepository
             .findByArchiveCommentIdAndArchiveArchiveId(commentId, archiveId)
-            ?: throw BusinessException(ErrorCode.RESOURCE_NOT_FOUND)
+            ?: throw BusinessException(ErrorCode.ARCHIVE_COMMENT_NOT_FOUND)
 
         validateCommentDeletePermission(
             comment = comment,
@@ -447,13 +439,13 @@ class ArchiveService(
 
     private fun validateComment(content: String) {
         if (content.isBlank() || content.length > 1000) {
-            throw BusinessException(ErrorCode.INVALID_COMMENT_CONTENT)
+            throw BusinessException(ErrorCode.ARCHIVE_INVALID_COMMENT_CONTENT)
         }
     }
 
     private fun validateRating(score: Int) {
         if (score !in 1..5) {
-            throw BusinessException(ErrorCode.INVALID_INPUT_VALUE)
+            throw BusinessException(ErrorCode.ARCHIVE_INVALID_RATING)
         }
     }
 
@@ -463,7 +455,7 @@ class ArchiveService(
         archiveWriterId: Long,
     ) {
         if (comment.userId != userId && archiveWriterId != userId) {
-            throw BusinessException(ErrorCode.NOT_AUTHOR)
+            throw BusinessException(ErrorCode.ARCHIVE_COMMENT_NO_DELETE_PERMISSION)
         }
     }
 

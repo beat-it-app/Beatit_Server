@@ -77,8 +77,10 @@ enum class ErrorCode(
     ARCHIVE_NO_UPDATE_PERMISSION(HttpStatus.FORBIDDEN, "ARCHIVE-007", "연습실 수정 권한이 없습니다."),
     ARCHIVE_NO_DELETE_PERMISSION(HttpStatus.FORBIDDEN, "ARCHIVE-008", "연습실 삭제 권한이 없습니다."),
     ARCHIVE_LOCATION_REQUIRED(HttpStatus.BAD_REQUEST, "ARCHIVE-009", "연습실 위치 정보는 필수입니다."),
-    ARCHIVE_PLACE_NAME_TOO_LONG(HttpStatus.BAD_REQUEST, "ARCHIVE-010", "연습실 장소명은 100자 이하여야 합니다."),
-    ARCHIVE_IMAGE_URL_TOO_LONG(HttpStatus.BAD_REQUEST, "ARCHIVE-011", "연습실 이미지 URL은 500자 이하여야 합니다."),
+    ARCHIVE_INVALID_RATING(HttpStatus.BAD_REQUEST, "ARCHIVE-010", "별점은 1점부터 5점까지 입력할 수 있습니다."),
+    ARCHIVE_INVALID_COMMENT_CONTENT(HttpStatus.BAD_REQUEST, "ARCHIVE-011", "연습실 댓글은 1자 이상 1000자 이하로 입력해주세요."),
+    ARCHIVE_COMMENT_NOT_FOUND(HttpStatus.NOT_FOUND, "ARCHIVE-012", "연습실 댓글을 찾을 수 없습니다."),
+    ARCHIVE_COMMENT_NO_DELETE_PERMISSION(HttpStatus.FORBIDDEN, "ARCHIVE-013", "연습실 댓글 삭제 권한이 없습니다."),
 
     // --- 4. 채팅 관련 에러 (CHAT) ---
     CHAT_ROOM_NAME_REQUIRED(HttpStatus.BAD_REQUEST, "CHAT-001", "채팅방 이름은 필수입니다."),

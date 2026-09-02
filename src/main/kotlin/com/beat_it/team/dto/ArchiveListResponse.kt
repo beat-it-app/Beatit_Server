@@ -9,7 +9,7 @@ data class ArchiveListItemResponse(
     val teamId: Long,
     val writerId: Long,
     val title: String,
-    val placeName: String?,
+    val roadAddress: String?,
     val locationId: Long,
     val archiveImageUrl: String?,
     val averageRating: Double,

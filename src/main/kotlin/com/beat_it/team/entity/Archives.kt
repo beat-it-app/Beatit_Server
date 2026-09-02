@@ -32,8 +32,8 @@ class Archives(
     @Column(name = "title", nullable = false)
     var title: String,
 
-    @Column(name = "place_name", nullable = true)
-    var placeName: String? = null,
+    @Column(name = "road_address", nullable = true)
+    var roadAddress: String? = null,
 
     @Column(name = "description", nullable = true)
     var description: String? = null,
@@ -54,12 +54,12 @@ class Archives(
     fun updateArchive(
         title: String?,
         description: String?,
-        placeName: String?,
+        roadAddress: String?,
         locationId: Long?,
     ) {
         title?.let { this.title = it }
         description?.let { this.description = it }
-        placeName?.let { this.placeName = it }
+        roadAddress?.let { this.roadAddress = it }
         locationId?.let { this.locationId = it }
     }
 
