@@ -4,7 +4,7 @@ import com.beat_it.auth.dto.LoginRequest
 import com.beat_it.auth.dto.LoginResponse
 import com.beat_it.auth.dto.SignUpRequest
 import com.beat_it.auth.dto.SignUpResponse
-import com.beat_it.auth.dto.SocialLoginRequest
+import com.beat_it.auth.dto.GoogleLoginRequest
 import com.beat_it.auth.dto.ReissueResponse
 import com.beat_it.auth.dto.FindIdentifierResponse
 import com.beat_it.auth.dto.ResetPasswordRequest
@@ -60,8 +60,8 @@ class AuthController (
 
     @Operation(summary = "구글 로그인")
     @PostMapping("/google")
-    fun googleLogin(@RequestBody socialLoginRequest: SocialLoginRequest): ResponseEntity<BasicResponse<LoginResponse>> {
-        val (accessToken, refreshToken, data) = authService.googleLogin(socialLoginRequest)
+    fun googleLogin(@RequestBody googleLoginRequest: GoogleLoginRequest): ResponseEntity<BasicResponse<LoginResponse>> {
+        val (accessToken, refreshToken, data) = authService.googleLogin(googleLoginRequest)
 
         return ResponseEntity
             .status(HttpStatus.OK)
@@ -167,4 +167,4 @@ class AuthController (
             .status(HttpStatus.OK)
             .body(BasicResponse.success(response, HttpStatus.OK, "비밀번호 재설정이 성공적으로 처리되었습니다."))
     }
-}
+}

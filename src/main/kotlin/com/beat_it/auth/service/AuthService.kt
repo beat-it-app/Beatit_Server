@@ -4,7 +4,7 @@ import com.beat_it.auth.dto.LoginRequest
 import com.beat_it.auth.dto.LoginResponse
 import com.beat_it.auth.dto.SignUpRequest
 import com.beat_it.auth.dto.SignUpResponse
-import com.beat_it.auth.dto.SocialLoginRequest
+import com.beat_it.auth.dto.GoogleLoginRequest
 import com.beat_it.auth.dto.FindIdentifierResponse
 import com.beat_it.auth.dto.ResetPasswordRequest
 import com.beat_it.auth.dto.ResetPasswordResponse
@@ -136,7 +136,7 @@ class AuthService (
     }
 
     @Transactional
-    fun googleLogin(dto: SocialLoginRequest): Triple<String, String, LoginResponse> {
+    fun googleLogin(dto: GoogleLoginRequest): Triple<String, String, LoginResponse> {
         val googlePayload = googleAuthService.verifyToken(dto.idToken)
 
         var userAuthAccount = userAuthAccountRepository.findByGoogleId(googlePayload.googleId)
