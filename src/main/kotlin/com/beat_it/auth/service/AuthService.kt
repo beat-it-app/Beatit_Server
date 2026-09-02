@@ -6,6 +6,7 @@ import com.beat_it.auth.dto.SignUpRequest
 import com.beat_it.auth.dto.SignUpResponse
 import com.beat_it.auth.dto.GoogleLoginRequest
 import com.beat_it.auth.dto.FindIdentifierResponse
+import com.beat_it.auth.dto.KakaoLoginRequest
 import com.beat_it.auth.dto.ResetPasswordRequest
 import com.beat_it.auth.dto.ResetPasswordResponse
 import com.beat_it.auth.entity.UserAuthAccounts
@@ -37,6 +38,7 @@ class AuthService (
     private val jwtTokenProvider: JwtTokenProvider,
     private val userProfilesRepository: UserProfilesRepository,
     private val googleAuthService: GoogleAuthService,
+    private val kakaoAuthService: KakaoAuthService,
     private val refreshTokenService: RefreshTokenService,
     private val emailService: EmailService,
     private val redisTemplate: StringRedisTemplate
@@ -186,6 +188,61 @@ class AuthService (
                 role = user.role,
                 isCreatedProfile = isCreatedProfile,
                 socialProvider = SocialProvider.GOOGLE
+            )
+        )
+    }
+
+    @Transactional
+    fun kakaoLogin(dto: KakaoLoginRequest): Triple<String, String, LoginResponse> {
+        val kakaoPayload = kakaoAuthService.verifyToken(dto.accessToken)
+
+        var userAuthAccount = userAuthAccountRepository.findByKakaoId(kakaoPayload.kakaoId)
+
+        if (userAuthAccount == null) {
+            var user = Users.createNewUser(
+                role = Role.USER,
+                accountStatus = AccountStatus.ACTIVE
+            )
+            user = userRepository.save(user)
+
+            val userSetting = UserSettings.createNewUser(
+                user,
+                allowAutoLogin = false
+            )
+            userSettingsRepository.save(userSetting)
+
+            userAuthAccount = UserAuthAccounts.createSocialUser(
+                user = user,
+                email = kakaoPayload.email,
+                socialId = kakaoPayload.kakaoId,
+                provider = SocialProvider.KAKAO
+            )
+            userAuthAccountRepository.save(userAuthAccount)
+        }
+
+        val user = userAuthAccount.user
+        val isCreatedProfile = userProfilesRepository.existsByUser_UserId(user.userId)
+
+        val accessToken = jwtTokenProvider.createAccessToken(
+            userId = user.userId.toString(),
+            role = user.role
+        )
+
+        val refreshToken = jwtTokenProvider.createRefreshToken(user.userId.toString())
+        refreshTokenService.saveRefreshToken(
+            userId = user.userId.toString(),
+            refreshToken = refreshToken,
+            expirationMs = jwtTokenProvider.refreshTokenValidity
+        )
+
+        return Triple(
+            accessToken,
+            refreshToken,
+            LoginResponse(
+                userId = user.userId,
+                role = user.role,
+                isCreatedProfile = isCreatedProfile,
+                socialProvider = SocialProvider.KAKAO
             )
         )
     }
