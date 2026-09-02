@@ -14,7 +14,7 @@ import com.beat_it.team.dto.TeamJoinResponse
 import com.beat_it.team.dto.TeamManageRequest
 import com.beat_it.team.dto.TeamManageResponse
 import com.beat_it.team.dto.TeamMemberListResponse
-import com.beat_it.team.dto.TeamSimpleInfo
+import com.beat_it.team.dto.TeamInviteInfoResponse
 import com.beat_it.team.dto.UserTeamListResponse
 import io.swagger.v3.oas.annotations.Operation
 import org.springframework.http.HttpStatus
@@ -120,15 +120,15 @@ class TeamController(
             .body(BasicResponse.success(HttpStatus.OK, "팀이 성공적으로 선택되었습니다."))
     }
 
-    @Operation(summary = "초대코드로 팀 가입하기")
-    @PostMapping( "/join/{inviteCode}")
+    @Operation(summary = "팀 Public ID로 팀 가입하기")
+    @PostMapping( "/join/{teamPublicId}")
     fun postJoinTeam(
         @AuthenticationPrincipal userDetails: UserDetails,
-        @PathVariable inviteCode: String,
+        @PathVariable teamPublicId: UUID,
     ): ResponseEntity<BasicResponse<TeamJoinResponse>> {
         val userId = extractUserId(userDetails)
 
-        val responseData = teamService.joinTeam(userId, inviteCode)
+        val responseData = teamService.joinTeam(userId, teamPublicId)
 
         return ResponseEntity
             .status(HttpStatus.OK)
@@ -153,12 +153,12 @@ class TeamController(
     @GetMapping("/verify/{inviteCode}")
     fun getVerifyCode(
         @PathVariable inviteCode: String,
-    ): ResponseEntity<BasicResponse<TeamSimpleInfo>> {
+    ): ResponseEntity<BasicResponse<TeamInviteInfoResponse>> {
         val responseData = teamService.getTeamInfoByInviteCode(inviteCode)
 
         return ResponseEntity
             .status(HttpStatus.OK)
-            .body(BasicResponse.success(responseData, HttpStatus.OK, "팀 초대 링크 조회에 성공했습니다."))
+            .body(BasicResponse.success(responseData, HttpStatus.OK, "팀 초대코드 조회에 성공했습니다."))
     }
 
     @Operation(summary = "멤버 목록 확인하기")
