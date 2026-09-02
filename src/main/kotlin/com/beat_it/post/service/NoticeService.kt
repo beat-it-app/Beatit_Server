@@ -37,21 +37,27 @@ class NoticeService(
     private val fileService: FileService,
     private val noticeAttachmentsRepository: NoticeAttachmentsRepository,
     private val noticeReactionRepository: NoticeReactionRepository,
-    private val postCommentRepository: PostCommentRepository,
+    private val commentService: CommentService,
     private val postFilesRepository: PostFilesRepository,
     private val userService: UserService
 ) {
 
     @Transactional(readOnly = true)
-    fun getNoticeList(userId: Long, keyword: String?, sort: NoticeSortType): NoticeListResponse {
+    fun getNoticeList(
+        userId: Long,
+        keyword: String?,
+        sort: NoticeSortType,
+        page: Int = 0,
+        size: Int = 10
+    ): NoticeListResponse {
         val teamId = userService.getCurrentTeamId(userId)
 
-        val sort = when (sort) {
+        val sortObj = when (sort) {
             NoticeSortType.OLDEST -> Sort.by(Sort.Direction.ASC, "createdAt")
             NoticeSortType.LATEST -> Sort.by(Sort.Direction.DESC, "createdAt")
         }
 
-        val pageRequest = PageRequest.of(0, 10, sort)
+        val pageRequest = PageRequest.of(page, size, sortObj)
 
         val searchKeyword = keyword ?: ""
         val noticesPage = noticeRepository.searchNotices(teamId, searchKeyword, pageRequest)
@@ -132,7 +138,12 @@ class NoticeService(
         val isLiked = userReaction.map { it.reactionType == ReactionType.LIKE }.orElse(false)
         val isDisliked = userReaction.map { it.reactionType == ReactionType.DISLIKE }.orElse(false)
 
-        val comments = postCommentRepository.findByPostTypeAndPostIdOrderByCreatedAtAsc(PostType.NOTICE, noticeId)
+        val comments = commentService.getComments(
+            postType = PostType.NOTICE,
+            postId = noticeId,
+            postWriterId = notice.userId,
+            currentUserId = userId
+        )
 
         val reactionDto = NoticeReactionDto(
             likeCount = notice.likeCounter,
@@ -141,20 +152,6 @@ class NoticeService(
             isDisliked = isDisliked!!,
             commentCount = comments.size
         )
-
-        // FIXME : n+1 문제가 발생할 수 있음. 검증해볼 것.
-        val commentDtos = comments.map { comment ->
-            val commentWriterProfile = userService.getUserProfile(comment.userId)
-            CommentResponse(
-                commentId = comment.commentId!!,
-                writerName = commentWriterProfile?.name ?: "알 수 없음",
-                content = comment.content,
-                createdAt = DateTimeUtil.format(comment.createdAt),
-                profileImageUrl = commentWriterProfile?.authFile?.cdnUrl,
-                isWriter = comment.userId == notice.userId,
-                isMine = comment.userId == userId
-            )
-        }
 
         return NoticeDetailResponse(
             noticeId = notice.noticeId!!,
@@ -167,7 +164,7 @@ class NoticeService(
             images = imageUrls,
             isWriter = notice.userId == userId,
             reaction = reactionDto,
-            commentList = commentDtos
+            commentList = comments
         )
     }
 
@@ -220,7 +217,7 @@ class NoticeService(
         deleteNoticeAttachments(existingAttachments, noticeId)
 
         noticeReactionRepository.deleteByNoticeNoticeId(noticeId)
-        postCommentRepository.deleteByPostTypeAndPostId(PostType.NOTICE, noticeId)
+        commentService.deleteCommentsByPost(PostType.NOTICE, noticeId)
         noticeRepository.delete(notice)
     }
 
@@ -325,17 +322,10 @@ class NoticeService(
     @Transactional
     fun createComment(userId: Long, noticeId: Long, dto: CommentRequest) {
         val notice = getNotice(noticeId)
-        val temaId = userService.getCurrentTeamId(userId)
-        validateComment(dto.content)
-        validateTeam(notice, temaId)
-        // Fixme: 17:18분에 생성했는데 8:13으로 찍힘. 시간 조정이 좀 필요해보임.
+        val teamId = userService.getCurrentTeamId(userId)
+        validateTeam(notice, teamId)
 
-        val comment = PostComments.createNoticeComment(
-            noticeId = noticeId,
-            userId = userId,
-            content = dto.content
-        )
-        postCommentRepository.save(comment)
+        commentService.createComment(userId, teamId, PostType.NOTICE, noticeId, dto)
 
         notice.increaseComment()
         noticeRepository.save(notice)
@@ -347,15 +337,11 @@ class NoticeService(
         val notice = getNotice(noticeId)
         validateTeam(notice, teamId)
 
-        val comment = postCommentRepository.findById(commentId)
-            .orElseThrow { BusinessException(ErrorCode.RESOURCE_NOT_FOUND) }
+        val deletedCount = commentService.deleteComment(userId, PostType.NOTICE, noticeId, commentId, notice.userId)
 
-        validateCommentBelongsToPost(comment, PostType.NOTICE, noticeId)
-        validateCommentDeletePermission(comment, userId, notice.userId)
-
-        postCommentRepository.delete(comment)
-
-        notice.decreaseComment()
+        repeat(deletedCount) {
+            notice.decreaseComment()
+        }
         noticeRepository.save(notice)
     }
 
@@ -371,30 +357,12 @@ class NoticeService(
         }
     }
 
-    private fun validateComment(comment: String) {
-        if (comment.isBlank()) {
-            throw BusinessException(ErrorCode.INVALID_COMMENT_CONTENT)
-        }
-    }
-
     private fun getNotice(noticeId: Long): Notices{
         return noticeRepository.findById(noticeId).orElseThrow {BusinessException(ErrorCode.POST_NOT_FOUND)}
     }
 
     private fun validateWriter(notice: Notices, userId: Long){
         if (notice.userId != userId) {
-            throw BusinessException(ErrorCode.NOT_AUTHOR)
-        }
-    }
-
-    private fun validateCommentBelongsToPost(comment: PostComments, postType: PostType, postId: Long) {
-        if (comment.postType != postType || comment.postId != postId) {
-            throw BusinessException(ErrorCode.RESOURCE_NOT_FOUND)
-        }
-    }
-
-    private fun validateCommentDeletePermission(comment: PostComments, userId: Long, postOwnerId: Long) {
-        if (comment.userId != userId && postOwnerId != userId) {
             throw BusinessException(ErrorCode.NOT_AUTHOR)
         }
     }

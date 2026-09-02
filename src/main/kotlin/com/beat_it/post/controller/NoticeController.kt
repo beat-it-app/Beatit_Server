@@ -31,12 +31,14 @@ class NoticeController (
     fun getNoticeList(
         @AuthenticationPrincipal userDetails: UserDetails,
         @RequestParam(required = false) keyword: String?,
-        @RequestParam(defaultValue = "LATEST") sort: NoticeSortType
+        @RequestParam(defaultValue = "LATEST") sort: NoticeSortType,
+        @RequestParam(defaultValue = "0") page: Int,
+        @RequestParam(defaultValue = "10") size: Int
     ): ResponseEntity<BasicResponse<NoticeListResponse>> {
         val userId = userDetails.username.toLongOrNull()
             ?: throw BusinessException(ErrorCode.UNAUTHORIZED)
 
-        val responseData = noticeService.getNoticeList(userId, keyword, sort)
+        val responseData = noticeService.getNoticeList(userId, keyword, sort, page, size)
 
         return ResponseEntity
             .status(HttpStatus.OK)

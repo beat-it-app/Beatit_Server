@@ -22,7 +22,6 @@ import com.beat_it.post.entity.enum.PollType
 import com.beat_it.post.entity.enum.PostType
 import com.beat_it.post.repository.poll.PollRepository
 import com.beat_it.post.repository.poll.PollVoteRepository
-import com.beat_it.post.repository.PostCommentRepository
 import com.beat_it.location.entity.Locations
 import com.beat_it.location.repository.LocationsRepository
 import com.fasterxml.jackson.databind.ObjectMapper
@@ -35,42 +34,53 @@ import java.time.OffsetDateTime
 class PollService(
     private val userService: UserService,
     private val pollRepository: PollRepository,
-    private val postCommentRepository: PostCommentRepository,
+    private val commentService: CommentService,
     private val pollVoteRepository: PollVoteRepository,
     private val locationsRepository: LocationsRepository,
     private val objectMapper: ObjectMapper,
 ) {
     @Transactional(readOnly = true)
-    fun getPollList(userId: Long, page: Int = 0, size: Int = 10): PollListResponse {
+    fun getPollList(
+        userId: Long,
+        keyword: String? = null,
+        page: Int = 0,
+        size: Int = 10
+    ): PollListResponse {
         val teamId = userService.getCurrentTeamId(userId)
-        val pageRequest = PageRequest.of(page, size)
+        val searchKeyword = keyword?.trim() ?: ""
+        val now = OffsetDateTime.now()
+        val pageable = PageRequest.of(page, size)
 
-        val pollsPage = pollRepository.getPolls(teamId, pageRequest)
+        val pollsPage = pollRepository.searchPolls(teamId, searchKeyword, now, pageable)
         val polls = pollsPage.content
 
         if (polls.isEmpty()) {
             return PollListResponse(
-                pollListResponse = emptyList(),
+                pollListInProgress = emptyList(),
+                pollListClosed = emptyList(),
                 totalCount = pollsPage.totalElements.toInt(),
                 hasNext = pollsPage.hasNext()
             )
         }
 
-        val pollIds = polls.map { it.pollId }.filterNotNull()
+        val pollIds = polls.mapNotNull { it.pollId }
         val votedPollIds = pollRepository.findVotedPollIdsByUserIdAndPollIds(userId, pollIds).toSet()
 
-        val pollItems = polls.map { poll ->
-            PollItems(
-                pollId = poll.pollId!!,
-                teamId = teamId,
-                title = poll.title,
-                closeAt = poll.closeAt?.let { DateTimeUtil.format(it) } ?: "",
-                pollCount = poll.pollCount,
-                isVoted = votedPollIds.contains(poll.pollId)
-            )
+        val (closedPolls, inProgressPolls) = polls.partition { poll ->
+            poll.closeAt != null && now.isAfter(poll.closeAt)
         }
+
+        fun Polls.toPollItem() = PollItems(
+            pollId = this.pollId!!,
+            title = this.title,
+            closeAt = this.closeAt?.let { DateTimeUtil.format(it) } ?: "",
+            pollCount = this.pollCount,
+            isVoted = votedPollIds.contains(this.pollId)
+        )
+
         return PollListResponse(
-            pollListResponse = pollItems,
+            pollListInProgress = inProgressPolls.map { it.toPollItem() },
+            pollListClosed = closedPolls.map { it.toPollItem() },
             totalCount = pollsPage.totalElements.toInt(),
             hasNext = pollsPage.hasNext()
         )
@@ -187,20 +197,12 @@ class PollService(
             }
         }
 
-        val comments = postCommentRepository.findByPostTypeAndPostIdOrderByCreatedAtAsc(PostType.POLL, pollId)
-
-        val commentDtos = comments.map { comment ->
-            val commentWriterProfile = userService.getUserProfile(comment.userId)
-            CommentResponse(
-                commentId = comment.commentId!!,
-                writerName = commentWriterProfile?.name ?: "알 수 없음",
-                content = comment.content,
-                createdAt = DateTimeUtil.format(comment.createdAt),
-                profileImageUrl = commentWriterProfile?.authFile?.cdnUrl,
-                isWriter = comment.userId == poll.userId,
-                isMine = comment.userId == userId
-            )
-        }
+        val comments = commentService.getComments(
+            postType = PostType.POLL,
+            postId = pollId,
+            postWriterId = poll.userId,
+            currentUserId = userId
+        )
 
         return PollDetailResponse(
             pollId = poll.pollId!!,
@@ -217,8 +219,8 @@ class PollService(
             updatedAt = DateTimeUtil.format(poll.updatedAt),
             pollItems = pollItemResponses,
             isWriter = poll.userId == userId,
-            commentCount = commentDtos.size,
-            commentList = commentDtos
+            commentCount = comments.size,
+            commentList = comments
         )
     }
 
@@ -230,6 +232,10 @@ class PollService(
 
         if (poll.closeAt != null && OffsetDateTime.now().isAfter(poll.closeAt)) {
             throw BusinessException(ErrorCode.POLL_CLOSED)
+        }
+
+        if (request.optionIds.isEmpty()) {
+            throw BusinessException(ErrorCode.POLL_OPTION_REQUIRED)
         }
 
         val distinctOptionIds = request.optionIds.distinct()
@@ -277,7 +283,7 @@ class PollService(
         validateWriter(poll, userId)
 
         pollVoteRepository.deleteByPollId(pollId)
-        postCommentRepository.deleteByPostTypeAndPostId(PostType.POLL, pollId)
+        commentService.deleteCommentsByPost(PostType.POLL, pollId)
         pollRepository.delete(poll)
     }
 
@@ -285,15 +291,9 @@ class PollService(
     fun createComment(userId: Long, pollId: Long, request: CommentRequest) {
         val poll = getPoll(pollId)
         val teamId = userService.getCurrentTeamId(userId)
-        validateComment(request.content)
         validateTeam(poll, teamId)
 
-        val comment = PostComments.createPollComment(
-            pollId = pollId,
-            userId = userId,
-            content = request.content
-        )
-        postCommentRepository.save(comment)
+        commentService.createComment(userId, teamId, PostType.POLL, pollId, request)
 
         poll.increaseComment()
         pollRepository.save(poll)
@@ -305,15 +305,11 @@ class PollService(
         val poll = getPoll(pollId)
         validateTeam(poll, teamId)
 
-        val comment = postCommentRepository.findById(commentId)
-            .orElseThrow { BusinessException(ErrorCode.RESOURCE_NOT_FOUND) }
+        val deletedCount = commentService.deleteComment(userId, PostType.POLL, pollId, commentId, poll.userId)
 
-        validateCommentBelongsToPost(comment, PostType.POLL, pollId)
-        validateCommentDeletePermission(comment, userId, poll.userId)
-
-        postCommentRepository.delete(comment)
-
-        poll.decreaseComment()
+        repeat(deletedCount) {
+            poll.decreaseComment()
+        }
         pollRepository.save(poll)
     }
 
@@ -351,24 +347,6 @@ class PollService(
 
     private fun validateWriter(poll: Polls, userId: Long){
         if (poll.userId != userId) {
-            throw BusinessException(ErrorCode.NOT_AUTHOR)
-        }
-    }
-
-    private fun validateComment(comment: String) {
-        if (comment.isBlank()) {
-            throw BusinessException(ErrorCode.INVALID_COMMENT_CONTENT)
-        }
-    }
-
-    private fun validateCommentBelongsToPost(comment: PostComments, postType: PostType, postId: Long) {
-        if (comment.postType != postType || comment.postId != postId) {
-            throw BusinessException(ErrorCode.RESOURCE_NOT_FOUND)
-        }
-    }
-
-    private fun validateCommentDeletePermission(comment: PostComments, userId: Long, postOwnerId: Long) {
-        if (comment.userId != userId && postOwnerId != userId) {
             throw BusinessException(ErrorCode.NOT_AUTHOR)
         }
     }
