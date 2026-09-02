@@ -201,11 +201,10 @@ class TeamService(
     }
 
     @Transactional
-    fun joinTeam(userId: Long, inviteCode: String?): TeamJoinResponse {
-        val normalizedInviteCode = validateAndNormalizeInviteCode(inviteCode)
+    fun joinTeam(userId: Long, teamPublicId: UUID): TeamJoinResponse {
         userService.validateUserExists(userId)
 
-        val team = findInviteCodeOrThrow(normalizedInviteCode)
+        val team = findTeamForCommandOrThrow(teamPublicId)
 
         validateNotAlreadyJoined(team.teamId!!, userId)
 
@@ -217,7 +216,7 @@ class TeamService(
 
         val savedMembership = teamMembershipRepository.save(teamMembership)
 
-        //TODO: 하은아, 가입하면 currentTeamId를 해당 팀으로 바꿔야 하는지 언니들에게 물어봐
+        //TODO: 가입 후 currentTeamId를 해당 팀으로 변경할지는 정책 확인 필요
 
         return TeamJoinResponse(
             teamId = team.teamId!!,
@@ -250,18 +249,15 @@ class TeamService(
     }
 
     @Transactional(readOnly = true)
-    fun getTeamInfoByInviteCode(inviteCode: String): TeamSimpleInfo {
+    fun getTeamInfoByInviteCode(inviteCode: String): TeamInviteInfoResponse {
         val normalizedInviteCode = validateAndNormalizeInviteCode(inviteCode)
-
         val team = findInviteCodeOrThrow(normalizedInviteCode)
 
-        return TeamSimpleInfo(
-            teamId = team.teamId!!,
+        return TeamInviteInfoResponse(
             teamPublicId = team.publicId,
             teamName = team.teamName,
             teamType = team.teamType,
-            teamImageUrl = team.teamImageUrl,
-            createdAt =  DateTimeUtil.format(team.createdAt)
+            establishedOn = team.establishedOn,
         )
     }
 
