@@ -174,11 +174,17 @@ class ArchiveController(
     @GetMapping
     fun getTeamArchives(
         @AuthenticationPrincipal userDetails: UserDetails,
+        @RequestParam(defaultValue = "0") page: Int,
+        @RequestParam(defaultValue = "10") size: Int,
     ): ResponseEntity<BasicResponse<ArchiveListResponse>> {
         val userId = userDetails.username.toLongOrNull()
             ?: throw BusinessException(ErrorCode.UNAUTHORIZED)
 
-        val responseData = archiveService.getTeamArchives(userId)
+        val responseData = archiveService.getTeamArchives(
+            userId = userId,
+            page = page,
+            size = size,
+        )
 
         return ResponseEntity
             .status(HttpStatus.OK)

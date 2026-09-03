@@ -17,6 +17,8 @@ import com.beat_it.team.repository.ArchiveCommentsRepository
 import com.beat_it.team.repository.ArchiveRatingsRepository
 import com.beat_it.team.repository.ArchiveRepository
 import com.beat_it.team.repository.ArchivesFilesRepository
+import org.springframework.data.domain.PageRequest
+import org.springframework.data.domain.Sort
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import org.springframework.web.multipart.MultipartFile
@@ -82,29 +84,51 @@ class ArchiveService(
     }
 
     @Transactional(readOnly = true)
-    fun getTeamArchives(userId: Long): ArchiveListResponse {
+    fun getTeamArchives(
+        userId: Long,
+        page: Int = 0,
+        size: Int = 10,
+    ): ArchiveListResponse {
         val team = findCurrentTeamForArchiveOrThrow(userId)
         val teamId = team.teamId!!
+        val pageRequest = PageRequest.of(
+            page,
+            size,
+            Sort.by(Sort.Direction.DESC, "createdAt"),
+        )
 
-        val archives = archiveRepository
-            .findAllByTeamTeamIdOrderByCreatedAtDesc(teamId)
-            .map { archive ->
-                ArchiveListItemResponse(
-                    archiveId = archive.archiveId!!,
-                    teamId = teamId,
-                    writerId = archive.writerId,
-                    title = archive.title,
-                    roadAddress = archive.roadAddress,
-                    locationId = archive.locationId,
-                    archiveImageUrl = archive.archiveImageUrl,
-                    averageRating = archive.calculateAverageRating(),
-                    ratingCount = archive.ratingCount,
-                    commentCount = archive.commentCount,
-                    createdAt = DateTimeUtil.format(archive.createdAt),
-                )
-            }
+        val archivesPage = archiveRepository.findAllByTeamTeamId(teamId, pageRequest)
+        val archives = archivesPage.content.map { archive ->
+            archive.toListItemResponse(teamId)
+        }
 
-        return ArchiveListResponse(archives = archives)
+        val topArchive = archiveRepository
+            .findTopRatedByTeamId(teamId, PageRequest.of(0, 1))
+            .firstOrNull()
+            ?.toListItemResponse(teamId)
+
+        return ArchiveListResponse(
+            archives = archives,
+            topArchive = topArchive,
+            totalCount = archivesPage.totalElements.toInt(),
+            hasNext = archivesPage.hasNext(),
+        )
+    }
+
+    private fun Archives.toListItemResponse(teamId: Long): ArchiveListItemResponse {
+        return ArchiveListItemResponse(
+            archiveId = archiveId!!,
+            teamId = teamId,
+            writerId = writerId,
+            title = title,
+            roadAddress = roadAddress,
+            locationId = locationId,
+            archiveImageUrl = archiveImageUrl,
+            averageRating = calculateAverageRating(),
+            ratingCount = ratingCount,
+            commentCount = commentCount,
+            createdAt = DateTimeUtil.format(createdAt),
+        )
     }
 
     @Transactional(readOnly = true)
