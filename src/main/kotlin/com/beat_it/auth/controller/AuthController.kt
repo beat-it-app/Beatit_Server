@@ -5,7 +5,6 @@ import com.beat_it.auth.dto.LoginResponse
 import com.beat_it.auth.dto.SignUpRequest
 import com.beat_it.auth.dto.SignUpResponse
 import com.beat_it.auth.dto.GoogleLoginRequest
-import com.beat_it.auth.dto.ReissueResponse
 import com.beat_it.auth.dto.FindIdentifierResponse
 import com.beat_it.auth.dto.KakaoLoginRequest
 import com.beat_it.auth.dto.NaverLoginRequest
@@ -114,28 +113,42 @@ class AuthController (
             .body(BasicResponse.success(HttpStatus.OK, "이메일 인증이 성공적으로 처리되었습니다."))
     }
 
-    @Operation(summary = "토큰 재발급")
+    @Operation(summary = "토큰 재발급 (로그인 할 때)")
+    @PostMapping("/reissue/login")
+    fun reissueLogin(
+        request: HttpServletRequest,
+        @RequestHeader(value = "Refresh-Token", required = false) headerRefreshToken: String?
+    ): ResponseEntity<BasicResponse<LoginResponse>> {
+        val refreshToken = headerRefreshToken
+            ?: request.cookies?.find { it.name == "refresh_token" }?.value
+            ?: throw BusinessException(ErrorCode.REFRESH_TOKEN_NOT_FOUND)
+
+        val (newAccessToken, newRefreshToken, data) = authService.reissueLogin(refreshToken)
+
+        return ResponseEntity
+            .status(HttpStatus.OK)
+            .header("Authorization", "Bearer $newAccessToken")
+            .header("Refresh-Token", newRefreshToken)
+            .body(BasicResponse.success(data, HttpStatus.OK, "로그인 및 토큰 재발급이 성공적으로 처리되었습니다."))
+    }
+
+    @Operation(summary = "토큰 재발급 (상시)")
     @PostMapping("/reissue")
     fun reissue(
         request: HttpServletRequest,
         @RequestHeader(value = "Refresh-Token", required = false) headerRefreshToken: String?
-    ): ResponseEntity<BasicResponse<ReissueResponse>> {
+    ): ResponseEntity<BasicResponse<Nothing>> {
         val refreshToken = headerRefreshToken
             ?: request.cookies?.find { it.name == "refresh_token" }?.value
             ?: throw BusinessException(ErrorCode.REFRESH_TOKEN_NOT_FOUND)
 
         val (newAccessToken, newRefreshToken) = authService.reissue(refreshToken)
 
-        val responseBody = ReissueResponse(
-            accessToken = newAccessToken,
-            refreshToken = newRefreshToken
-        )
-
         return ResponseEntity
             .status(HttpStatus.OK)
             .header("Authorization", "Bearer $newAccessToken")
             .header("Refresh-Token", newRefreshToken)
-            .body(BasicResponse.success(responseBody, HttpStatus.OK, "토큰이 성공적으로 재발급되었습니다."))
+            .body(BasicResponse.success(HttpStatus.OK, "토큰이 성공적으로 재발급되었습니다."))
     }
 
     @Operation(summary = "아이디 찾기 인증번호 발송")
