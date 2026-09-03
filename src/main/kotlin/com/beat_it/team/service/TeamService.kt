@@ -10,10 +10,10 @@ import com.beat_it.team.entity.Teams
 import com.beat_it.team.entity.enum.TeamRole
 import com.beat_it.team.repository.TeamLinksRepository
 import com.beat_it.team.repository.TeamMembershipRepository
-import com.beat_it.team.repository.TeamPartsRepository
 import com.beat_it.team.repository.TeamRepository
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+import java.time.format.DateTimeFormatter
 import java.util.UUID
 
 @Service
@@ -21,7 +21,6 @@ class TeamService(
     private val userService: UserService,
     private val teamRepository: TeamRepository,
     private val teamLinksRepository: TeamLinksRepository,
-    private val teamPartsRepository: TeamPartsRepository,
     private val teamMembershipRepository: TeamMembershipRepository,
 ) {
 
@@ -152,9 +151,7 @@ class TeamService(
 
     @Transactional(readOnly = true)
     fun getTeamDetail(userId: Long): TeamDetailResponse? {
-        val teamId = userService.getCurrentTeamIdOrNull(userId)
-            ?: return null
-
+        val teamId = userService.getCurrentTeamId(userId)
         val team = findTeamForCommandOrThrow(teamId)
 
         validateTeamMember(teamId, userId)
@@ -171,15 +168,7 @@ class TeamService(
                 )
             }
 
-        val parts = teamPartsRepository
-            .findAllByTeamTeamId(teamId)
-            .map {
-                PartsResponse(
-                    teamPartId = it.teamPartId!!,
-                    partName = it.partName,
-                    displayOrder = it.displayOrder,
-                )
-            }
+        val parts = emptyList<PartsResponse>()
 
         return TeamDetailResponse(
             teamId = team.teamId,
@@ -299,7 +288,7 @@ class TeamService(
     }
 
     @Transactional(readOnly = true)
-    fun getTeamMembers(userId: Long): TeamMemberListResponse {
+    fun getTeamMembers(userId: Long, keyword: String?, page: Int = 0, size: Int = 10): TeamMemberListResponse {
         userService.validateUserExists(userId)
 
         val teamId = userService.getCurrentTeamId(userId)
@@ -308,13 +297,37 @@ class TeamService(
         val memberships = teamMembershipRepository
             .findAllByTeamTeamIdAndLeftAtIsNull(teamId)
 
+        val allMemberItems = toTeamMemberInfos(memberships)
+
+        val filteredMembers = if (!keyword.isNullOrBlank()) {
+            val searchKeyword = keyword.trim()
+            allMemberItems.filter { it.userName.contains(searchKeyword, ignoreCase = true) }
+        } else {
+            allMemberItems
+        }
+
+        val sortedMembers = filteredMembers.sortedBy { it.userName }
+
+        val safePage = if (page < 0) 0 else page
+        val safeSize = if (size <= 0) 10 else size
+        val totalCount = sortedMembers.size
+        val fromIndex = safePage * safeSize
+        val pagedMembers = if (fromIndex in 0 until totalCount) {
+            sortedMembers.subList(fromIndex, minOf(fromIndex + safeSize, totalCount))
+        } else {
+            emptyList()
+        }
+        val hasNext = (fromIndex + safeSize) < totalCount
+
         return TeamMemberListResponse(
-            members = toTeamMemberInfos(memberships),
+            memberListResponse = pagedMembers,
+            totalCount = totalCount,
+            hasNext = hasNext,
         )
     }
 
     @Transactional
-    fun teamWithdraw(userId: Long, teamPublicId: java.util.UUID): TeamWithdrawalResponse {
+    fun teamWithdraw(userId: Long, teamPublicId: UUID): TeamWithdrawalResponse {
         userService.validateUserExists(userId)
         val team = findTeamForCommandOrThrow(teamPublicId)
         val teamId = team.teamId!!
@@ -333,7 +346,7 @@ class TeamService(
             userService.updateCurrentTeamId(userId, null)
         }
 
-        val formatter = java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")
+        val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")
         val requestedAtStr = membership.leftAt!!.format(formatter)
         val scheduledDeletionDateStr = membership.leftAt!!.plusDays(7).format(formatter)
 
@@ -545,7 +558,7 @@ class TeamService(
 
     private fun toTeamMemberInfos(
         memberships: List<TeamMemberships>,
-    ): List<TeamMemberInfo> {
+    ): List<MemberItems> {
         val userInfoById = userService.getUserSimpleInfos(
             memberships.map { membership ->
                 membership.userId
@@ -556,11 +569,12 @@ class TeamService(
             val userInfo = userInfoById[membership.userId]
                 ?: throw BusinessException(ErrorCode.USER_NOT_FOUND)
 
-            TeamMemberInfo(
+            MemberItems(
                 userPublicId = userInfo.userPublicId,
                 userName = userInfo.userName,
                 profileImageUrl = userInfo.profileImageUrl,
                 teamRole = membership.teamRole,
+                position = membership.position,
             )
         }
     }

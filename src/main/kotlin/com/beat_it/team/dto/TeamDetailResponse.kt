@@ -17,7 +17,7 @@ data class TeamDetailResponse(
     val createdAt: OffsetDateTime,
     val updatedAt: OffsetDateTime?,
     val links: List<LinksResponse>,
-    val parts: List<PartsResponse>,
+    val parts: List<PartsResponse> = emptyList(),
     val archiveCount: Int,
     val cloudItemCount: Int,
 )
