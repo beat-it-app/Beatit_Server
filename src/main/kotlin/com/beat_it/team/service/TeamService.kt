@@ -288,7 +288,7 @@ class TeamService(
     }
 
     @Transactional(readOnly = true)
-    fun getTeamMembers(userId: Long): TeamMemberListResponse {
+    fun getTeamMembers(userId: Long, keyword: String?, page: Int = 0, size: Int = 10): TeamMemberListResponse {
         userService.validateUserExists(userId)
 
         val teamId = userService.getCurrentTeamId(userId)
@@ -297,8 +297,32 @@ class TeamService(
         val memberships = teamMembershipRepository
             .findAllByTeamTeamIdAndLeftAtIsNull(teamId)
 
+        val allMemberItems = toTeamMemberInfos(memberships)
+
+        val filteredMembers = if (!keyword.isNullOrBlank()) {
+            val searchKeyword = keyword.trim()
+            allMemberItems.filter { it.userName.contains(searchKeyword, ignoreCase = true) }
+        } else {
+            allMemberItems
+        }
+
+        val sortedMembers = filteredMembers.sortedBy { it.userName }
+
+        val safePage = if (page < 0) 0 else page
+        val safeSize = if (size <= 0) 10 else size
+        val totalCount = sortedMembers.size
+        val fromIndex = safePage * safeSize
+        val pagedMembers = if (fromIndex in 0 until totalCount) {
+            sortedMembers.subList(fromIndex, minOf(fromIndex + safeSize, totalCount))
+        } else {
+            emptyList()
+        }
+        val hasNext = (fromIndex + safeSize) < totalCount
+
         return TeamMemberListResponse(
-            members = toTeamMemberInfos(memberships),
+            memberListResponse = pagedMembers,
+            totalCount = totalCount,
+            hasNext = hasNext,
         )
     }
 
