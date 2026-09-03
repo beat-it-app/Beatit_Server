@@ -2,7 +2,7 @@ package com.beat_it.team.dto
 
 data class ArchiveListResponse(
     val archives: List<ArchiveListItemResponse>,
-    val topArchive: ArchiveListItemResponse?,
+    val topArchiveId: Long?,
     val totalCount: Int,
     val hasNext: Boolean,
 )

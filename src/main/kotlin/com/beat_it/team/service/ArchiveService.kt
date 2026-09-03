@@ -102,14 +102,13 @@ class ArchiveService(
             archive.toListItemResponse(teamId)
         }
 
-        val topArchive = archiveRepository
-            .findTopRatedByTeamId(teamId, PageRequest.of(0, 1))
+        val topArchiveId = archiveRepository
+            .findTopRatedArchiveIdsByTeamId(teamId, PageRequest.of(0, 1))
             .firstOrNull()
-            ?.toListItemResponse(teamId)
 
         return ArchiveListResponse(
             archives = archives,
-            topArchive = topArchive,
+            topArchiveId = topArchiveId,
             totalCount = archivesPage.totalElements.toInt(),
             hasNext = archivesPage.hasNext(),
         )

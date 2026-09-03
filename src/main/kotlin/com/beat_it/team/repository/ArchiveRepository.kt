@@ -19,7 +19,7 @@ interface ArchiveRepository : JpaRepository<Archives, Long> {
 
     @Query(
         """
-        SELECT a
+        SELECT a.archiveId
         FROM Archives a
         WHERE a.team.teamId = :teamId
           AND a.ratingCount > 0
@@ -29,8 +29,8 @@ interface ArchiveRepository : JpaRepository<Archives, Long> {
                  a.archiveId DESC
         """
     )
-    fun findTopRatedByTeamId(
+    fun findTopRatedArchiveIdsByTeamId(
         @Param("teamId") teamId: Long,
         pageable: Pageable,
-    ): List<Archives>
+    ): List<Long>
 }
