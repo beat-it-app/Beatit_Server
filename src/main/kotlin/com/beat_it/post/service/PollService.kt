@@ -3,7 +3,6 @@ package com.beat_it.post.service
 import com.beat_it.auth.service.UserService
 import com.beat_it.global.error.BusinessException
 import com.beat_it.global.error.ErrorCode
-import com.beat_it.global.util.DateTimeUtil
 import com.beat_it.post.dto.*
 import com.beat_it.post.dto.poll.LocationItemResponse
 import com.beat_it.post.dto.poll.MusicItemResponse
@@ -73,7 +72,7 @@ class PollService(
         fun Polls.toPollItem() = PollItems(
             pollId = this.pollId!!,
             title = this.title,
-            closeAt = this.closeAt?.let { DateTimeUtil.format(it) } ?: "",
+            closeAt = this.closeAt,
             pollCount = this.pollCount,
             isVoted = votedPollIds.contains(this.pollId)
         )
@@ -211,12 +210,12 @@ class PollService(
             pollType = poll.pollType,
             allowMultipleChoice = poll.allowMultipleChoice,
             isAnonymous = poll.isAnonymous,
-            closeAt = poll.closeAt?.let { DateTimeUtil.format(it) },
+            closeAt = poll.closeAt,
             remindBeforeClose = if (poll.remindBeforeClose) "REMIND" else "NONE",
             writerName = writerName,
             writerProfileImageUrl = writerProfile?.authFile?.cdnUrl ?: "",
-            createdAt = DateTimeUtil.format(poll.createdAt),
-            updatedAt = DateTimeUtil.format(poll.updatedAt),
+            createdAt = poll.createdAt,
+            updatedAt = poll.updatedAt,
             pollItems = pollItemResponses,
             isWriter = poll.userId == userId,
             commentCount = comments.size,

@@ -14,5 +14,5 @@ data class TeamCreateResponse(
     val establishedOn: LocalDate?,
     val teamType: TeamType,
     val teamRole: String,
-    val createdAt: String,
+    val createdAt: OffsetDateTime,
 )

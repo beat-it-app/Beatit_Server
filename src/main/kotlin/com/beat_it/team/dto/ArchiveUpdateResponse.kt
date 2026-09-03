@@ -1,4 +1,5 @@
 package com.beat_it.team.dto
+import java.time.OffsetDateTime
 
 data class ArchiveUpdateResponse(
     val archiveId: Long,
@@ -7,5 +8,5 @@ data class ArchiveUpdateResponse(
     val locationId: Long,
     val description: String?,
     val archiveImageUrls: List<String>,
-    val updatedAt: String,
+    val updatedAt: OffsetDateTime,
 )

@@ -1,6 +1,5 @@
 package com.beat_it.cal.dto
 
-import com.fasterxml.jackson.annotation.JsonProperty
 import java.time.OffsetDateTime
 
 data class DateSchedulesResponse(
@@ -11,7 +10,7 @@ data class DateSchedule(
     val scheduleId: Long,
     val title: String,
     val content: String,
-    val startsAt: String,
-    val endsAt: String,
+    val startsAt: OffsetDateTime,
+    val endsAt: OffsetDateTime,
     val locationId: Long?
 )

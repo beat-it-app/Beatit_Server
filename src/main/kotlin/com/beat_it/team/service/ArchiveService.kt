@@ -7,6 +7,7 @@ import com.beat_it.global.error.ErrorCode
 import com.beat_it.global.util.DateTimeUtil
 import com.beat_it.location.service.LocationsService
 import com.beat_it.post.dto.CommentResponse
+import com.beat_it.global.service.FileService
 import com.beat_it.team.dto.*
 import com.beat_it.team.entity.ArchiveComments
 import com.beat_it.team.entity.ArchiveRatings
@@ -80,7 +81,7 @@ class ArchiveService(
             roadAddress = savedArchive.roadAddress,
             locationId = savedArchive.locationId,
             archiveImageUrls = savedArchiveFiles.map { archiveFile -> archiveFile.cdnUrl },
-            createdAt = DateTimeUtil.format(savedArchive.createdAt),
+            createdAt = savedArchive.createdAt,
         )
     }
 
@@ -190,8 +191,8 @@ class ArchiveService(
             ),
             commentCount = archive.commentCount,
             commentList = commentResponses,
-            createdAt = DateTimeUtil.format(archive.createdAt),
-            updatedAt = DateTimeUtil.format(archive.updatedAt),
+            createdAt = archive.createdAt,
+            updatedAt = archive.updatedAt,
         )
     }
 
@@ -241,7 +242,7 @@ class ArchiveService(
             roadAddress = archive.roadAddress,
             locationId = archive.locationId,
             archiveImageUrls = archiveImageUrls,
-            updatedAt = DateTimeUtil.format(archive.updatedAt),
+            updatedAt = archive.updatedAt,
         )
     }
 

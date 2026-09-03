@@ -4,8 +4,10 @@ import com.beat_it.auth.dto.LoginRequest
 import com.beat_it.auth.dto.LoginResponse
 import com.beat_it.auth.dto.SignUpRequest
 import com.beat_it.auth.dto.SignUpResponse
-import com.beat_it.auth.dto.SocialLoginRequest
+import com.beat_it.auth.dto.GoogleLoginRequest
 import com.beat_it.auth.dto.FindIdentifierResponse
+import com.beat_it.auth.dto.KakaoLoginRequest
+import com.beat_it.auth.dto.NaverLoginRequest
 import com.beat_it.auth.dto.ResetPasswordRequest
 import com.beat_it.auth.dto.ResetPasswordResponse
 import com.beat_it.auth.entity.UserAuthAccounts
@@ -21,7 +23,6 @@ import com.beat_it.auth.repository.UserSettingsRepository
 import com.beat_it.global.error.BusinessException
 import com.beat_it.global.error.ErrorCode
 import com.beat_it.global.security.jwt.JwtTokenProvider
-import com.beat_it.global.util.DateTimeUtil
 import jakarta.transaction.Transactional
 import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.stereotype.Service
@@ -37,6 +38,8 @@ class AuthService (
     private val jwtTokenProvider: JwtTokenProvider,
     private val userProfilesRepository: UserProfilesRepository,
     private val googleAuthService: GoogleAuthService,
+    private val kakaoAuthService: KakaoAuthService,
+    private val naverAuthService: NaverAuthService,
     private val refreshTokenService: RefreshTokenService,
     private val emailService: EmailService,
     private val redisTemplate: StringRedisTemplate
@@ -88,7 +91,7 @@ class AuthService (
             userId = user.userId!!,
             identifier = userAuthAccount.identifier!!,
             email = userAuthAccount.email,
-            createdAt = DateTimeUtil.format(user.createdAt),
+            createdAt = user.createdAt,
         )
     }
 
@@ -136,7 +139,7 @@ class AuthService (
     }
 
     @Transactional
-    fun googleLogin(dto: SocialLoginRequest): Triple<String, String, LoginResponse> {
+    fun googleLogin(dto: GoogleLoginRequest): Triple<String, String, LoginResponse> {
         val googlePayload = googleAuthService.verifyToken(dto.idToken)
 
         var userAuthAccount = userAuthAccountRepository.findByGoogleId(googlePayload.googleId)
@@ -186,6 +189,116 @@ class AuthService (
                 role = user.role,
                 isCreatedProfile = isCreatedProfile,
                 socialProvider = SocialProvider.GOOGLE
+            )
+        )
+    }
+
+    @Transactional
+    fun kakaoLogin(dto: KakaoLoginRequest): Triple<String, String, LoginResponse> {
+        val kakaoPayload = kakaoAuthService.verifyToken(dto.accessToken)
+
+        var userAuthAccount = userAuthAccountRepository.findByKakaoId(kakaoPayload.kakaoId)
+
+        if (userAuthAccount == null) {
+            var user = Users.createNewUser(
+                role = Role.USER,
+                accountStatus = AccountStatus.ACTIVE
+            )
+            user = userRepository.save(user)
+
+            val userSetting = UserSettings.createNewUser(
+                user,
+                allowAutoLogin = false
+            )
+            userSettingsRepository.save(userSetting)
+
+            userAuthAccount = UserAuthAccounts.createSocialUser(
+                user = user,
+                email = kakaoPayload.email,
+                socialId = kakaoPayload.kakaoId,
+                provider = SocialProvider.KAKAO
+            )
+            userAuthAccountRepository.save(userAuthAccount)
+        }
+
+        val user = userAuthAccount.user
+        val isCreatedProfile = userProfilesRepository.existsByUser_UserId(user.userId)
+
+        val accessToken = jwtTokenProvider.createAccessToken(
+            userId = user.userId.toString(),
+            role = user.role
+        )
+
+        val refreshToken = jwtTokenProvider.createRefreshToken(user.userId.toString())
+        refreshTokenService.saveRefreshToken(
+            userId = user.userId.toString(),
+            refreshToken = refreshToken,
+            expirationMs = jwtTokenProvider.refreshTokenValidity
+        )
+
+        return Triple(
+            accessToken,
+            refreshToken,
+            LoginResponse(
+                userId = user.userId,
+                role = user.role,
+                isCreatedProfile = isCreatedProfile,
+                socialProvider = SocialProvider.KAKAO
+            )
+        )
+    }
+
+    @Transactional
+    fun naverLogin(dto: NaverLoginRequest): Triple<String, String, LoginResponse> {
+        val naverPayload = naverAuthService.verifyToken(dto.accessToken)
+
+        var userAuthAccount = userAuthAccountRepository.findByNaverId(naverPayload.naverId)
+
+        if (userAuthAccount == null) {
+            var user = Users.createNewUser(
+                role = Role.USER,
+                accountStatus = AccountStatus.ACTIVE
+            )
+            user = userRepository.save(user)
+
+            val userSetting = UserSettings.createNewUser(
+                user,
+                allowAutoLogin = false
+            )
+            userSettingsRepository.save(userSetting)
+
+            userAuthAccount = UserAuthAccounts.createSocialUser(
+                user = user,
+                email = naverPayload.email,
+                socialId = naverPayload.naverId,
+                provider = SocialProvider.NAVER
+            )
+            userAuthAccountRepository.save(userAuthAccount)
+        }
+
+        val user = userAuthAccount.user
+        val isCreatedProfile = userProfilesRepository.existsByUser_UserId(user.userId)
+
+        val accessToken = jwtTokenProvider.createAccessToken(
+            userId = user.userId.toString(),
+            role = user.role
+        )
+
+        val refreshToken = jwtTokenProvider.createRefreshToken(user.userId.toString())
+        refreshTokenService.saveRefreshToken(
+            userId = user.userId.toString(),
+            refreshToken = refreshToken,
+            expirationMs = jwtTokenProvider.refreshTokenValidity
+        )
+
+        return Triple(
+            accessToken,
+            refreshToken,
+            LoginResponse(
+                userId = user.userId,
+                role = user.role,
+                isCreatedProfile = isCreatedProfile,
+                socialProvider = SocialProvider.NAVER
             )
         )
     }

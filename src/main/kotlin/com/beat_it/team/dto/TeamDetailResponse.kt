@@ -13,10 +13,10 @@ data class TeamDetailResponse(
     val establishedOn: LocalDate?,
     val inviteCode: String,
     val memberCount: Int,
-    val createdAt: String,
-    val updatedAt: String?,
+    val createdAt: OffsetDateTime,
+    val updatedAt: OffsetDateTime?,
     val links: List<LinksResponse>,
-    val parts: List<PartsResponse>,
+    val parts: List<PartsResponse> = emptyList(),
     val archiveCount: Int,
     val cloudItemCount: Int,
 )

@@ -154,10 +154,13 @@ class TeamController(
     @GetMapping("/members")
     fun getMembers(
         @AuthenticationPrincipal userDetails: UserDetails,
+        @RequestParam(required = false) query: String?,
+        @RequestParam(defaultValue = "0") page: Int,
+        @RequestParam(defaultValue = "10") size: Int
     ): ResponseEntity<BasicResponse<TeamMemberListResponse>>{
         val userId = extractUserId(userDetails)
 
-        val responseData = teamService.getTeamMembers(userId)
+        val responseData = teamService.getTeamMembers(userId, query, page, size)
 
         return ResponseEntity
             .status(HttpStatus.OK)

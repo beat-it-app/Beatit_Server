@@ -8,5 +8,5 @@ data class TeamJoinResponse(
     val teamPublicId: UUID,
     val teamName: String,
     val teamRole: TeamRole,
-    val joinedAt: String,
+    val joinedAt: OffsetDateTime,
 )

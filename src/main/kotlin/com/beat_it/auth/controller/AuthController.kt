@@ -4,9 +4,11 @@ import com.beat_it.auth.dto.LoginRequest
 import com.beat_it.auth.dto.LoginResponse
 import com.beat_it.auth.dto.SignUpRequest
 import com.beat_it.auth.dto.SignUpResponse
-import com.beat_it.auth.dto.SocialLoginRequest
+import com.beat_it.auth.dto.GoogleLoginRequest
 import com.beat_it.auth.dto.ReissueResponse
 import com.beat_it.auth.dto.FindIdentifierResponse
+import com.beat_it.auth.dto.KakaoLoginRequest
+import com.beat_it.auth.dto.NaverLoginRequest
 import com.beat_it.auth.dto.ResetPasswordRequest
 import com.beat_it.auth.dto.ResetPasswordResponse
 import com.beat_it.auth.service.AuthService
@@ -60,14 +62,38 @@ class AuthController (
 
     @Operation(summary = "구글 로그인")
     @PostMapping("/google")
-    fun googleLogin(@RequestBody socialLoginRequest: SocialLoginRequest): ResponseEntity<BasicResponse<LoginResponse>> {
-        val (accessToken, refreshToken, data) = authService.googleLogin(socialLoginRequest)
+    fun googleLogin(@RequestBody googleLoginRequest: GoogleLoginRequest): ResponseEntity<BasicResponse<LoginResponse>> {
+        val (accessToken, refreshToken, data) = authService.googleLogin(googleLoginRequest)
 
         return ResponseEntity
             .status(HttpStatus.OK)
             .header("Authorization", "Bearer $accessToken")
             .header("Refresh-Token", refreshToken)
             .body(BasicResponse.success(data, HttpStatus.OK, "구글 로그인이 성공적으로 처리되었습니다."))
+    }
+
+    @Operation(summary = "카카오 로그인")
+    @PostMapping("/kakao")
+    fun kakaoLogin(@RequestBody kakaoLoginRequest: KakaoLoginRequest): ResponseEntity<BasicResponse<LoginResponse>> {
+        val (accessToken, refreshToken, data) = authService.kakaoLogin(kakaoLoginRequest)
+
+        return ResponseEntity
+            .status(HttpStatus.OK)
+            .header("Authorization", "Bearer $accessToken")
+            .header("Refresh-Token", refreshToken)
+            .body(BasicResponse.success(data, HttpStatus.OK, "카카오 로그인이 성공적으로 처리되었습니다."))
+    }
+
+    @Operation(summary = "네이버 로그인")
+    @PostMapping("/naver")
+    fun naverLogin(@RequestBody naverLoginRequest: NaverLoginRequest): ResponseEntity<BasicResponse<LoginResponse>> {
+        val (accessToken, refreshToken, data) = authService.naverLogin(naverLoginRequest)
+
+        return ResponseEntity
+            .status(HttpStatus.OK)
+            .header("Authorization", "Bearer $accessToken")
+            .header("Refresh-Token", refreshToken)
+            .body(BasicResponse.success(data, HttpStatus.OK, "네이버 로그인이 성공적으로 처리되었습니다."))
     }
 
     @Operation(summary = "이메일 인증번호 발송")
@@ -167,4 +193,4 @@ class AuthController (
             .status(HttpStatus.OK)
             .body(BasicResponse.success(response, HttpStatus.OK, "비밀번호 재설정이 성공적으로 처리되었습니다."))
     }
-}
+}

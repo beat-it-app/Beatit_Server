@@ -358,7 +358,7 @@ class TeamCloudService(
                 mimeType = item.teamFile?.mimeType,
                 linkUrl = item.linkUrl,
                 uploaderName = uploaderProfile?.name ?: "알 수 없음",
-                createdAt = DateTimeUtil.format(item.createdAt)
+                createdAt = item.createdAt
             )
         }
     }

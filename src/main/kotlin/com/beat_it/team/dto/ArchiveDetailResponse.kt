@@ -17,6 +17,6 @@ data class ArchiveDetailResponse(
     val rating: ArchiveRatingResponse,
     val commentCount: Int,
     val commentList: List<CommentResponse>,
-    val createdAt: String,
-    val updatedAt: String,
+    val createdAt: OffsetDateTime,
+    val updatedAt: OffsetDateTime,
 )
