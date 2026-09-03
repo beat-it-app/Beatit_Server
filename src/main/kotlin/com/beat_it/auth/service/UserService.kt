@@ -141,7 +141,7 @@ class UserService (
     }
 
     @Transactional
-    fun updateCurrentTeamId(userId: Long, teamId: Long) {
+    fun updateCurrentTeamId(userId: Long, teamId: Long?) {
         val user = userRepository.findById(userId)
             .orElseThrow { BusinessException(ErrorCode.USER_NOT_FOUND) }
 

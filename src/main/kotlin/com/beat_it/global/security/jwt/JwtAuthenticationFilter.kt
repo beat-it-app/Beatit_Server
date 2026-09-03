@@ -35,10 +35,13 @@ class JwtAuthenticationFilter(
         val bearerToken = request.getHeader("Authorization")
         if (!StringUtils.hasText(bearerToken)) return null
 
-        if (bearerToken.startsWith("Bearer ")) {
+        if (bearerToken.startsWith("Bearer ", ignoreCase = true)) {
             val token = bearerToken.substring(7).trim()
-            // 스웨거 등에서 Bearer를 중복해서 넣었을 경우를 대비
-            return if (token.startsWith("Bearer ")) token.substring(7).trim() else token
+            return if (token.startsWith("Bearer ", ignoreCase = true)) token.substring(7).trim() else token
+        }
+
+        if (bearerToken.trim().startsWith("eyJ")) {
+            return bearerToken.trim()
         }
         
         return null

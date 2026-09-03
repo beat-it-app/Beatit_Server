@@ -17,15 +17,17 @@ data class MeetitListItemResponse(
     val title: String,
     val totalInvitedCount: Int,
     val respondedCount: Int,
-    val myResponseStatus: MyResponseStatus
+    val myResponseStatus: MyResponseStatus,
+    val dateOnly: Boolean
 )
 
 data class MeetitDetailResponse(
     val meetitId: Long,
     val title: String,
     val creatorId: Long,
-    val startTime: String, // "HH:mm"
-    val endTime: String, // "HH:mm"
+    val startTime: String?, // "HH:mm"
+    val endTime: String?, // "HH:mm"
+    val dateOnly: Boolean,
     val candidateDates: List<String>,
     val totalInvitedCount: Int,
     val respondedCount: Int,
@@ -43,9 +45,8 @@ data class MeetitParticipantInfoResponse(
 )
 
 data class MeetitOptimalSlotResponse(
-    val date: String, // "yyyy-MM-dd"
-    val startTime: String, // "HH:mm"
-    val endTime: String // "HH:mm"
+    val startDateTime: OffsetDateTime,
+    val endDateTime: OffsetDateTime
 )
 
 data class MeetitGridSlotResponse(

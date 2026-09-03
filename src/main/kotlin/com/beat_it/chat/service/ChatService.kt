@@ -28,7 +28,6 @@ import com.beat_it.chat.repository.ChatRepository
 import com.beat_it.global.error.BusinessException
 import com.beat_it.global.error.ErrorCode
 import com.beat_it.global.service.FileService
-import com.beat_it.global.util.DateTimeUtil
 import com.beat_it.team.service.TeamService
 import com.fasterxml.jackson.databind.ObjectMapper
 import org.springframework.context.ApplicationEventPublisher
@@ -98,7 +97,7 @@ class ChatService(
             senderId = currentUserId,
             content = savedMessage.content,
             messageType = savedMessage.type.name,
-            createdAt = DateTimeUtil.format(savedMessage.createdAt)
+            createdAt = savedMessage.createdAt
         )
 
         val payload = objectMapper.writeValueAsString(messageDetail)
@@ -115,7 +114,7 @@ class ChatService(
         return ChatRoomCreateResponse(
             chatId = savedChatRoom.chatId!!,
             roomName = savedChatRoom.title,
-            createdAt = DateTimeUtil.format(savedChatRoom.createdAt)
+            createdAt = savedChatRoom.createdAt
         )
     }
 
@@ -189,7 +188,7 @@ class ChatService(
             senderId = senderId,
             content = savedMessage.content,
             messageType = savedMessage.type.name,
-            createdAt = DateTimeUtil.format(savedMessage.createdAt)
+            createdAt = savedMessage.createdAt
         )
 
         val payload = objectMapper.writeValueAsString(messageDetail)
@@ -213,7 +212,7 @@ class ChatService(
         return ChatRoomUpdateResponse(
             chatId = updatedChatRoom.chatId!!,
             roomName = updatedChatRoom.title,
-            updatedAt = DateTimeUtil.format(updatedChatRoom.updatedAt)
+            updatedAt = updatedChatRoom.updatedAt
         )
     }
 
@@ -323,7 +322,7 @@ class ChatService(
                 chatId = chatId,
                 roomName = chatRoom.title,
                 lastMessage = latestMessage?.content,
-                lastMessageTime = latestMessage?.let { message -> DateTimeUtil.format(message.createdAt) },
+                lastMessageTime = latestMessage?.createdAt,
                 unreadCount = unreadCount.toInt(),
                 profileImage = profileImages,
                 participantCount = chatRoom.members.size
@@ -381,7 +380,7 @@ class ChatService(
                 senderId = userId,
                 content = savedMessage.content,
                 messageType = savedMessage.type.name,
-                createdAt = DateTimeUtil.format(savedMessage.createdAt)
+                createdAt = savedMessage.createdAt
             )
             val payload = objectMapper.writeValueAsString(messageDetail)
             kafkaTemplate.send("chat-topic", payload)
