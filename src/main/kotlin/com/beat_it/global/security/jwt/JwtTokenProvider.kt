@@ -18,6 +18,7 @@ class JwtTokenProvider(
     @Value("\${jwt.secret}") private val secretKey: String,
     @Value("\${jwt.expiration}") val accessTokenValidity: Long,
     @Value("\${jwt.refresh-expiration}") val refreshTokenValidity: Long,
+    @Value("\${jwt.refresh-expiration-short:604800000}") val refreshTokenShortValidity: Long,
     private val userDetailsService: UserDetailsService
 ) {
     private val key: SecretKey = Keys.hmacShaKeyFor(secretKey.toByteArray())
@@ -35,16 +36,26 @@ class JwtTokenProvider(
             .compact()
     }
 
-    fun createRefreshToken(userId: String): String {
+    fun createRefreshToken(userId: String, rememberMe: Boolean = true): String {
         val now = Date()
-        val validity = Date(now.time + refreshTokenValidity)
+        val validityDuration = getRefreshTokenValidity(rememberMe)
+        val validity = Date(now.time + validityDuration)
 
         return Jwts.builder()
             .subject(userId)
+            .claim("rememberMe", rememberMe)
             .issuedAt(now)
             .expiration(validity)
             .signWith(key)
             .compact()
+    }
+
+    fun getRefreshTokenValidity(rememberMe: Boolean = true): Long {
+        return if (rememberMe) refreshTokenValidity else refreshTokenShortValidity
+    }
+
+    fun getRememberMe(token: String): Boolean {
+        return parseClaims(token)["rememberMe"] as? Boolean ?: true
     }
 
     fun getAuthentication(token: String): Authentication {

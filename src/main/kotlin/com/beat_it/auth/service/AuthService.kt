@@ -111,12 +111,21 @@ class AuthService (
             role = user.role
         )
 
-        val refreshToken = jwtTokenProvider.createRefreshToken(user.userId.toString())
+        val rememberMe = loginRequest.rememberMe
+        val refreshToken = jwtTokenProvider.createRefreshToken(user.userId.toString(), rememberMe)
         refreshTokenService.saveRefreshToken(
             userId = user.userId.toString(),
             refreshToken = refreshToken,
-            expirationMs = jwtTokenProvider.refreshTokenValidity
+            expirationMs = jwtTokenProvider.getRefreshTokenValidity(rememberMe)
         )
+
+        user.userId?.let { uid ->
+            val userSetting = userSettingsRepository.findByUsers_UserId(uid)
+            if (userSetting != null && userSetting.allowAutoLogin != rememberMe) {
+                userSetting.allowAutoLogin = rememberMe
+                userSettingsRepository.save(userSetting)
+            }
+        }
 
         return Triple(
             accessToken,
@@ -174,11 +183,11 @@ class AuthService (
             role = user.role
         )
 
-        val refreshToken = jwtTokenProvider.createRefreshToken(user.userId.toString())
+        val refreshToken = jwtTokenProvider.createRefreshToken(user.userId.toString(), true)
         refreshTokenService.saveRefreshToken(
             userId = user.userId.toString(),
             refreshToken = refreshToken,
-            expirationMs = jwtTokenProvider.refreshTokenValidity
+            expirationMs = jwtTokenProvider.getRefreshTokenValidity(true)
         )
 
         return Triple(
@@ -319,13 +328,14 @@ class AuthService (
         val user = userRepository.findById(userId.toLongOrNull() ?: throw BusinessException(ErrorCode.USER_NOT_FOUND))
             .orElseThrow { BusinessException(ErrorCode.USER_NOT_FOUND) }
 
+        val rememberMe = jwtTokenProvider.getRememberMe(refreshToken)
         val newAccessToken = jwtTokenProvider.createAccessToken(userId, user.role)
-        val newRefreshToken = jwtTokenProvider.createRefreshToken(userId)
+        val newRefreshToken = jwtTokenProvider.createRefreshToken(userId, rememberMe)
 
         refreshTokenService.saveRefreshToken(
             userId = userId,
             refreshToken = newRefreshToken,
-            expirationMs = jwtTokenProvider.refreshTokenValidity
+            expirationMs = jwtTokenProvider.getRefreshTokenValidity(rememberMe)
         )
 
         return Pair(newAccessToken, newRefreshToken)
