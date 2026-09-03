@@ -18,6 +18,50 @@ interface ArchiveRepository : JpaRepository<Archives, Long> {
     ): Page<Archives>
 
     @Query(
+        value = """
+            SELECT a
+            FROM Archives a
+            WHERE a.team.teamId = :teamId
+            ORDER BY CASE WHEN a.ratingCount = 0 THEN 1 ELSE 0 END ASC,
+                     CASE WHEN a.ratingCount = 0 THEN 0.0 ELSE (a.ratingSum * 1.0 / a.ratingCount) END DESC,
+                     a.ratingCount DESC,
+                     a.createdAt DESC,
+                     a.archiveId DESC
+        """,
+        countQuery = """
+            SELECT COUNT(a)
+            FROM Archives a
+            WHERE a.team.teamId = :teamId
+        """,
+    )
+    fun findAllByTeamTeamIdOrderByRatingDesc(
+        @Param("teamId") teamId: Long,
+        pageable: Pageable,
+    ): Page<Archives>
+
+    @Query(
+        value = """
+            SELECT a
+            FROM Archives a
+            WHERE a.team.teamId = :teamId
+            ORDER BY CASE WHEN a.ratingCount = 0 THEN 1 ELSE 0 END ASC,
+                     CASE WHEN a.ratingCount = 0 THEN 0.0 ELSE (a.ratingSum * 1.0 / a.ratingCount) END ASC,
+                     a.ratingCount DESC,
+                     a.createdAt DESC,
+                     a.archiveId DESC
+        """,
+        countQuery = """
+            SELECT COUNT(a)
+            FROM Archives a
+            WHERE a.team.teamId = :teamId
+        """,
+    )
+    fun findAllByTeamTeamIdOrderByRatingAsc(
+        @Param("teamId") teamId: Long,
+        pageable: Pageable,
+    ): Page<Archives>
+
+    @Query(
         """
         SELECT a.archiveId
         FROM Archives a

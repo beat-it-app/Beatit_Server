@@ -13,6 +13,7 @@ import com.beat_it.team.entity.ArchiveRatings
 import com.beat_it.team.entity.Archives
 import com.beat_it.team.entity.ArchivesFiles
 import com.beat_it.team.entity.Teams
+import com.beat_it.team.entity.enum.ArchiveSortType
 import com.beat_it.team.repository.ArchiveCommentsRepository
 import com.beat_it.team.repository.ArchiveRatingsRepository
 import com.beat_it.team.repository.ArchiveRepository
@@ -86,18 +87,38 @@ class ArchiveService(
     @Transactional(readOnly = true)
     fun getTeamArchives(
         userId: Long,
+        sort: ArchiveSortType = ArchiveSortType.LATEST,
         page: Int = 0,
         size: Int = 10,
     ): ArchiveListResponse {
         val team = findCurrentTeamForArchiveOrThrow(userId)
         val teamId = team.teamId!!
-        val pageRequest = PageRequest.of(
-            page,
-            size,
-            Sort.by(Sort.Direction.DESC, "createdAt"),
-        )
 
-        val archivesPage = archiveRepository.findAllByTeamTeamId(teamId, pageRequest)
+        val archivesPage = when (sort) {
+            ArchiveSortType.LATEST -> {
+                val pageRequest = PageRequest.of(
+                    page,
+                    size,
+                    Sort.by(Sort.Direction.DESC, "createdAt")
+                        .and(Sort.by(Sort.Direction.DESC, "archiveId")),
+                )
+                archiveRepository.findAllByTeamTeamId(teamId, pageRequest)
+            }
+
+            ArchiveSortType.RATING_DESC -> {
+                archiveRepository.findAllByTeamTeamIdOrderByRatingDesc(
+                    teamId = teamId,
+                    pageable = PageRequest.of(page, size),
+                )
+            }
+
+            ArchiveSortType.RATING_ASC -> {
+                archiveRepository.findAllByTeamTeamIdOrderByRatingAsc(
+                    teamId = teamId,
+                    pageable = PageRequest.of(page, size),
+                )
+            }
+        }
         val archives = archivesPage.content.map { archive ->
             archive.toListItemResponse(teamId)
         }
