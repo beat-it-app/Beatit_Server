@@ -341,6 +341,47 @@ class AuthService (
         return Pair(newAccessToken, newRefreshToken)
     }
 
+    fun reissueLogin(refreshToken: String): Triple<String, String, LoginResponse> {
+        if (!jwtTokenProvider.validateToken(refreshToken)) {
+            throw BusinessException(ErrorCode.EXPIRED_REFRESH_TOKEN)
+        }
+
+        val userId = jwtTokenProvider.getUserId(refreshToken)
+        val savedToken = refreshTokenService.getRefreshToken(userId)
+            ?: throw BusinessException(ErrorCode.REFRESH_TOKEN_NOT_FOUND)
+
+        if (savedToken != refreshToken) {
+            throw BusinessException(ErrorCode.INVALID_TOKEN)
+        }
+
+        val user = userRepository.findById(userId.toLongOrNull() ?: throw BusinessException(ErrorCode.USER_NOT_FOUND))
+            .orElseThrow { BusinessException(ErrorCode.USER_NOT_FOUND) }
+
+        val isCreatedProfile = userProfilesRepository.existsByUser_UserId(user.userId)
+        val userAuthAccount = userAuthAccountRepository.findByUserUserId(user.userId!!)
+
+        val rememberMe = jwtTokenProvider.getRememberMe(refreshToken)
+        val newAccessToken = jwtTokenProvider.createAccessToken(userId, user.role)
+        val newRefreshToken = jwtTokenProvider.createRefreshToken(userId, rememberMe)
+
+        refreshTokenService.saveRefreshToken(
+            userId = userId,
+            refreshToken = newRefreshToken,
+            expirationMs = jwtTokenProvider.getRefreshTokenValidity(rememberMe)
+        )
+
+        return Triple(
+            newAccessToken,
+            newRefreshToken,
+            LoginResponse(
+                userId = user.userId,
+                role = user.role,
+                isCreatedProfile = isCreatedProfile,
+                socialProvider = userAuthAccount?.socialProvider
+            )
+        )
+    }
+
     fun sendEmailVerificationCode(email: String): Boolean {
         if (userAuthAccountRepository.existsByEmail(email)) {
             throw BusinessException(ErrorCode.EMAIL_DUPLICATED)
