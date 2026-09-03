@@ -10,5 +10,5 @@ data class ArchiveCreateResponse(
     val roadAddress: String?,
     val locationId: Long,
     val archiveImageUrls: List<String>,
-    val createdAt: String,
+    val createdAt: OffsetDateTime,
 )

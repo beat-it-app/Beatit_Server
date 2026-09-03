@@ -1,6 +1,8 @@
 package com.beat_it.team.dto
 
 import com.beat_it.post.dto.CommentResponse
+import java.time.OffsetDateTime
+
 
 data class ArchiveDetailResponse(
     val archiveId: Long,

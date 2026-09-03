@@ -13,7 +13,6 @@ import com.beat_it.team.repository.TeamMembershipRepository
 import com.beat_it.team.repository.TeamRepository
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
-import java.time.format.DateTimeFormatter
 import java.util.UUID
 
 @Service
@@ -346,15 +345,13 @@ class TeamService(
             userService.updateCurrentTeamId(userId, null)
         }
 
-        val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")
-        val requestedAtStr = membership.leftAt!!.format(formatter)
-        val scheduledDeletionDateStr = membership.leftAt!!.plusDays(7).format(formatter)
+        val requestedAt = membership.leftAt!!
 
         return TeamWithdrawalResponse(
             teamPublicId = team.publicId,
             userId = userId,
-            requestedAt = requestedAtStr,
-            scheduledDeletionDate = scheduledDeletionDateStr
+            requestedAt = requestedAt,
+            scheduledDeletionDate = requestedAt.plusDays(7)
         )
     }
 

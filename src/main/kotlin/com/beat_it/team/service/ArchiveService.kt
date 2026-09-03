@@ -4,7 +4,6 @@ import com.beat_it.auth.entity.enum.MediaCategory
 import com.beat_it.auth.service.UserService
 import com.beat_it.global.error.BusinessException
 import com.beat_it.global.error.ErrorCode
-import com.beat_it.global.util.DateTimeUtil
 import com.beat_it.location.service.LocationsService
 import com.beat_it.post.dto.CommentResponse
 import com.beat_it.global.service.FileService
@@ -148,7 +147,7 @@ class ArchiveService(
             averageRating = calculateAverageRating(),
             ratingCount = ratingCount,
             commentCount = commentCount,
-            createdAt = DateTimeUtil.format(createdAt),
+            createdAt = createdAt,
         )
     }
 
@@ -413,7 +412,7 @@ class ArchiveService(
                 commentId = comment.archiveCommentId!!,
                 writerName = writerProfile?.name ?: "알 수 없음",
                 content = comment.content,
-                createdAt = DateTimeUtil.format(comment.createdAt),
+                createdAt = comment.createdAt,
                 profileImageUrl = writerProfile?.authFile?.cdnUrl,
                 isWriter = comment.userId == archiveWriterId,
                 isMine = comment.userId == currentUserId,

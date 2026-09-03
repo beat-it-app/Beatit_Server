@@ -1,5 +1,7 @@
 package com.beat_it.team.dto
 
+import java.time.OffsetDateTime
+
 data class ArchiveListResponse(
     val archives: List<ArchiveListItemResponse>,
     val topArchiveId: Long?,
@@ -18,5 +20,5 @@ data class ArchiveListItemResponse(
     val averageRating: Double,
     val ratingCount: Int,
     val commentCount: Int,
-    val createdAt: String,
+    val createdAt: OffsetDateTime,
 )
