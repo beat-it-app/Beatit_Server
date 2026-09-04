@@ -345,13 +345,11 @@ class TeamService(
             userService.updateCurrentTeamId(userId, null)
         }
 
-        val requestedAt = membership.leftAt!!
-
         return TeamWithdrawalResponse(
             teamPublicId = team.publicId,
             userId = userId,
-            requestedAt = requestedAt,
-            scheduledDeletionDate = requestedAt.plusDays(7)
+            requestedAt = membership.leftAt!!,
+            scheduledDeletionDate = membership.leftAt!!.plusDays(7)
         )
     }
 
