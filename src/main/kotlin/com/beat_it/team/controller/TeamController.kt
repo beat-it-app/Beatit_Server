@@ -4,31 +4,20 @@ import com.beat_it.auth.dto.WithdrawalRequest
 import com.beat_it.auth.dto.WithdrawalResponse
 import com.beat_it.global.error.BusinessException
 import com.beat_it.global.error.ErrorCode
-import com.beat_it.team.dto.TeamCreateRequest
-import com.beat_it.team.dto.TeamCreateResponse
-import com.beat_it.team.dto.TeamDetailUpdateRequest
-import com.beat_it.team.dto.TeamDetailUpdateResponse
 import com.beat_it.team.service.TeamService
 import com.beat_it.global.response.BasicResponse
-import com.beat_it.team.dto.TeamJoinResponse
-import com.beat_it.team.dto.TeamManageRequest
-import com.beat_it.team.dto.TeamManageResponse
-import com.beat_it.team.dto.TeamMemberListResponse
-import com.beat_it.team.dto.TeamSimpleInfo
-import com.beat_it.team.dto.UserTeamListResponse
+import com.beat_it.team.dto.*
 import io.swagger.v3.oas.annotations.Operation
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.*
 import java.util.UUID
-import io.swagger.v3.oas.annotations.Parameter
-import io.swagger.v3.oas.annotations.security.SecurityRequirements
 import io.swagger.v3.oas.annotations.tags.Tag
 import jakarta.validation.Valid
 import org.springframework.security.core.annotation.AuthenticationPrincipal
 import org.springframework.security.core.userdetails.UserDetails
 
-@Tag(name = "2-1. TEAM API", description = "팀 생성 및 수정 관련 로직")
+@Tag(name = "2-1. TEAM API", description = "팀 관련 로직")
 @RestController
 @RequestMapping("/teams")
 class TeamController(
