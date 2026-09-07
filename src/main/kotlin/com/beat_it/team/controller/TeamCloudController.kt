@@ -89,13 +89,12 @@ class TeamCloudController(
             .body(BasicResponse.success(null, HttpStatus.OK, "아이템이 성공적으로 이동되었습니다."))
     }
 
-    @Operation(summary = "팀 클라우드 파일 업로드")
-    @PostMapping(value = ["/files"], consumes = [MediaType.MULTIPART_FORM_DATA_VALUE])
-    fun uploadFile(
+    @Operation(summary = "팀 클라우드 파일 등록 (Presigned URL 업로드 완료 후 등록)", description = "S3에 직접 업로드한 파일의 storageKey를 전달받아 팀 클라우드에 등록합니다.")
+    @PostMapping("/files")
+    fun registerFile(
         @RequestParam(required = false) folderId: Long?,
         @RequestParam fileName: String,
-        @RequestPart(required = false) file: MultipartFile?,
-        @RequestParam(required = false) storageKey: String?,
+        @RequestParam storageKey: String,
         @RequestParam(required = false) fileSize: Long?,
         @RequestParam(required = false) contentType: String?,
         @AuthenticationPrincipal userDetails: UserDetails
@@ -104,7 +103,6 @@ class TeamCloudController(
         val itemId = teamCloudService.uploadTeamCloudFile(
             userId = userId,
             folderId = folderId,
-            file = file,
             storageKey = storageKey,
             fileName = fileName,
             fileSize = fileSize,
@@ -113,7 +111,7 @@ class TeamCloudController(
 
         return ResponseEntity
             .status(HttpStatus.CREATED)
-            .body(BasicResponse.success(itemId, HttpStatus.CREATED, "파일이 성공적으로 업로드되었습니다."))
+            .body(BasicResponse.success(itemId, HttpStatus.CREATED, "파일이 성공적으로 등록되었습니다."))
     }
 
     @PostMapping("/links")

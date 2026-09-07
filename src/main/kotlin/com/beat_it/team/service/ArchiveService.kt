@@ -59,7 +59,6 @@ class ArchiveService(
             archive = savedArchive,
             userId = userId,
             archiveImage = archiveImage,
-            storageKey = request.storageKey,
         )
 
         savedArchive.updateArchiveImageUrl(savedArchiveFile.cdnUrl)
@@ -128,7 +127,6 @@ class ArchiveService(
             archive = archive,
             userId = userId,
             archiveImage = archiveImage,
-            storageKey = request.storageKey,
         )
 
         return ArchiveUpdateResponse(
@@ -161,25 +159,22 @@ class ArchiveService(
         archive: Archives,
         userId: Long,
         archiveImage: MultipartFile?,
-        storageKey: String? = null,
     ): ArchivesFiles {
-        val fileResult = fileService.resolveFile(
-            file = archiveImage,
-            storageKey = storageKey,
-            directory = com.beat_it.global.service.FileDirectory.TEAM,
-            originalFileName = "archive-image.jpg"
-        )
+        val archiveFile = if (archiveImage != null && !archiveImage.isEmpty) {
+            val uploadResult = fileService.uploadFile(
+                file = archiveImage,
+                directory = com.beat_it.global.service.FileDirectory.TEAM
+            )
 
-        val archiveFile = if (fileResult != null) {
             ArchivesFiles(
                 archive = archive,
                 userId = userId,
-                originalFileName = fileResult.originalFileName,
-                storageKey = fileResult.storageKey,
-                cdnUrl = fileResult.cdnUrl,
-                mimeType = archiveImage?.contentType,
+                originalFileName = uploadResult.originalFileName,
+                storageKey = uploadResult.storageKey,
+                cdnUrl = uploadResult.cdnUrl,
+                mimeType = archiveImage.contentType,
                 mediaCategory = MediaCategory.IMAGE,
-                fileSizeBytes = archiveImage?.size ?: 0L,
+                fileSizeBytes = archiveImage.size,
                 isPublic = true,
             )
         } else {
@@ -203,10 +198,8 @@ class ArchiveService(
         archive: Archives,
         userId: Long,
         archiveImage: MultipartFile?,
-        storageKey: String? = null,
     ) {
-        val hasNewImage = (archiveImage != null && !archiveImage.isEmpty) || !storageKey.isNullOrBlank()
-        if (!hasNewImage) {
+        if (archiveImage == null || archiveImage.isEmpty) {
             return
         }
 
@@ -216,7 +209,6 @@ class ArchiveService(
             archive = archive,
             userId = userId,
             archiveImage = archiveImage,
-            storageKey = storageKey,
         )
 
         archive.updateArchiveImageUrl(savedArchiveFile.cdnUrl)
@@ -277,7 +269,7 @@ class ArchiveService(
         request: ArchiveUpdateRequest,
         archiveImage: MultipartFile?,
     ) {
-        val isImageChanged = (archiveImage != null && !archiveImage.isEmpty) || !request.storageKey.isNullOrBlank()
+        val isImageChanged = archiveImage != null && !archiveImage.isEmpty
 
         val isAnyFieldChanged =
             (request.title != null && request.title != archive.title) ||

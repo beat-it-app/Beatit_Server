@@ -30,7 +30,6 @@ class UserService (
         userId: Long,
         name: String,
         profileImage: MultipartFile?,
-        storageKey: String? = null,
         defaultImageId: Int?
     ) {
         validateName(name)
@@ -45,7 +44,7 @@ class UserService (
         var savedAuthFile: AuthFiles? = null
         var defaultProfileImage: DefaultProfileImage? = null
 
-        val hasImage = (profileImage != null && !profileImage.isEmpty) || !storageKey.isNullOrBlank()
+        val hasImage = profileImage != null && !profileImage.isEmpty
         val hasDefaultId = defaultImageId != null
 
         if ((!hasImage && !hasDefaultId) || (hasImage && hasDefaultId)) {
@@ -53,11 +52,10 @@ class UserService (
         }
 
         if (hasImage) {
-            val uploadedResult = fileService.resolveFile(
-                file = profileImage,
-                storageKey = storageKey,
+            val uploadedResult = fileService.uploadFile(
+                file = profileImage!!,
                 directory = com.beat_it.global.service.FileDirectory.PROFILE
-            ) ?: throw BusinessException(ErrorCode.EMPTY_FILE)
+            )
             
             val authFile = AuthFiles(
                 user = user,

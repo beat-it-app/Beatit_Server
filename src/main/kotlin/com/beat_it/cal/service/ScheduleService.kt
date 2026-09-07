@@ -61,17 +61,18 @@ class ScheduleService(
             )
         }
 
-        val uploadedFiles = fileService.resolveFiles(
-            files = request.files,
-            storageKeys = request.storageKeys,
-            directory = com.beat_it.global.service.FileDirectory.SCHEDULE
-        )
-        uploadedFiles.forEach { fileResult ->
-            schedule.addFile(
-                originalFileName = fileResult.originalFileName,
-                storageKey = fileResult.storageKey,
-                cdnUrl = fileResult.cdnUrl
-            )
+        if (!request.files.isNullOrEmpty()) {
+            val validFiles = request.files.filter { !it.isEmpty }
+            if (validFiles.isNotEmpty()) {
+                val uploadedFiles = fileService.uploadFiles(validFiles, com.beat_it.global.service.FileDirectory.SCHEDULE)
+                uploadedFiles.forEach { fileResult ->
+                    schedule.addFile(
+                        originalFileName = fileResult.originalFileName,
+                        storageKey = fileResult.storageKey,
+                        cdnUrl = fileResult.cdnUrl
+                    )
+                }
+            }
         }
 
         request.participantUserIds.forEach { participantUserId ->
@@ -154,17 +155,18 @@ class ScheduleService(
         }
         schedule.files.removeIf { it.id !in retainFileIds }
 
-        val uploadedFiles = fileService.resolveFiles(
-            files = request.files,
-            storageKeys = request.storageKeys,
-            directory = com.beat_it.global.service.FileDirectory.SCHEDULE
-        )
-        uploadedFiles.forEach { fileResult ->
-            schedule.addFile(
-                originalFileName = fileResult.originalFileName,
-                storageKey = fileResult.storageKey,
-                cdnUrl = fileResult.cdnUrl
-            )
+        if (!request.files.isNullOrEmpty()) {
+            val validFiles = request.files.filter { !it.isEmpty }
+            if (validFiles.isNotEmpty()) {
+                val uploadedFiles = fileService.uploadFiles(validFiles, com.beat_it.global.service.FileDirectory.SCHEDULE)
+                uploadedFiles.forEach { fileResult ->
+                    schedule.addFile(
+                        originalFileName = fileResult.originalFileName,
+                        storageKey = fileResult.storageKey,
+                        cdnUrl = fileResult.cdnUrl
+                    )
+                }
+            }
         }
 
         schedule.update(

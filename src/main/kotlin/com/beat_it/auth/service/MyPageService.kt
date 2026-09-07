@@ -95,10 +95,9 @@ class MyPageService (
     fun updateProfileImage(
         userId: Long,
         image: MultipartFile?,
-        storageKey: String? = null,
         defaultImageId: Int?
     ) {
-        val hasImage = (image != null && !image.isEmpty) || !storageKey.isNullOrBlank()
+        val hasImage = image != null && !image.isEmpty
         val hasDefaultId = defaultImageId != null
 
         if ((!hasImage && !hasDefaultId) || (hasImage && hasDefaultId)) {
@@ -117,11 +116,10 @@ class MyPageService (
         }
 
         if (hasImage) {
-            val uploadResult = fileService.resolveFile(
-                file = image,
-                storageKey = storageKey,
+            val uploadResult = fileService.uploadFile(
+                file = image!!,
                 directory = com.beat_it.global.service.FileDirectory.PROFILE
-            ) ?: throw BusinessException(ErrorCode.EMPTY_FILE)
+            )
 
             val newAuthFile = AuthFiles(
                 user = user,

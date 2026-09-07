@@ -19,6 +19,5 @@ data class ScheduleUpdateRequest(
     val musics: List<MusicRequest>?,
     val retainMusicIds: List<Long>? = null,
     val files: List<MultipartFile>? = null,
-    val storageKeys: List<String>? = null,
     val retainFileIds: List<Long>? = null
 )

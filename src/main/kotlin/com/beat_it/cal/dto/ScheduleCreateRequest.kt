@@ -11,8 +11,7 @@ data class ScheduleCreateRequest(
     val endsAt: OffsetDateTime?,
     val participantUserIds: List<Long> = emptyList(),
     val musics: List<MusicRequest> = emptyList(),
-    val files: List<MultipartFile>? = null,
-    val storageKeys: List<String>? = null
+    val files: List<MultipartFile>? = null
 ) {
     data class MusicRequest(
         val musicTitle: String?,
