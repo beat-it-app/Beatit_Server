@@ -5,6 +5,7 @@ import com.beat_it.post.entity.enum.PollType
 import com.fasterxml.jackson.annotation.JsonSubTypes
 import com.fasterxml.jackson.annotation.JsonTypeInfo
 import java.math.BigDecimal
+import java.time.OffsetDateTime
 
 data class PollDetailResponse(
     val pollId: Long,
@@ -13,12 +14,12 @@ data class PollDetailResponse(
     val pollType: PollType,
     val allowMultipleChoice: Boolean,
     val isAnonymous: Boolean,
-    val closeAt: String?,
+    val closeAt: OffsetDateTime?,
     val remindBeforeClose: String?,
     val writerName: String,
     val writerProfileImageUrl: String,
-    val createdAt: String,
-    val updatedAt: String,
+    val createdAt: OffsetDateTime,
+    val updatedAt: OffsetDateTime,
     val pollItems: List<PollItemResponse>,
     val isWriter: Boolean,
     val commentCount: Int,

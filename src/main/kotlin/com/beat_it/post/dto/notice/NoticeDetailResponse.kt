@@ -1,6 +1,7 @@
 package com.beat_it.post.dto.notice
 
 import com.beat_it.post.dto.CommentResponse
+import java.time.OffsetDateTime
 
 data class NoticeDetailResponse(
     val noticeId: Long,
@@ -8,8 +9,8 @@ data class NoticeDetailResponse(
     val content: String,
     val writerName: String,
     val writerProfileImageUrl: String?,
-    val createdAt: String,
-    val updatedAt: String,
+    val createdAt: OffsetDateTime,
+    val updatedAt: OffsetDateTime,
     val images: List<String>,
     val isWriter: Boolean,
     val reaction: NoticeReactionDto,

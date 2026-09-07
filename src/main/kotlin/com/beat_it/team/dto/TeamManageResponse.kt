@@ -4,16 +4,19 @@ import com.beat_it.team.entity.enum.TeamRole
 import java.util.UUID
 
 data class TeamManageResponse(
-    val updatedMembers: List<TeamMemberInfo>,
+    val updatedMembers: List<MemberItems>,
 )
 
 data class TeamMemberListResponse(
-    val members: List<TeamMemberInfo>,
+    val memberListResponse: List<MemberItems>,
+    val totalCount: Int,
+    val hasNext: Boolean
 )
 
-data class TeamMemberInfo(
+data class MemberItems(
     val userPublicId: UUID,
     val userName: String,
     val profileImageUrl: String?,
     val teamRole: TeamRole,
+    val position: String?,
 )

@@ -30,26 +30,6 @@ class PostComments(
 
 ): BaseUpdatedTimeEntity(){
     companion object {
-        fun createNoticeComment(noticeId: Long, userId: Long, content: String, parentCommentId: Long? = null): PostComments {
-            return PostComments(
-                postType = PostType.NOTICE,
-                postId = noticeId,
-                userId = userId,
-                content = content,
-                parentCommentId = parentCommentId
-            )
-        }
-
-        fun createPollComment(pollId: Long, userId: Long, content: String, parentCommentId: Long? = null): PostComments {
-            return PostComments(
-                postType = PostType.POLL,
-                postId = pollId,
-                userId = userId,
-                content = content,
-                parentCommentId = parentCommentId
-            )
-        }
-
         fun createComment(
             postType: PostType,
             postId: Long,

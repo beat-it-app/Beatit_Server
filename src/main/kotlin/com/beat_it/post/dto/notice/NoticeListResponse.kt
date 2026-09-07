@@ -1,5 +1,7 @@
 package com.beat_it.post.dto.notice
 
+import java.time.OffsetDateTime
+
 data class NoticeListResponse(
     val noticeListResponse: List<NoticeItems>,
     val totalCount: Int,
@@ -13,7 +15,7 @@ data class NoticeItems(
     val likeCount: Int,
     val dislikeCount: Int,
     val commentCount: Int,
-    val createdAt: String,
+    val createdAt: OffsetDateTime,
     val writer: String,
     val thumbnailUrl: String?
 )

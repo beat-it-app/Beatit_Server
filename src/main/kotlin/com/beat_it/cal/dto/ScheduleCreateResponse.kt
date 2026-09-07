@@ -5,7 +5,7 @@ import java.time.OffsetDateTime
 data class ScheduleCreateResponse(
     val scheduleId: Long,
     val title: String,
-    val startsAt: String,
-    val endsAt: String,
-    val createdAt: String
+    val startsAt: OffsetDateTime,
+    val endsAt: OffsetDateTime,
+    val createdAt: OffsetDateTime
 )

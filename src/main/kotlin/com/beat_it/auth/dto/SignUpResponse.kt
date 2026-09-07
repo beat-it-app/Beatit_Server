@@ -1,8 +1,10 @@
 package com.beat_it.auth.dto
 
+import java.time.OffsetDateTime
+
 data class SignUpResponse (
     val userId: Long,
     val identifier: String,
     val email: String,
-    val createdAt: String
+    val createdAt: OffsetDateTime
 ) 

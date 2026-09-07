@@ -16,7 +16,6 @@ import org.springframework.web.multipart.MultipartFile
 import com.beat_it.post.entity.PostFiles
 import com.beat_it.auth.service.UserService
 import com.beat_it.auth.entity.enum.MediaCategory
-import com.beat_it.global.util.DateTimeUtil
 import com.beat_it.global.service.FileService
 import com.beat_it.post.dto.notice.NoticeDetailResponse
 import com.beat_it.post.dto.notice.NoticeItems
@@ -88,7 +87,7 @@ class NoticeService(
                 likeCount = notice.likeCounter,
                 dislikeCount = notice.dislikeCounter,
                 commentCount = notice.commentCounter,
-                createdAt = DateTimeUtil.format(notice.createdAt),
+                createdAt = notice.createdAt,
                 writer = writerName,
                 thumbnailUrl = notice.thumbnailImageUrl
             )
@@ -159,8 +158,8 @@ class NoticeService(
             content = notice.content,
             writerName = writerName,
             writerProfileImageUrl = writerProfile?.authFile?.cdnUrl,
-            createdAt = DateTimeUtil.format(notice.createdAt),
-            updatedAt = DateTimeUtil.format(notice.updatedAt),
+            createdAt = notice.createdAt,
+            updatedAt = notice.updatedAt,
             images = imageUrls,
             isWriter = notice.userId == userId,
             reaction = reactionDto,

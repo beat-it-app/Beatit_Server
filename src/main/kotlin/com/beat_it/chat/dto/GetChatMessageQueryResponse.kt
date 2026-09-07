@@ -2,7 +2,7 @@ package com.beat_it.chat.dto
 
 import com.beat_it.auth.dto.UserProfileResponse
 import com.beat_it.chat.entity.ChatMessage
-import com.beat_it.global.util.DateTimeUtil
+import java.time.OffsetDateTime
 
 data class GetChatMessageQueryResponse(
     val messageId: Long,
@@ -11,7 +11,7 @@ data class GetChatMessageQueryResponse(
     val profileImageUrl: String?,
     val content: String,
     val messageType: String,
-    val createdAt: String,
+    val createdAt: OffsetDateTime,
     val isMine: Boolean
 ) {
     companion object {
@@ -27,7 +27,7 @@ data class GetChatMessageQueryResponse(
                 profileImageUrl = profile?.profileImageUrl,
                 content = message.content,
                 messageType = message.type.name,
-                createdAt = DateTimeUtil.format(message.createdAt),
+                createdAt = message.createdAt,
                 isMine = (message.senderId == currentUserId)
             )
         }

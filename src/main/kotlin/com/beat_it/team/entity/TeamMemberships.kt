@@ -24,12 +24,20 @@ class TeamMemberships(
     @Column(name = "team_role", nullable = false)
     var teamRole: TeamRole = TeamRole.MEMBER,
 
+    @Column(name = "position", nullable = true)
+    var position: String? = null,
+
     @Column(name = "left_at", nullable = true)
     var leftAt: OffsetDateTime? = null,
 ) : BaseJoinedUpdatedTimeEntity() {
 
     fun updateTeamRole(teamRole: TeamRole) {
         this.teamRole = teamRole
+        this.updatedAt = OffsetDateTime.now()
+    }
+
+    fun updatePosition(position: String?) {
+        this.position = position
         this.updatedAt = OffsetDateTime.now()
     }
 

@@ -12,12 +12,14 @@ data class ItunesTrack(
     val trackName: String?,
     val artistName: String?,
     val previewUrl: String?,
-    val artworkUrl100: String?
+    val artworkUrl100: String?,
+    val trackTimeMillis: Long?
 )
 
 data class MusicInfo(
     val title: String,
     val artist: String,
     val previewUrl: String?,
-    val imageUrl: String?
+    val imageUrl: String?,
+    val duration: String?
 )

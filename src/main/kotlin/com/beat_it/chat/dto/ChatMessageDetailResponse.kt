@@ -1,12 +1,14 @@
 package com.beat_it.chat.dto
 
+import java.time.OffsetDateTime
+
 data class ChatMessageDetailResponse(
     val messageId: Long,
     val chatId: Long,
     val senderId: Long,
     val content: String,
     val messageType: String,
-    val createdAt: String
+    val createdAt: OffsetDateTime
 ) {
     companion object {
         fun of(
@@ -15,7 +17,7 @@ data class ChatMessageDetailResponse(
             senderId: Long,
             content: String,
             messageType: String,
-            createdAt: String
+            createdAt: OffsetDateTime
         ): ChatMessageDetailResponse {
             return ChatMessageDetailResponse(
                 messageId = messageId,

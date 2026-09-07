@@ -164,14 +164,10 @@ class MyPageService (
 
         user.withdraw()
 
-        val formatter = java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")
-        val requestedAtStr = user.withdrawnAt!!.format(formatter)
-        val scheduledDeletionDateStr = user.withdrawnAt!!.plusDays(7).format(formatter)
-
         return WithdrawalResponse(
             userId = userId,
-            requestedAt = requestedAtStr,
-            scheduledDeletionDate = scheduledDeletionDateStr
+            requestedAt = user.withdrawnAt!!,
+            scheduledDeletionDate = user.withdrawnAt!!.plusDays(7)
         )
     }
 
