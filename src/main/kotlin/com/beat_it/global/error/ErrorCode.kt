@@ -115,6 +115,8 @@ enum class ErrorCode(
     FILE_SIZE_EXCEEDED(HttpStatus.BAD_REQUEST, "FILE-003", "파일 용량이 제한을 초과했습니다."),
     FILE_UPLOAD_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "FILE-004", "서버 오류로 인해 파일 업로드에 실패했습니다."),
     FILE_REQUIRED(HttpStatus.BAD_REQUEST, "FILE-005", "미디어 타입 전송 시 파일 첨부는 필수입니다."),
+    FILE_DELETE_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "FILE-006", "파일 삭제에 실패했습니다."),
+
 
     // --- 멤버 관련 에러 ---
     MEMBER_NOT_FOUND(HttpStatus.NOT_FOUND, "MEMBER-001", "참여 사용자를 찾을 수 없습니다."),

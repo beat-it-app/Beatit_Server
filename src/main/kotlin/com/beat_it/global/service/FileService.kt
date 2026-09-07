@@ -2,9 +2,18 @@ package com.beat_it.global.service
 
 import com.beat_it.global.error.BusinessException
 import com.beat_it.global.error.ErrorCode
-import jakarta.transaction.Transactional
+import org.slf4j.LoggerFactory
+import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Service
 import org.springframework.web.multipart.MultipartFile
+import software.amazon.awssdk.core.sync.RequestBody
+import software.amazon.awssdk.services.s3.S3Client
+import software.amazon.awssdk.services.s3.model.Delete
+import software.amazon.awssdk.services.s3.model.DeleteObjectRequest
+import software.amazon.awssdk.services.s3.model.DeleteObjectsRequest
+import software.amazon.awssdk.services.s3.model.ObjectIdentifier
+import software.amazon.awssdk.services.s3.model.PutObjectRequest
+import java.util.UUID
 
 data class FileUploadResult(
     val originalFileName: String,
@@ -13,58 +22,162 @@ data class FileUploadResult(
 )
 
 @Service
-class FileService {
-    val allowedExtensions = setOf("jpg", "jpeg", "png", "mp3", "wav")
-    val maxFileSize = 10 * 1024 * 1024 // 10MB를 바이트 단위로 계산
+class FileService(
+    private val s3Client: S3Client,
+    @Value("\${cloud.aws.s3.bucket:}")
+    private val bucket: String,
+    @Value("\${cloud.aws.region.static:ap-northeast-2}")
+    private val region: String
+) {
+    private val log = LoggerFactory.getLogger(javaClass)
 
-    @Transactional
+    val allowedExtensions = setOf(
+        "jpg", "jpeg", "png", "gif", "webp", "heic",
+        "mp3", "wav", "m4a", "aac", "ogg", "flac",
+        "mp4", "mov", "avi",
+        "pdf", "zip", "hwp", "docx"
+    )
+    val maxFileSize = 50 * 1024 * 1024L // 50MB
+
     fun uploadFile(
         file: MultipartFile,
-        pathPrefix: String = "dummy/path"
+        directory: FileDirectory
+    ): FileUploadResult {
+        return uploadFile(file, directory.path)
+    }
+
+    fun uploadFiles(
+        files: List<MultipartFile>,
+        directory: FileDirectory
+    ): List<FileUploadResult> {
+        return uploadFiles(files, directory.path)
+    }
+
+    fun uploadFile(
+        file: MultipartFile,
+        pathPrefix: String = "common"
     ): FileUploadResult {
         if (file.isEmpty) {
             throw BusinessException(ErrorCode.EMPTY_FILE)
         }
 
-        val originalFileName = file.originalFilename ?: "default_file"
+        val originalFileName = file.originalFilename ?: "unknown_file"
         val extension = originalFileName.substringAfterLast(".", "").lowercase()
-        
+
         if (!allowedExtensions.contains(extension)) {
+            log.warn("Invalid file extension: $extension (file: $originalFileName)")
             throw BusinessException(ErrorCode.INVALID_FILE_EXTENSION)
         }
-        
+
         if (file.size > maxFileSize) {
+            log.warn("File size exceeded: ${file.size} bytes > $maxFileSize bytes")
             throw BusinessException(ErrorCode.FILE_SIZE_EXCEEDED)
         }
 
-        val storageKey = "$pathPrefix/${System.currentTimeMillis()}_$originalFileName"
-        val cdnUrl = "https://example.com/$storageKey"
+        val cleanPath = pathPrefix.trim().trim('/')
+        val sanitizedOriginalName = originalFileName.replace("[^a-zA-Z0-9가-힣._-]".toRegex(), "_")
+        val uniqueFileName = "${UUID.randomUUID()}_$sanitizedOriginalName"
+        val storageKey = if (cleanPath.isBlank()) uniqueFileName else "$cleanPath/$uniqueFileName"
 
-        return FileUploadResult(
-            originalFileName = originalFileName,
-            storageKey = storageKey,
-            cdnUrl = cdnUrl
-        )
+        try {
+            val putObjectRequest = PutObjectRequest.builder()
+                .bucket(bucket)
+                .key(storageKey)
+                .contentType(file.contentType ?: "application/octet-stream")
+                .contentLength(file.size)
+                .build()
+
+            s3Client.putObject(
+                putObjectRequest,
+                RequestBody.fromInputStream(file.inputStream, file.size)
+            )
+
+            val cdnUrl = "https://$bucket.s3.$region.amazonaws.com/$storageKey"
+
+            log.info("S3 file uploaded successfully: key=$storageKey, url=$cdnUrl")
+
+            return FileUploadResult(
+                originalFileName = originalFileName,
+                storageKey = storageKey,
+                cdnUrl = cdnUrl
+            )
+        } catch (e: BusinessException) {
+            throw e
+        } catch (e: Exception) {
+            log.error("Failed to upload file to S3: originalFileName=$originalFileName, key=$storageKey", e)
+            throw BusinessException(ErrorCode.FILE_UPLOAD_FAILED)
+        }
     }
 
-    @Transactional
     fun uploadFiles(
         files: List<MultipartFile>,
-        pathPrefix: String = "dummy/path"
+        pathPrefix: String = "common"
     ): List<FileUploadResult> {
         return files.map { uploadFile(it, pathPrefix) }
     }
 
-    @Transactional
     fun deleteFile(storageKey: String) {
-        // TODO: S3 실제 삭제 로직 구현
-        println("Deleting file from storage: $storageKey")
+        if (storageKey.isBlank()) {
+            throw BusinessException(ErrorCode.INVALID_INPUT_VALUE)
+        }
+
+        val key = storageKey.trim()
+
+        try {
+            val deleteObjectRequest = DeleteObjectRequest.builder()
+                .bucket(bucket)
+                .key(key)
+                .build()
+
+            s3Client.deleteObject(deleteObjectRequest)
+            log.info("S3 file deleted successfully: key=$key")
+        } catch (e: BusinessException) {
+            throw e
+        } catch (e: Exception) {
+            log.error("Failed to delete file from S3: key=$key", e)
+            throw BusinessException(ErrorCode.FILE_DELETE_FAILED)
+        }
     }
 
-    @Transactional
     fun deleteFiles(storageKeys: List<String>) {
-        for (storageKey in storageKeys) {
-            deleteFile(storageKey)
+        if (storageKeys.isEmpty()) return
+
+        val validKeys = storageKeys
+            .filter { it.isNotBlank() }
+            .map { it.trim() }
+
+        if (validKeys.isEmpty()) return
+
+        try {
+            val objectIdentifiers = validKeys.map { key ->
+                ObjectIdentifier.builder()
+                    .key(key)
+                    .build()
+            }
+
+            val deleteObjectsRequest = DeleteObjectsRequest.builder()
+                .bucket(bucket)
+                .delete(
+                    Delete.builder()
+                        .objects(objectIdentifiers)
+                        .build()
+                )
+                .build()
+
+            val response = s3Client.deleteObjects(deleteObjectsRequest)
+
+            if (response.hasErrors() && response.errors().isNotEmpty()) {
+                val errorMessages = response.errors().joinToString { "${it.key()}: ${it.message()}" }
+                log.error("Failed to delete some files from S3: $errorMessages")
+                throw BusinessException(ErrorCode.FILE_DELETE_FAILED)
+            }
+
+            log.info("S3 files deleted successfully: count=${validKeys.size}")
+        } catch (e: BusinessException) {
+            throw e
+        } catch (e: Exception) {
+            log.error("Failed to delete bulk files from S3: keys=$validKeys", e)
+            throw BusinessException(ErrorCode.FILE_DELETE_FAILED)
         }
     }
 }
