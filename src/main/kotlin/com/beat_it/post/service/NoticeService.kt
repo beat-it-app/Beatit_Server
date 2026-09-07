@@ -101,12 +101,12 @@ class NoticeService(
     }
 
     @Transactional
-    fun createNotice(userId: Long, dto: NoticeRequest, images: List<MultipartFile>?) {
+    fun createNotice(userId: Long, dto: NoticeRequest, images: List<MultipartFile>?, storageKeys: List<String>? = null) {
         val teamId = userService.getCurrentTeamId(userId)
         userService.getCurrentTeamId(userId)
         validateTitleAndContent(dto.title, dto.content)
 
-        val uploadedPostFiles = uploadAndSavePostFiles(userId, images)
+        val uploadedPostFiles = uploadAndSavePostFiles(userId, images, storageKeys)
         val thumbnailUrl = uploadedPostFiles.firstOrNull()?.cdnUrl
 
         val notice = Notices.writeNotice(
@@ -168,7 +168,13 @@ class NoticeService(
     }
 
     @Transactional
-    fun editNotice(userId: Long, noticeId: Long, dto: NoticeRequest, images: List<MultipartFile>?) {
+    fun editNotice(
+        userId: Long,
+        noticeId: Long,
+        dto: NoticeRequest,
+        images: List<MultipartFile>?,
+        storageKeys: List<String>? = null
+    ) {
         validateTitleAndContent(dto.title, dto.content)
         val teamId = userService.getCurrentTeamId(userId)
 
@@ -177,7 +183,8 @@ class NoticeService(
         validateWriter(notice, userId)
 
         val existingAttachments = noticeAttachmentsRepository.findByNoticeNoticeIdOrderByDisplayOrderAsc(noticeId)
-        val isImagesSame = images == null || (images.isEmpty() && existingAttachments.isEmpty())
+        val hasNewFiles = (images != null && images.isNotEmpty()) || (storageKeys != null && storageKeys.isNotEmpty())
+        val isImagesSame = !hasNewFiles && existingAttachments.isEmpty()
 
         if (notice.title == dto.title && notice.content == dto.content && isImagesSame) {
             throw BusinessException(ErrorCode.POST_NO_CONTENT_TO_UPDATE)
@@ -185,10 +192,10 @@ class NoticeService(
 
         var thumbnailUrl = notice.thumbnailImageUrl
 
-        images?.let { multipartFiles ->
+        if (images != null || storageKeys != null) {
             deleteNoticeAttachments(existingAttachments, noticeId)
 
-            val uploadedPostFiles = uploadAndSavePostFiles(userId, multipartFiles)
+            val uploadedPostFiles = uploadAndSavePostFiles(userId, images, storageKeys)
             thumbnailUrl = if (uploadedPostFiles.isNotEmpty()) {
                 uploadedPostFiles.first().cdnUrl
             } else {
@@ -220,8 +227,16 @@ class NoticeService(
         noticeRepository.delete(notice)
     }
 
-    private fun uploadAndSavePostFiles(userId: Long, images: List<MultipartFile>?): List<PostFiles> {
-        val uploadedFiles = images?.let { fileService.uploadFiles(it, "notice") } ?: emptyList()
+    private fun uploadAndSavePostFiles(
+        userId: Long,
+        images: List<MultipartFile>?,
+        storageKeys: List<String>? = null
+    ): List<PostFiles> {
+        val uploadedFiles = fileService.resolveFiles(
+            files = images,
+            storageKeys = storageKeys,
+            directory = com.beat_it.global.service.FileDirectory.NOTICE
+        )
         return uploadedFiles.map { result ->
             val postFile = PostFiles(
                 userId = userId,

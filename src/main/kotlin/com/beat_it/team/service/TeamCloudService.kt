@@ -114,18 +114,29 @@ class TeamCloudService(
     fun uploadTeamCloudFile(
         userId: Long,
         folderId: Long?,
-        file: MultipartFile,
-        fileName: String
+        file: MultipartFile?,
+        storageKey: String?,
+        fileName: String,
+        fileSize: Long? = null,
+        contentType: String? = null
     ): Long {
         val teamId = userService.getCurrentTeamId(userId)
         val team = findTeamOrThrow(teamId)
 
-        validateStorageLimit(team, file.size)
+        val actualSize = file?.size ?: fileSize ?: 0L
+        validateStorageLimit(team, actualSize)
 
         val targetFolder = validateAndGetFolder(teamId, folderId)
 
-        val fileUploadResult = fileService.uploadFile(file, "team-clouds/$teamId")
+        val fileUploadResult = fileService.resolveFile(
+            file = file,
+            storageKey = storageKey,
+            directory = com.beat_it.global.service.FileDirectory.TEAM_CLOUD,
+            originalFileName = fileName
+        ) ?: throw BusinessException(ErrorCode.EMPTY_FILE)
+
         val mediaCategory = determineMediaCategory(fileUploadResult.originalFileName)
+        val actualContentType = file?.contentType ?: contentType
 
         try {
             return saveTeamCloudFileToDatabase(
@@ -134,8 +145,8 @@ class TeamCloudService(
                 targetFolder = targetFolder,
                 fileUploadResult = fileUploadResult,
                 mediaCategory = mediaCategory,
-                fileSize = file.size,
-                contentType = file.contentType,
+                fileSize = actualSize,
+                contentType = actualContentType,
                 itemName = fileName
             )
         } catch (e: Exception) {

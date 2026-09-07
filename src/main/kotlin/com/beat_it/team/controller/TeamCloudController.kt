@@ -17,6 +17,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal
 import org.springframework.security.core.userdetails.UserDetails
 import org.springframework.web.bind.annotation.*
 import org.springframework.web.multipart.MultipartFile
+import io.swagger.v3.oas.annotations.Operation
 
 @RestController
 @RequestMapping("/teams/clouds")
@@ -88,15 +89,27 @@ class TeamCloudController(
             .body(BasicResponse.success(null, HttpStatus.OK, "아이템이 성공적으로 이동되었습니다."))
     }
 
+    @Operation(summary = "팀 클라우드 파일 업로드")
     @PostMapping(value = ["/files"], consumes = [MediaType.MULTIPART_FORM_DATA_VALUE])
     fun uploadFile(
         @RequestParam(required = false) folderId: Long?,
         @RequestParam fileName: String,
-        @RequestPart file: MultipartFile,
+        @RequestPart(required = false) file: MultipartFile?,
+        @RequestParam(required = false) storageKey: String?,
+        @RequestParam(required = false) fileSize: Long?,
+        @RequestParam(required = false) contentType: String?,
         @AuthenticationPrincipal userDetails: UserDetails
     ): ResponseEntity<BasicResponse<Long>> {
         val userId = extractUserId(userDetails)
-        val itemId = teamCloudService.uploadTeamCloudFile(userId, folderId, file, fileName)
+        val itemId = teamCloudService.uploadTeamCloudFile(
+            userId = userId,
+            folderId = folderId,
+            file = file,
+            storageKey = storageKey,
+            fileName = fileName,
+            fileSize = fileSize,
+            contentType = contentType
+        )
 
         return ResponseEntity
             .status(HttpStatus.CREATED)

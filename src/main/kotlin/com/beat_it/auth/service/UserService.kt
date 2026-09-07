@@ -26,7 +26,13 @@ class UserService (
     private val fileService: FileService
 ) {
     @Transactional
-    fun createProfile(userId: Long, name: String, profileImage: MultipartFile?, defaultImageId: Int?) {
+    fun createProfile(
+        userId: Long,
+        name: String,
+        profileImage: MultipartFile?,
+        storageKey: String? = null,
+        defaultImageId: Int?
+    ) {
         validateName(name)
 
         if (userProfilesRepository.existsByUser_UserId(userId)) {
@@ -39,7 +45,7 @@ class UserService (
         var savedAuthFile: AuthFiles? = null
         var defaultProfileImage: DefaultProfileImage? = null
 
-        val hasImage = profileImage != null && !profileImage.isEmpty
+        val hasImage = (profileImage != null && !profileImage.isEmpty) || !storageKey.isNullOrBlank()
         val hasDefaultId = defaultImageId != null
 
         if ((!hasImage && !hasDefaultId) || (hasImage && hasDefaultId)) {
@@ -47,7 +53,11 @@ class UserService (
         }
 
         if (hasImage) {
-            val uploadedResult = fileService.uploadFiles(listOf(profileImage!!), "profile").first()
+            val uploadedResult = fileService.resolveFile(
+                file = profileImage,
+                storageKey = storageKey,
+                directory = com.beat_it.global.service.FileDirectory.PROFILE
+            ) ?: throw BusinessException(ErrorCode.EMPTY_FILE)
             
             val authFile = AuthFiles(
                 user = user,
@@ -55,6 +65,7 @@ class UserService (
                 storageKey = uploadedResult.storageKey,
                 cdnUrl = uploadedResult.cdnUrl,
                 mediaCategory = MediaCategory.IMAGE,
+                fileSizeBytes = profileImage?.size,
                 isPublic = true
             )
             savedAuthFile = authFilesRepository.save(authFile)

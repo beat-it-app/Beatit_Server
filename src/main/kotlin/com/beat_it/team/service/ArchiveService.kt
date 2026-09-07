@@ -59,6 +59,7 @@ class ArchiveService(
             archive = savedArchive,
             userId = userId,
             archiveImage = archiveImage,
+            storageKey = request.storageKey,
         )
 
         savedArchive.updateArchiveImageUrl(savedArchiveFile.cdnUrl)
@@ -127,6 +128,7 @@ class ArchiveService(
             archive = archive,
             userId = userId,
             archiveImage = archiveImage,
+            storageKey = request.storageKey,
         )
 
         return ArchiveUpdateResponse(
@@ -159,18 +161,25 @@ class ArchiveService(
         archive: Archives,
         userId: Long,
         archiveImage: MultipartFile?,
+        storageKey: String? = null,
     ): ArchivesFiles {
-        val archiveFile = if (archiveImage != null && !archiveImage.isEmpty) {
-            // TODO : S3 연동 전 임시 처리. S3 붙으면 fileService.uploadFiles 로직으로 교체.
+        val fileResult = fileService.resolveFile(
+            file = archiveImage,
+            storageKey = storageKey,
+            directory = com.beat_it.global.service.FileDirectory.TEAM,
+            originalFileName = "archive-image.jpg"
+        )
+
+        val archiveFile = if (fileResult != null) {
             ArchivesFiles(
                 archive = archive,
                 userId = userId,
-                originalFileName = archiveImage.originalFilename ?: "archive-image.jpg",
-                storageKey = "dummy/path/archive-image.jpg",
-                cdnUrl = "https://example.com/default-archive-image.jpg",
-                mimeType = archiveImage.contentType,
+                originalFileName = fileResult.originalFileName,
+                storageKey = fileResult.storageKey,
+                cdnUrl = fileResult.cdnUrl,
+                mimeType = archiveImage?.contentType,
                 mediaCategory = MediaCategory.IMAGE,
-                fileSizeBytes = archiveImage.size,
+                fileSizeBytes = archiveImage?.size ?: 0L,
                 isPublic = true,
             )
         } else {
@@ -178,7 +187,7 @@ class ArchiveService(
                 archive = archive,
                 userId = userId,
                 originalFileName = "default-archive.jpg",
-                storageKey = "dummy/path/default-archive.jpg",
+                storageKey = "default/default-archive.jpg",
                 cdnUrl = "https://example.com/default-archive-image.jpg",
                 mimeType = "image/jpeg",
                 mediaCategory = MediaCategory.IMAGE,
@@ -194,8 +203,10 @@ class ArchiveService(
         archive: Archives,
         userId: Long,
         archiveImage: MultipartFile?,
+        storageKey: String? = null,
     ) {
-        if (archiveImage == null || archiveImage.isEmpty) {
+        val hasNewImage = (archiveImage != null && !archiveImage.isEmpty) || !storageKey.isNullOrBlank()
+        if (!hasNewImage) {
             return
         }
 
@@ -205,6 +216,7 @@ class ArchiveService(
             archive = archive,
             userId = userId,
             archiveImage = archiveImage,
+            storageKey = storageKey,
         )
 
         archive.updateArchiveImageUrl(savedArchiveFile.cdnUrl)
@@ -265,7 +277,7 @@ class ArchiveService(
         request: ArchiveUpdateRequest,
         archiveImage: MultipartFile?,
     ) {
-        val isImageChanged = archiveImage != null && !archiveImage.isEmpty
+        val isImageChanged = (archiveImage != null && !archiveImage.isEmpty) || !request.storageKey.isNullOrBlank()
 
         val isAnyFieldChanged =
             (request.title != null && request.title != archive.title) ||

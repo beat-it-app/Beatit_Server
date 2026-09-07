@@ -131,8 +131,14 @@ class ChatService(
 
         var savedChatFile: ChatFiles? = null
 
-        val finalContent = if (request.file != null) {
-            val uploadedResult = fileService.uploadFiles(listOf(request.file), "chats/$chatId").first()
+        val hasFile = (request.file != null && !request.file.isEmpty) || !request.storageKey.isNullOrBlank()
+
+        val finalContent = if (hasFile) {
+            val uploadedResult = fileService.resolveFile(
+                file = request.file,
+                storageKey = request.storageKey,
+                directory = com.beat_it.global.service.FileDirectory.CHAT
+            ) ?: throw BusinessException(ErrorCode.EMPTY_FILE)
 
             val chatFile = ChatFiles(
                 userId = senderId,
@@ -145,6 +151,7 @@ class ChatService(
                     ChatMessageType.FILE -> MediaCategory.DOCUMENT
                     else -> MediaCategory.AUDIO
                 },
+                fileSizeBytes = request.file?.size,
                 isPublic = true
             )
             savedChatFile = chatFilesRepository.save(chatFile)
