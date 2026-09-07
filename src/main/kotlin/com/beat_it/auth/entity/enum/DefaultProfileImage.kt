@@ -9,23 +9,23 @@ enum class DefaultProfileImage(
 ) {
     PROFILE_ORANGE(
         "profile_orange.png",
-        "default-profiles/profile_orange.png",
-        "https://your-bucket-name.s3.ap-northeast-2.amazonaws.com/default-profiles/profile_orange.png"
+        "profile/default-profiles/profile_orange.png",
+        "https://beatit-dev-s3-bucket.s3.ap-northeast-2.amazonaws.com/profile/default-profiles/profile_orange.png"
     ),
     PROFILE_GREEN(
         "profile_green.png",
-        "default-profiles/profile_green.png",
-        "https://your-bucket-name.s3.ap-northeast-2.amazonaws.com/default-profiles/profile_green.png"
+        "profile/default-profiles/profile_green.png",
+        "https://beatit-dev-s3-bucket.s3.ap-northeast-2.amazonaws.com/profile/default-profiles/profile_green.png"
     ),
     PROFILE_BLUE(
         "profile_blue.png",
-        "default-profiles/profile_blue.png",
-        "https://your-bucket-name.s3.ap-northeast-2.amazonaws.com/default-profiles/profile_blue.png"
+        "profile/default-profiles/profile_blue.png",
+        "https://beatit-dev-s3-bucket.s3.ap-northeast-2.amazonaws.com/profile/default-profiles/profile_blue.png"
     ),
     PROFILE_PINK(
         "profile_pink.png",
-        "default-profiles/profile_pink.png",
-        "https://your-bucket-name.s3.ap-northeast-2.amazonaws.com/default-profiles/profile_pink.png"
+        "profile/default-profiles/profile_pink.png",
+        "https://beatit-dev-s3-bucket.s3.ap-northeast-2.amazonaws.com/profile/default-profiles/profile_pink.png"
     );
 
     companion object {
