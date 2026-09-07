@@ -177,7 +177,9 @@ class UserService (
             UserProfileResponse(
                 userId = profile.user?.userId ?: 0L,
                 name = profile.name,
-                profileImageUrl = profile.authFile?.cdnUrl ?: profile.defaultProfileImage?.url ?: ""
+                profileImageUrl = profile.authFile?.cdnUrl
+                    ?: profile.defaultProfileImage?.let { fileService.getFileUrl(it.storageKey) }
+                    ?: ""
             )
         }
     }

@@ -83,3 +83,5 @@ cloud:
       static: ${AWS_REGION}
     s3:
       bucket: ${AWS_S3_BUCKET}
+    cloudfront:
+      domain: ${CLOUDFRONT_DOMAIN}

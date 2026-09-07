@@ -37,10 +37,8 @@ data class PresignedUrlResponse(
 class FileService(
     private val s3Client: S3Client,
     private val s3Presigner: S3Presigner,
-    @Value("\${cloud.aws.s3.bucket}")
-    private val bucket: String,
-    @Value("\${cloud.aws.region.static}")
-    private val region: String
+    @Value("\${cloud.aws.s3.bucket}") private val bucket: String,
+    @Value("\${cloud.aws.cloudfront.domain}") private val cloudFrontDomain: String
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
 
@@ -76,7 +74,7 @@ class FileService(
             val key = storageKey!!.trim()
             val resolvedOriginalName = originalFileName?.takeIf { it.isNotBlank() }
                 ?: key.substringAfterLast("/").substringAfter("_")
-            val cdnUrl = "https://$bucket.s3.$region.amazonaws.com/$key"
+            val cdnUrl = "https://$cloudFrontDomain/$key"
 
             return FileUploadResult(
                 originalFileName = resolvedOriginalName,
@@ -109,7 +107,7 @@ class FileService(
             val validKeys = storageKeys.filter { it.isNotBlank() }.map { it.trim() }
             for (key in validKeys) {
                 val resolvedOriginalName = key.substringAfterLast("/").substringAfter("_")
-                val cdnUrl = "https://$bucket.s3.$region.amazonaws.com/$key"
+                val cdnUrl = "https://$cloudFrontDomain/$key"
                 results.add(
                     FileUploadResult(
                         originalFileName = resolvedOriginalName,
@@ -176,7 +174,7 @@ class FileService(
                 RequestBody.fromInputStream(file.inputStream, file.size)
             )
 
-            val cdnUrl = "https://$bucket.s3.$region.amazonaws.com/$storageKey"
+            val cdnUrl = "https://$cloudFrontDomain/$storageKey"
 
             log.info("S3 file uploaded successfully: key=$storageKey, url=$cdnUrl")
 
@@ -242,7 +240,7 @@ class FileService(
 
             val presignedPutObjectRequest = s3Presigner.presignPutObject(putObjectPresignRequest)
             val presignedUrl = presignedPutObjectRequest.url().toExternalForm()
-            val cdnUrl = "https://$bucket.s3.$region.amazonaws.com/$storageKey"
+            val cdnUrl = "https://$cloudFrontDomain/$storageKey"
 
             log.info("Generated S3 Presigned URL: key=$storageKey, contentType=$resolvedContentType, url=$presignedUrl")
 
@@ -323,5 +321,12 @@ class FileService(
             log.error("Failed to delete bulk files from S3: keys=$validKeys", e)
             throw BusinessException(ErrorCode.FILE_DELETE_FAILED)
         }
+    }
+
+    /**
+     * storageKey를 CloudFront CDN URL로 변환
+     */
+    fun getFileUrl(storageKey: String): String {
+        return "https://$cloudFrontDomain/$storageKey"
     }
 }

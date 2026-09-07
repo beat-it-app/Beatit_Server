@@ -69,7 +69,9 @@ class MyPageService (
             userId = userId,
             userName = userProfile.name,
             email = authAccount.email,
-            profileImageUrl = userProfile.authFile?.cdnUrl ?: userProfile.defaultProfileImage?.url ?: "",
+            profileImageUrl = userProfile.authFile?.cdnUrl
+                ?: userProfile.defaultProfileImage?.let { fileService.getFileUrl(it.storageKey) }
+                ?: "",
             socialAccounts = socialAccounts,
             teams = teamResponses
         )
