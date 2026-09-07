@@ -203,8 +203,6 @@ class TeamService(
 
         val savedMembership = teamMembershipRepository.save(teamMembership)
 
-        //TODO: 가입 후 currentTeamId를 해당 팀으로 변경할지는 정책 확인 필요
-
         return TeamJoinResponse(
             teamId = team.teamId!!,
             teamPublicId = team.publicId,
