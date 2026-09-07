@@ -245,8 +245,8 @@ class TeamService(
             teamName = team.teamName,
             teamType = team.teamType,
             teamImageUrl = team.teamImageUrl,
-            createdAt = team.createdAt
             establishedOn = team.establishedOn,
+            createdAt = team.createdAt,
         )
     }
 
