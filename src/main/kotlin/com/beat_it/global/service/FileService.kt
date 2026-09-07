@@ -13,6 +13,9 @@ import software.amazon.awssdk.services.s3.model.DeleteObjectRequest
 import software.amazon.awssdk.services.s3.model.DeleteObjectsRequest
 import software.amazon.awssdk.services.s3.model.ObjectIdentifier
 import software.amazon.awssdk.services.s3.model.PutObjectRequest
+import software.amazon.awssdk.services.s3.presigner.S3Presigner
+import software.amazon.awssdk.services.s3.presigner.model.PutObjectPresignRequest
+import java.time.Duration
 import java.util.UUID
 
 data class FileUploadResult(
@@ -21,12 +24,20 @@ data class FileUploadResult(
     val cdnUrl: String
 )
 
+data class PresignedUrlResponse(
+    val presignedUrl: String,
+    val storageKey: String,
+    val cdnUrl: String,
+    val expirationMinutes: Long
+)
+
 @Service
 class FileService(
     private val s3Client: S3Client,
+    private val s3Presigner: S3Presigner,
     @Value("\${cloud.aws.s3.bucket:}")
     private val bucket: String,
-    @Value("\${cloud.aws.region.static:ap-northeast-2}")
+    @Value("\${cloud.aws.region.static}")
     private val region: String
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
@@ -114,6 +125,61 @@ class FileService(
         pathPrefix: String = "common"
     ): List<FileUploadResult> {
         return files.map { uploadFile(it, pathPrefix) }
+    }
+
+    fun generatePresignedUploadUrl(
+        originalFileName: String,
+        directory: FileDirectory = FileDirectory.COMMON,
+        contentType: String? = null,
+        expirationMinutes: Long = 10L
+    ): PresignedUrlResponse {
+        if (originalFileName.isBlank()) {
+            throw BusinessException(ErrorCode.EMPTY_FILE)
+        }
+
+        val extension = originalFileName.substringAfterLast(".", "").lowercase()
+        if (!allowedExtensions.contains(extension)) {
+            log.warn("Invalid file extension for presigned url: $extension (file: $originalFileName)")
+            throw BusinessException(ErrorCode.INVALID_FILE_EXTENSION)
+        }
+
+        val cleanPath = directory.path.trim().trim('/')
+        val sanitizedOriginalName = originalFileName.replace("[^a-zA-Z0-9가-힣._-]".toRegex(), "_")
+        val uniqueFileName = "${UUID.randomUUID()}_$sanitizedOriginalName"
+        val storageKey = if (cleanPath.isBlank()) uniqueFileName else "$cleanPath/$uniqueFileName"
+
+        try {
+            val putObjectRequestBuilder = PutObjectRequest.builder()
+                .bucket(bucket)
+                .key(storageKey)
+
+            if (!contentType.isNullOrBlank()) {
+                putObjectRequestBuilder.contentType(contentType)
+            }
+
+            val putObjectPresignRequest = PutObjectPresignRequest.builder()
+                .signatureDuration(Duration.ofMinutes(expirationMinutes))
+                .putObjectRequest(putObjectRequestBuilder.build())
+                .build()
+
+            val presignedPutObjectRequest = s3Presigner.presignPutObject(putObjectPresignRequest)
+            val presignedUrl = presignedPutObjectRequest.url().toExternalForm()
+            val cdnUrl = "https://$bucket.s3.$region.amazonaws.com/$storageKey"
+
+            log.info("Generated S3 Presigned URL: key=$storageKey, url=$presignedUrl")
+
+            return PresignedUrlResponse(
+                presignedUrl = presignedUrl,
+                storageKey = storageKey,
+                cdnUrl = cdnUrl,
+                expirationMinutes = expirationMinutes
+            )
+        } catch (e: BusinessException) {
+            throw e
+        } catch (e: Exception) {
+            log.error("Failed to generate presigned upload url: originalFileName=$originalFileName", e)
+            throw BusinessException(ErrorCode.FILE_UPLOAD_FAILED)
+        }
     }
 
     fun deleteFile(storageKey: String) {
