@@ -11,6 +11,8 @@ import software.amazon.awssdk.services.s3.S3Client
 import software.amazon.awssdk.services.s3.model.Delete
 import software.amazon.awssdk.services.s3.model.DeleteObjectRequest
 import software.amazon.awssdk.services.s3.model.DeleteObjectsRequest
+import software.amazon.awssdk.services.s3.model.HeadObjectRequest
+import software.amazon.awssdk.services.s3.model.NoSuchKeyException
 import software.amazon.awssdk.services.s3.model.ObjectIdentifier
 import software.amazon.awssdk.services.s3.model.PutObjectRequest
 import software.amazon.awssdk.services.s3.presigner.S3Presigner
@@ -35,7 +37,7 @@ data class PresignedUrlResponse(
 class FileService(
     private val s3Client: S3Client,
     private val s3Presigner: S3Presigner,
-    @Value("\${cloud.aws.s3.bucket:}")
+    @Value("\${cloud.aws.s3.bucket}")
     private val bucket: String,
     @Value("\${cloud.aws.region.static}")
     private val region: String
@@ -49,6 +51,77 @@ class FileService(
         "pdf", "zip", "hwp", "docx"
     )
     val maxFileSize = 50 * 1024 * 1024L // 50MB
+
+    /**
+     * file(직접 업로드) 또는 storageKey(Presigned URL로 사전 업로드) 중 하나를 받아 FileUploadResult 생성
+     */
+    fun resolveFile(
+        file: MultipartFile?,
+        storageKey: String?,
+        directory: FileDirectory,
+        originalFileName: String? = null
+    ): FileUploadResult? {
+        val hasFile = file != null && !file.isEmpty
+        val hasKey = !storageKey.isNullOrBlank()
+
+        if (!hasFile && !hasKey) {
+            return null
+        }
+
+        if (hasFile && hasKey) {
+            throw BusinessException(ErrorCode.INVALID_INPUT_VALUE)
+        }
+
+        if (hasKey) {
+            val key = storageKey!!.trim()
+            val resolvedOriginalName = originalFileName?.takeIf { it.isNotBlank() }
+                ?: key.substringAfterLast("/").substringAfter("_")
+            val cdnUrl = "https://$bucket.s3.$region.amazonaws.com/$key"
+
+            return FileUploadResult(
+                originalFileName = resolvedOriginalName,
+                storageKey = key,
+                cdnUrl = cdnUrl
+            )
+        }
+
+        return uploadFile(file!!, directory)
+    }
+
+    /**
+     * 다중 파일 및 다중 storageKey를 모두 취합하여 List<FileUploadResult> 생성
+     */
+    fun resolveFiles(
+        files: List<MultipartFile>?,
+        storageKeys: List<String>?,
+        directory: FileDirectory
+    ): List<FileUploadResult> {
+        val results = mutableListOf<FileUploadResult>()
+
+        if (!files.isNullOrEmpty()) {
+            val validFiles = files.filter { !it.isEmpty }
+            if (validFiles.isNotEmpty()) {
+                results.addAll(uploadFiles(validFiles, directory))
+            }
+        }
+
+        if (!storageKeys.isNullOrEmpty()) {
+            val validKeys = storageKeys.filter { it.isNotBlank() }.map { it.trim() }
+            for (key in validKeys) {
+                val resolvedOriginalName = key.substringAfterLast("/").substringAfter("_")
+                val cdnUrl = "https://$bucket.s3.$region.amazonaws.com/$key"
+                results.add(
+                    FileUploadResult(
+                        originalFileName = resolvedOriginalName,
+                        storageKey = key,
+                        cdnUrl = cdnUrl
+                    )
+                )
+            }
+        }
+
+        return results
+    }
 
     fun uploadFile(
         file: MultipartFile,
@@ -130,8 +203,7 @@ class FileService(
     fun generatePresignedUploadUrl(
         originalFileName: String,
         directory: FileDirectory = FileDirectory.COMMON,
-        contentType: String? = null,
-        expirationMinutes: Long = 10L
+        contentType: String? = null
     ): PresignedUrlResponse {
         if (originalFileName.isBlank()) {
             throw BusinessException(ErrorCode.EMPTY_FILE)
@@ -148,25 +220,31 @@ class FileService(
         val uniqueFileName = "${UUID.randomUUID()}_$sanitizedOriginalName"
         val storageKey = if (cleanPath.isBlank()) uniqueFileName else "$cleanPath/$uniqueFileName"
 
+        // 확장자 기반 Content-Type 자동 감지 (직접 전달된 값이 없으면 자동 유추)
+        val resolvedContentType = contentType?.takeIf { it.isNotBlank() }
+            ?: org.springframework.http.MediaTypeFactory.getMediaType(originalFileName)
+                .map { it.toString() }
+                .orElse("application/octet-stream")
+
+        val expirationMinutes = 10L
+
         try {
-            val putObjectRequestBuilder = PutObjectRequest.builder()
+            val putObjectRequest = PutObjectRequest.builder()
                 .bucket(bucket)
                 .key(storageKey)
-
-            if (!contentType.isNullOrBlank()) {
-                putObjectRequestBuilder.contentType(contentType)
-            }
+                .contentType(resolvedContentType)
+                .build()
 
             val putObjectPresignRequest = PutObjectPresignRequest.builder()
                 .signatureDuration(Duration.ofMinutes(expirationMinutes))
-                .putObjectRequest(putObjectRequestBuilder.build())
+                .putObjectRequest(putObjectRequest)
                 .build()
 
             val presignedPutObjectRequest = s3Presigner.presignPutObject(putObjectPresignRequest)
             val presignedUrl = presignedPutObjectRequest.url().toExternalForm()
             val cdnUrl = "https://$bucket.s3.$region.amazonaws.com/$storageKey"
 
-            log.info("Generated S3 Presigned URL: key=$storageKey, url=$presignedUrl")
+            log.info("Generated S3 Presigned URL: key=$storageKey, contentType=$resolvedContentType, url=$presignedUrl")
 
             return PresignedUrlResponse(
                 presignedUrl = presignedUrl,

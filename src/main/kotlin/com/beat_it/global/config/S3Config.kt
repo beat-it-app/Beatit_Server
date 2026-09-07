@@ -11,10 +11,10 @@ import software.amazon.awssdk.services.s3.presigner.S3Presigner
 
 @Configuration
 class S3Config(
-    @Value("\${cloud.aws.credentials.access-key:}")
+    @Value("\${cloud.aws.credentials.access-key}")
     private val accessKey: String,
 
-    @Value("\${cloud.aws.credentials.secret-key:}")
+    @Value("\${cloud.aws.credentials.secret-key}")
     private val secretKey: String,
 
     @Value("\${cloud.aws.region.static}")

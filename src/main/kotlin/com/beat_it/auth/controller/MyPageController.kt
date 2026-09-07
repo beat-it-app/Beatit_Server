@@ -58,11 +58,12 @@ class MyPageController (
     fun updateProfileImage(
         @AuthenticationPrincipal userDetails: UserDetails,
         @RequestPart(value = "image", required = false) image: MultipartFile?,
+        @RequestParam(value = "storageKey", required = false) storageKey: String?,
         @RequestParam(value = "defaultImageId", required = false) defaultImageId: Int?
     ): ResponseEntity<BasicResponse<Nothing>> {
         val userId = extractUserId(userDetails)
 
-        myPageService.updateProfileImage(userId, image, defaultImageId)
+        myPageService.updateProfileImage(userId, image, storageKey, defaultImageId)
 
         return ResponseEntity.ok(
             BasicResponse.success(HttpStatus.OK, "프로필 이미지 변경에 성공했습니다.")

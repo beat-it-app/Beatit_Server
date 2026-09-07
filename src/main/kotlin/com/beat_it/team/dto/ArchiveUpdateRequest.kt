@@ -12,4 +12,6 @@ data class ArchiveUpdateRequest(
     val placeName: String? = null,
     val locationId: Long? = null,
     val description: String? = null,
+    val storageKey: String? = null
 )
+

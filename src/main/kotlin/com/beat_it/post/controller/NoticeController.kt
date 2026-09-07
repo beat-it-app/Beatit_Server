@@ -54,13 +54,14 @@ class NoticeController (
         @RequestParam title: String,
         @Parameter(description = "공지 본문", example = "((합주실 깨끗.하게 쓰세요!))")
         @RequestParam content: String,
-        @RequestPart(value = "images", required = false) images: List<MultipartFile>?
+        @RequestPart(value = "images", required = false) images: List<MultipartFile>?,
+        @RequestParam(value = "storageKeys", required = false) storageKeys: List<String>?
     ): ResponseEntity<BasicResponse<Nothing>> {
         val userId = userDetails.username.toLongOrNull()
             ?: throw BusinessException(ErrorCode.UNAUTHORIZED)
 
         val dto = NoticeRequest(title = title, content = content)
-        noticeService.createNotice(userId, dto, images)
+        noticeService.createNotice(userId, dto, images, storageKeys)
 
         return ResponseEntity
             .status(HttpStatus.CREATED)
@@ -92,13 +93,14 @@ class NoticeController (
         @RequestParam title: String,
         @Parameter(description = "공지 본문", example = "수정된 내용입니다.")
         @RequestParam content: String,
-        @RequestPart(value = "images", required = false) images: List<MultipartFile>?
+        @RequestPart(value = "images", required = false) images: List<MultipartFile>?,
+        @RequestParam(value = "storageKeys", required = false) storageKeys: List<String>?
     ): ResponseEntity<BasicResponse<Nothing>> {
         val userId = userDetails.username.toLongOrNull()
             ?: throw BusinessException(ErrorCode.UNAUTHORIZED)
 
         val dto = NoticeRequest(title = title, content = content)
-        noticeService.editNotice(userId, noticeId, dto, images)
+        noticeService.editNotice(userId, noticeId, dto, images, storageKeys)
 
         return ResponseEntity
             .status(HttpStatus.OK)

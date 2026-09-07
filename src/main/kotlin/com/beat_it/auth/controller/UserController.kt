@@ -28,12 +28,13 @@ class UserController (
         @AuthenticationPrincipal userDetails: UserDetails,
         @Parameter(description = "프로필 이름", example = "김빗잇") @RequestParam("name") name: String,
         @RequestPart(value = "profileImage", required = false) profileImage: MultipartFile?,
+        @RequestParam(value = "storageKey", required = false) storageKey: String?,
         @RequestParam(value = "defaultImageId", required = false) defaultImageId: Int?
     ): ResponseEntity<BasicResponse<Nothing>> {
         val userId = userDetails.username.toLongOrNull()
             ?: throw BusinessException(ErrorCode.UNAUTHORIZED)
 
-        userService.createProfile(userId, name, profileImage, defaultImageId)
+        userService.createProfile(userId, name, profileImage, storageKey, defaultImageId)
 
         return ResponseEntity
             .status(HttpStatus.CREATED)

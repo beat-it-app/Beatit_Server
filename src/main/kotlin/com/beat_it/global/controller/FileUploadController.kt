@@ -34,15 +34,11 @@ class FileUploadController(
     @GetMapping("/presigned-url")
     fun getPresignedUploadUrl(
         @RequestParam originalFileName: String,
-        @RequestParam(defaultValue = "COMMON") directory: FileDirectory,
-        @RequestParam(required = false) contentType: String?,
-        @RequestParam(defaultValue = "10") expirationMinutes: Long
+        @RequestParam(defaultValue = "COMMON") directory: FileDirectory
     ): ResponseEntity<BasicResponse<PresignedUrlResponse>> {
         val result = fileService.generatePresignedUploadUrl(
             originalFileName = originalFileName,
-            directory = directory,
-            contentType = contentType,
-            expirationMinutes = expirationMinutes
+            directory = directory
         )
         return ResponseEntity
             .status(HttpStatus.OK)
