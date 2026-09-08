@@ -13,5 +13,7 @@ interface ArchiveCommentsRepository : JpaRepository<ArchiveComments, Long> {
         archiveId: Long,
     ): ArchiveComments?
 
+    fun findByParentCommentId(parentCommentId: Long): List<ArchiveComments>
+
     fun deleteByArchiveArchiveId(archiveId: Long): Int
 }

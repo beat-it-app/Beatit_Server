@@ -10,6 +10,7 @@ import jakarta.persistence.Id
 import jakarta.persistence.JoinColumn
 import jakarta.persistence.ManyToOne
 import jakarta.persistence.Table
+import kotlin.math.round
 
 @Entity
 @Table(name = "archives")
@@ -41,15 +42,18 @@ class Archives(
     @Column(name = "archive_image_url", nullable = true)
     var archiveImageUrl: String? = null,
 
-    @Column(name = "rating_sum", nullable = false)
-    var ratingSum: Int = 0,
+    @Column(name = "average_rating", nullable = false)
+    var averageRating: Double = 0.0,
 
     @Column(name = "rating_count", nullable = false)
     var ratingCount: Int = 0,
 
     @Column(name = "comment_count", nullable = false)
     var commentCount: Int = 0,
-): BaseUpdatedTimeEntity() {
+
+    @Column(name = "top_archive", nullable = false)
+    var topArchive: Boolean = false,
+) : BaseUpdatedTimeEntity() {
 
     fun updateArchive(
         title: String?,
@@ -67,30 +71,27 @@ class Archives(
         this.archiveImageUrl = archiveImageUrl
     }
 
-    fun addRating(score: Int) {
-        ratingSum += score
+    fun increaseRatingCount() {
         ratingCount++
     }
 
-    fun updateRating(previousScore: Int, newScore: Int) {
-        ratingSum += newScore - previousScore
+    fun updateAverageRating(averageRating: Double) {
+        this.averageRating = averageRating
     }
 
-    fun calculateAverageRating(): Double {
-        if (ratingCount == 0) {
-            return 0.0
-        }
+    fun roundedAverageRating(): Double {
+        return round(averageRating * 10) / 10.0
+    }
 
-        return Math.round((ratingSum.toDouble() / ratingCount) * 10) / 10.0
+    fun updateTopArchive(topArchive: Boolean) {
+        this.topArchive = topArchive
     }
 
     fun increaseComment() {
         commentCount++
     }
 
-    fun decreaseComment() {
-        if (commentCount > 0) {
-            commentCount--
-        }
+    fun decreaseComment(count: Int = 1) {
+        commentCount = (commentCount - count).coerceAtLeast(0)
     }
 }

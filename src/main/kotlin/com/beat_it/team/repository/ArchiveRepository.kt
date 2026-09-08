@@ -17,13 +17,15 @@ interface ArchiveRepository : JpaRepository<Archives, Long> {
         pageable: Pageable,
     ): Page<Archives>
 
+    fun findAllByTeamTeamId(teamId: Long): List<Archives>
+
     @Query(
         value = """
             SELECT a
             FROM Archives a
             WHERE a.team.teamId = :teamId
             ORDER BY CASE WHEN a.ratingCount = 0 THEN 1 ELSE 0 END ASC,
-                     CASE WHEN a.ratingCount = 0 THEN 0.0 ELSE (a.ratingSum * 1.0 / a.ratingCount) END DESC,
+                     a.averageRating DESC,
                      a.ratingCount DESC,
                      a.createdAt DESC,
                      a.archiveId DESC
@@ -45,7 +47,7 @@ interface ArchiveRepository : JpaRepository<Archives, Long> {
             FROM Archives a
             WHERE a.team.teamId = :teamId
             ORDER BY CASE WHEN a.ratingCount = 0 THEN 1 ELSE 0 END ASC,
-                     CASE WHEN a.ratingCount = 0 THEN 0.0 ELSE (a.ratingSum * 1.0 / a.ratingCount) END ASC,
+                     a.averageRating ASC,
                      a.ratingCount DESC,
                      a.createdAt DESC,
                      a.archiveId DESC
@@ -60,21 +62,4 @@ interface ArchiveRepository : JpaRepository<Archives, Long> {
         @Param("teamId") teamId: Long,
         pageable: Pageable,
     ): Page<Archives>
-
-    @Query(
-        """
-        SELECT a.archiveId
-        FROM Archives a
-        WHERE a.team.teamId = :teamId
-          AND a.ratingCount > 0
-        ORDER BY (a.ratingSum * 1.0 / a.ratingCount) DESC,
-                 a.ratingCount DESC,
-                 a.createdAt DESC,
-                 a.archiveId DESC
-        """
-    )
-    fun findTopRatedArchiveIdsByTeamId(
-        @Param("teamId") teamId: Long,
-        pageable: Pageable,
-    ): List<Long>
 }

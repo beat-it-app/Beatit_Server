@@ -29,17 +29,22 @@ class ArchiveComments(
     @Column(name = "content", nullable = false, length = 1000)
     var content: String,
 
+    @Column(name = "parent_comment_id", nullable = true)
+    val parentCommentId: Long? = null,
+
 ) : BaseCreatedTimeEntity() {
     companion object {
         fun create(
             archive: Archives,
             userId: Long,
             content: String,
+            parentCommentId: Long? = null,
         ): ArchiveComments {
             return ArchiveComments(
                 archive = archive,
                 userId = userId,
                 content = content,
+                parentCommentId = parentCommentId,
             )
         }
     }

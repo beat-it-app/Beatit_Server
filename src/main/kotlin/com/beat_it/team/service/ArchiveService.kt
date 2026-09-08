@@ -5,19 +5,19 @@ import com.beat_it.auth.service.UserService
 import com.beat_it.global.error.BusinessException
 import com.beat_it.global.error.ErrorCode
 import com.beat_it.location.service.LocationsService
-import com.beat_it.post.dto.CommentResponse
-import com.beat_it.global.service.FileService
 import com.beat_it.team.dto.*
+import com.beat_it.team.entity.ArchiveCommentMentions
 import com.beat_it.team.entity.ArchiveComments
 import com.beat_it.team.entity.ArchiveRatings
 import com.beat_it.team.entity.Archives
 import com.beat_it.team.entity.ArchivesFiles
 import com.beat_it.team.entity.Teams
-import com.beat_it.team.entity.enum.ArchiveSortType
+import com.beat_it.team.repository.ArchiveCommentMentionRepository
 import com.beat_it.team.repository.ArchiveCommentsRepository
 import com.beat_it.team.repository.ArchiveRatingsRepository
 import com.beat_it.team.repository.ArchiveRepository
 import com.beat_it.team.repository.ArchivesFilesRepository
+import com.beat_it.team.repository.TeamMembershipRepository
 import org.springframework.data.domain.PageRequest
 import org.springframework.data.domain.Sort
 import org.springframework.stereotype.Service
@@ -28,12 +28,16 @@ import org.springframework.web.multipart.MultipartFile
 class ArchiveService(
     private val archiveRepository: ArchiveRepository,
     private val archiveCommentsRepository: ArchiveCommentsRepository,
+    private val archiveCommentMentionRepository: ArchiveCommentMentionRepository,
     private val archiveRatingsRepository: ArchiveRatingsRepository,
     private val userService: UserService,
     private val teamService: TeamService,
     private val locationsService: LocationsService,
     private val archivesFilesRepository: ArchivesFilesRepository,
+    private val teamMembershipRepository: TeamMembershipRepository,
 ) {
+
+    private val mentionRegex = Regex("""@\{([^}]+)\}|@([a-zA-Z0-9가-힣_]+)""")
 
     @Transactional
     fun createArchive(
@@ -57,9 +61,10 @@ class ArchiveService(
             locationId = location.locationId,
             description = request.description,
             archiveImageUrl = null,
-            ratingSum = 0,
+            averageRating = 0.0,
             ratingCount = 0,
             commentCount = 0,
+            topArchive = false,
         )
 
         val savedArchive = archiveRepository.save(archive)
@@ -87,15 +92,15 @@ class ArchiveService(
     @Transactional(readOnly = true)
     fun getTeamArchives(
         userId: Long,
-        sort: ArchiveSortType = ArchiveSortType.LATEST,
+        sort: String = "LATEST",
         page: Int = 0,
         size: Int = 10,
     ): ArchiveListResponse {
         val team = findCurrentTeamForArchiveOrThrow(userId)
         val teamId = team.teamId!!
 
-        val archivesPage = when (sort) {
-            ArchiveSortType.LATEST -> {
+        val archivesPage = when (sort.uppercase()) {
+            "LATEST" -> {
                 val pageRequest = PageRequest.of(
                     page,
                     size,
@@ -105,31 +110,29 @@ class ArchiveService(
                 archiveRepository.findAllByTeamTeamId(teamId, pageRequest)
             }
 
-            ArchiveSortType.RATING_DESC -> {
+            "RATING_DESC" -> {
                 archiveRepository.findAllByTeamTeamIdOrderByRatingDesc(
                     teamId = teamId,
                     pageable = PageRequest.of(page, size),
                 )
             }
 
-            ArchiveSortType.RATING_ASC -> {
+            "RATING_ASC" -> {
                 archiveRepository.findAllByTeamTeamIdOrderByRatingAsc(
                     teamId = teamId,
                     pageable = PageRequest.of(page, size),
                 )
             }
+
+            else -> throw BusinessException(ErrorCode.INVALID_INPUT_VALUE)
         }
+
         val archives = archivesPage.content.map { archive ->
             archive.toListItemResponse(teamId)
         }
 
-        val topArchiveId = archiveRepository
-            .findTopRatedArchiveIdsByTeamId(teamId, PageRequest.of(0, 1))
-            .firstOrNull()
-
         return ArchiveListResponse(
             archives = archives,
-            topArchiveId = topArchiveId,
             totalCount = archivesPage.totalElements.toInt(),
             hasNext = archivesPage.hasNext(),
         )
@@ -142,12 +145,9 @@ class ArchiveService(
             writerId = writerId,
             title = title,
             roadAddress = roadAddress,
-            locationId = locationId,
             archiveImageUrl = archiveImageUrl,
-            averageRating = calculateAverageRating(),
-            ratingCount = ratingCount,
+            averageRating = roundedAverageRating(),
             commentCount = commentCount,
-            createdAt = createdAt,
         )
     }
 
@@ -183,8 +183,9 @@ class ArchiveService(
             writerName = writerProfile?.name ?: "알 수 없음",
             writerProfileImageUrl = writerProfile?.authFile?.cdnUrl,
             isWriter = archive.writerId == userId,
+            topArchive = archive.topArchive,
             rating = ArchiveRatingResponse(
-                averageRating = archive.calculateAverageRating(),
+                averageRating = archive.roundedAverageRating(),
                 ratingCount = archive.ratingCount,
                 myRating = myRating?.score,
             ),
@@ -249,12 +250,15 @@ class ArchiveService(
     fun deleteArchive(userId: Long, archiveId: Long) {
         val archive = findAccessibleArchiveOrThrow(userId, archiveId)
         validateArchiveDeletePermission(userId, archive)
+        val teamId = archive.team.teamId!!
 
-        archiveCommentsRepository.deleteByArchiveArchiveId(archiveId)
+        deleteCommentsByArchive(archiveId)
         archiveRatingsRepository.deleteByArchiveArchiveId(archiveId)
         archivesFilesRepository.deleteAllByArchiveArchiveId(archiveId)
 
         archiveRepository.delete(archive)
+        archiveRepository.flush()
+        refreshTopArchives(teamId)
     }
 
     @Transactional
@@ -270,24 +274,28 @@ class ArchiveService(
             .findByArchiveArchiveIdAndUserId(archiveId, userId)
 
         if (existingRating == null) {
-            archiveRatingsRepository.save(
+            archiveRatingsRepository.saveAndFlush(
                 ArchiveRatings(
                     archive = archive,
                     userId = userId,
                     score = rating,
                 )
             )
-            archive.addRating(rating)
+            archive.increaseRatingCount()
         } else {
-            archive.updateRating(
-                previousScore = existingRating.score,
-                newScore = rating,
-            )
             existingRating.updateScore(rating)
+            archiveRatingsRepository.saveAndFlush(existingRating)
         }
 
+        val averageRating = archiveRatingsRepository
+            .findAverageScoreByArchiveId(archiveId)
+            ?: 0.0
+
+        archive.updateAverageRating(averageRating)
+        refreshTopArchives(archive.team.teamId!!)
+
         return ArchiveRatingResponse(
-            averageRating = archive.calculateAverageRating(),
+            averageRating = archive.roundedAverageRating(),
             ratingCount = archive.ratingCount,
             myRating = rating,
         )
@@ -298,17 +306,36 @@ class ArchiveService(
         userId: Long,
         archiveId: Long,
         comment: String,
+        parentCommentId: Long? = null,
+        mentionedUserIds: List<Long>? = null,
     ) {
         val archive = findAccessibleArchiveOrThrow(userId, archiveId)
         validateComment(comment)
 
-        val comment = ArchiveComments.create(
+        var effectiveParentId: Long? = null
+
+        parentCommentId?.let { requestedParentId ->
+            val parentComment = archiveCommentsRepository
+                .findByArchiveCommentIdAndArchiveArchiveId(requestedParentId, archiveId)
+                ?: throw BusinessException(ErrorCode.ARCHIVE_COMMENT_NOT_FOUND)
+
+            effectiveParentId = parentComment.parentCommentId ?: parentComment.archiveCommentId
+        }
+
+        val archiveComment = ArchiveComments.create(
             archive = archive,
             userId = userId,
             content = comment,
+            parentCommentId = effectiveParentId,
         )
 
-        archiveCommentsRepository.save(comment)
+        val savedComment = archiveCommentsRepository.save(archiveComment)
+        saveMentions(
+            comment = savedComment,
+            teamId = archive.team.teamId!!,
+            content = comment,
+            explicitMentionedUserIds = mentionedUserIds,
+        )
         archive.increaseComment()
     }
 
@@ -329,8 +356,23 @@ class ArchiveService(
             archiveWriterId = archive.writerId,
         )
 
+        var totalDeletedCount = 1
+
+        if (comment.parentCommentId == null) {
+            val childReplies = archiveCommentsRepository.findByParentCommentId(commentId)
+            if (childReplies.isNotEmpty()) {
+                val childReplyIds = childReplies.mapNotNull { reply -> reply.archiveCommentId }
+                if (childReplyIds.isNotEmpty()) {
+                    archiveCommentMentionRepository.deleteByCommentArchiveCommentIdIn(childReplyIds)
+                }
+                archiveCommentsRepository.deleteAll(childReplies)
+                totalDeletedCount += childReplies.size
+            }
+        }
+
+        archiveCommentMentionRepository.deleteByComment(comment)
         archiveCommentsRepository.delete(comment)
-        archive.decreaseComment()
+        archive.decreaseComment(totalDeletedCount)
     }
 
     private fun saveArchiveImages(
@@ -404,18 +446,145 @@ class ArchiveService(
         comments: List<ArchiveComments>,
         archiveWriterId: Long,
         currentUserId: Long,
-    ): List<CommentResponse> {
-        return comments.map { comment ->
-            val writerProfile = userService.getUserProfile(comment.userId)
+    ): List<ArchiveCommentResponse> {
+        if (comments.isEmpty()) {
+            return emptyList()
+        }
 
-            CommentResponse(
+        val commentUserIds = comments.map { comment -> comment.userId }
+        val mentions = archiveCommentMentionRepository.findByCommentIn(comments)
+        val mentionsByCommentId = mentions.groupBy { mention -> mention.comment.archiveCommentId }
+        val mentionedUserIds = mentions.map { mention -> mention.mentionedUserId }
+
+        val allUserIds = (commentUserIds + mentionedUserIds).distinct()
+        val userProfilesMap = userService.getUserProfiles(allUserIds)
+            .associateBy { profile -> profile.userId }
+
+        val allCommentResponses = comments.map { comment ->
+            val writerProfile = userProfilesMap[comment.userId]
+            val commentMentions = mentionsByCommentId[comment.archiveCommentId] ?: emptyList()
+            val mentionedUserResponses = commentMentions.map { mention ->
+                val mentionedProfile = userProfilesMap[mention.mentionedUserId]
+                ArchiveMentionUserResponse(
+                    userId = mention.mentionedUserId,
+                    name = mentionedProfile?.name ?: mention.mentionedName,
+                    profileImageUrl = mentionedProfile?.profileImageUrl,
+                )
+            }
+
+            ArchiveCommentResponse(
                 commentId = comment.archiveCommentId!!,
+                parentCommentId = comment.parentCommentId,
                 writerName = writerProfile?.name ?: "알 수 없음",
                 content = comment.content,
                 createdAt = comment.createdAt,
-                profileImageUrl = writerProfile?.authFile?.cdnUrl,
+                profileImageUrl = writerProfile?.profileImageUrl,
                 isWriter = comment.userId == archiveWriterId,
                 isMine = comment.userId == currentUserId,
+                mentionedUsers = mentionedUserResponses,
+                replies = emptyList(),
+            )
+        }
+
+        val (rootComments, replyComments) = allCommentResponses.partition { response ->
+            response.parentCommentId == null
+        }
+        val repliesByParentId = replyComments.groupBy { response -> response.parentCommentId }
+
+        return rootComments.map { root ->
+            root.copy(replies = repliesByParentId[root.commentId] ?: emptyList())
+        }
+    }
+
+    private fun saveMentions(
+        comment: ArchiveComments,
+        teamId: Long,
+        content: String,
+        explicitMentionedUserIds: List<Long>?,
+    ) {
+        val activeMembers = teamMembershipRepository.findAllByTeamTeamIdAndLeftAtIsNull(teamId)
+        if (activeMembers.isEmpty()) {
+            return
+        }
+
+        val activeMemberUserIds = activeMembers.map { membership -> membership.userId }.toSet()
+        val memberProfiles = userService.getUserProfiles(activeMemberUserIds.toList())
+        val profileByName = memberProfiles.associateBy { profile -> profile.name }
+        val profileById = memberProfiles.associateBy { profile -> profile.userId }
+
+        val mentionsToSave = mutableListOf<ArchiveCommentMentions>()
+        val alreadyMentionedUserIds = mutableSetOf<Long>()
+
+        explicitMentionedUserIds?.distinct()?.forEach { mentionedUserId ->
+            if (mentionedUserId in activeMemberUserIds) {
+                profileById[mentionedUserId]?.let { profile ->
+                    mentionsToSave.add(
+                        ArchiveCommentMentions.create(
+                            comment = comment,
+                            mentionedUserId = profile.userId,
+                            mentionedName = profile.name,
+                        )
+                    )
+                    alreadyMentionedUserIds.add(profile.userId)
+                }
+            }
+        }
+
+        extractMentionNames(content).forEach { name ->
+            profileByName[name]?.let { profile ->
+                if (profile.userId !in alreadyMentionedUserIds) {
+                    mentionsToSave.add(
+                        ArchiveCommentMentions.create(
+                            comment = comment,
+                            mentionedUserId = profile.userId,
+                            mentionedName = profile.name,
+                        )
+                    )
+                    alreadyMentionedUserIds.add(profile.userId)
+                }
+            }
+        }
+
+        if (mentionsToSave.isNotEmpty()) {
+            archiveCommentMentionRepository.saveAll(mentionsToSave)
+        }
+    }
+
+    private fun extractMentionNames(content: String): List<String> {
+        return mentionRegex.findAll(content)
+            .mapNotNull { match ->
+                (match.groups[1]?.value ?: match.groups[2]?.value)
+                    ?.trim()
+                    ?.takeIf { name -> name.isNotBlank() }
+            }
+            .distinct()
+            .toList()
+    }
+
+    private fun deleteCommentsByArchive(archiveId: Long) {
+        val comments = archiveCommentsRepository.findAllByArchiveArchiveIdOrderByCreatedAtAsc(archiveId)
+        if (comments.isEmpty()) {
+            return
+        }
+
+        val commentIds = comments.mapNotNull { comment -> comment.archiveCommentId }
+        if (commentIds.isNotEmpty()) {
+            archiveCommentMentionRepository.deleteByCommentArchiveCommentIdIn(commentIds)
+        }
+        archiveCommentsRepository.deleteByArchiveArchiveId(archiveId)
+    }
+
+    private fun refreshTopArchives(teamId: Long) {
+        val archives = archiveRepository.findAllByTeamTeamId(teamId)
+        val maxAverageRating = archives
+            .filter { archive -> archive.ratingCount > 0 }
+            .maxOfOrNull { archive -> archive.averageRating }
+
+        archives.forEach { archive ->
+            archive.updateTopArchive(
+                topArchive = maxAverageRating != null &&
+                        archive.ratingCount > 0 &&
+                        archive.averageRating == maxAverageRating,
             )
         }
     }
@@ -436,7 +605,7 @@ class ArchiveService(
             ?: throw BusinessException(ErrorCode.ARCHIVE_NOT_FOUND)
     }
 
-    private fun findCurrentTeamForArchiveOrThrow(userId: Long) : Teams {
+    private fun findCurrentTeamForArchiveOrThrow(userId: Long): Teams {
         userService.validateUserExists(userId)
 
         val teamId = userService.getCurrentTeamId(userId)

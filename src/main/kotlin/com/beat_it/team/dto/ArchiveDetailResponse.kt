@@ -1,8 +1,6 @@
 package com.beat_it.team.dto
 
-import com.beat_it.post.dto.CommentResponse
 import java.time.OffsetDateTime
-
 
 data class ArchiveDetailResponse(
     val archiveId: Long,
@@ -16,9 +14,16 @@ data class ArchiveDetailResponse(
     val writerName: String,
     val writerProfileImageUrl: String?,
     val isWriter: Boolean,
+    val topArchive: Boolean,
     val rating: ArchiveRatingResponse,
     val commentCount: Int,
-    val commentList: List<CommentResponse>,
+    val commentList: List<ArchiveCommentResponse>,
     val createdAt: OffsetDateTime,
     val updatedAt: OffsetDateTime,
+)
+
+data class ArchiveRatingResponse(
+    val averageRating: Double,
+    val ratingCount: Int,
+    val myRating: Int?,
 )
