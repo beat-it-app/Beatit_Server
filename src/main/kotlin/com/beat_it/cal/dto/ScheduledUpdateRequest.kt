@@ -17,7 +17,7 @@ data class ScheduleUpdateRequest(
     val endsAt: OffsetDateTime?,
     val participantUserIds: List<Long>?,
     val musics: List<MusicRequest>?,
-    val retainMusicIds: List<Long>?,
+    val retainMusicIds: List<Long>? = null,
     val files: List<MultipartFile>? = null,
     val retainFileIds: List<Long>? = null
 )

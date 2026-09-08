@@ -168,7 +168,12 @@ class NoticeService(
     }
 
     @Transactional
-    fun editNotice(userId: Long, noticeId: Long, dto: NoticeRequest, images: List<MultipartFile>?) {
+    fun editNotice(
+        userId: Long,
+        noticeId: Long,
+        dto: NoticeRequest,
+        images: List<MultipartFile>?
+    ) {
         validateTitleAndContent(dto.title, dto.content)
         val teamId = userService.getCurrentTeamId(userId)
 
@@ -212,16 +217,25 @@ class NoticeService(
         validateTeam(notice, teamId)
         validateWriter(notice, userId)
 
-        val existingAttachments = noticeAttachmentsRepository.findByNoticeNoticeIdOrderByDisplayOrderAsc(noticeId)
-        deleteNoticeAttachments(existingAttachments, noticeId)
+        val attachments = noticeAttachmentsRepository.findByNoticeNoticeIdOrderByDisplayOrderAsc(noticeId)
+        deleteNoticeAttachments(attachments, noticeId)
 
         noticeReactionRepository.deleteByNoticeNoticeId(noticeId)
         commentService.deleteCommentsByPost(PostType.NOTICE, noticeId)
         noticeRepository.delete(notice)
     }
 
-    private fun uploadAndSavePostFiles(userId: Long, images: List<MultipartFile>?): List<PostFiles> {
-        val uploadedFiles = images?.let { fileService.uploadFiles(it, "notice") } ?: emptyList()
+    private fun uploadAndSavePostFiles(
+        userId: Long,
+        images: List<MultipartFile>?
+    ): List<PostFiles> {
+        val validImages = images?.filter { !it.isEmpty } ?: emptyList()
+        val uploadedFiles = if (validImages.isNotEmpty()) {
+            fileService.uploadFiles(validImages, com.beat_it.global.service.FileDirectory.NOTICE)
+        } else {
+            emptyList()
+        }
+
         return uploadedFiles.map { result ->
             val postFile = PostFiles(
                 userId = userId,
@@ -251,6 +265,11 @@ class NoticeService(
     }
 
     private fun deleteNoticeAttachments(attachments: List<NoticeAttachments>, noticeId: Long) {
+        val storageKeys = attachments.map { it.postFile.storageKey }.filter { it.isNotBlank() }
+        if (storageKeys.isNotEmpty()) {
+            fileService.deleteFiles(storageKeys)
+        }
+
         attachments.forEach { attachment ->
             attachment.postFile.delete()
             postFilesRepository.save(attachment.postFile)

@@ -148,6 +148,12 @@ class ArchiveService(
         validateArchiveBelongsToCurrentTeam(team, archive)
         validateArchiveDeletePermission(userId, archive)
 
+        val files = archivesFilesRepository.findAllByArchiveArchiveId(archiveId)
+        val storageKeys = files.map { it.storageKey }.filter { it.isNotBlank() && !it.startsWith("default/") }
+        if (storageKeys.isNotEmpty()) {
+            fileService.deleteFiles(storageKeys)
+        }
+
         archiveCommentsRepository.deleteByArchiveArchiveId(archiveId)
         archiveReactionsRepository.deleteByArchiveArchiveId(archiveId)
         archivesFilesRepository.deleteAllByArchiveArchiveId(archiveId)
@@ -161,13 +167,17 @@ class ArchiveService(
         archiveImage: MultipartFile?,
     ): ArchivesFiles {
         val archiveFile = if (archiveImage != null && !archiveImage.isEmpty) {
-            // TODO : S3 연동 전 임시 처리. S3 붙으면 fileService.uploadFiles 로직으로 교체.
+            val uploadResult = fileService.uploadFile(
+                file = archiveImage,
+                directory = com.beat_it.global.service.FileDirectory.TEAM
+            )
+
             ArchivesFiles(
                 archive = archive,
                 userId = userId,
-                originalFileName = archiveImage.originalFilename ?: "archive-image.jpg",
-                storageKey = "dummy/path/archive-image.jpg",
-                cdnUrl = "https://example.com/default-archive-image.jpg",
+                originalFileName = uploadResult.originalFileName,
+                storageKey = uploadResult.storageKey,
+                cdnUrl = uploadResult.cdnUrl,
                 mimeType = archiveImage.contentType,
                 mediaCategory = MediaCategory.IMAGE,
                 fileSizeBytes = archiveImage.size,
@@ -178,7 +188,7 @@ class ArchiveService(
                 archive = archive,
                 userId = userId,
                 originalFileName = "default-archive.jpg",
-                storageKey = "dummy/path/default-archive.jpg",
+                storageKey = "default/default-archive.jpg",
                 cdnUrl = "https://example.com/default-archive-image.jpg",
                 mimeType = "image/jpeg",
                 mediaCategory = MediaCategory.IMAGE,
@@ -197,6 +207,12 @@ class ArchiveService(
     ) {
         if (archiveImage == null || archiveImage.isEmpty) {
             return
+        }
+
+        val oldFiles = archivesFilesRepository.findAllByArchiveArchiveId(archive.archiveId!!)
+        val storageKeys = oldFiles.map { it.storageKey }.filter { it.isNotBlank() && !it.startsWith("default/") }
+        if (storageKeys.isNotEmpty()) {
+            fileService.deleteFiles(storageKeys)
         }
 
         archivesFilesRepository.deleteAllByArchiveArchiveId(archive.archiveId!!)

@@ -69,7 +69,9 @@ class MyPageService (
             userId = userId,
             userName = userProfile.name,
             email = authAccount.email,
-            profileImageUrl = userProfile.authFile?.cdnUrl ?: userProfile.defaultProfileImage?.url ?: "",
+            profileImageUrl = userProfile.authFile?.cdnUrl
+                ?: userProfile.defaultProfileImage?.let { fileService.getFileUrl(it.storageKey) }
+                ?: "",
             socialAccounts = socialAccounts,
             teams = teamResponses
         )
@@ -92,7 +94,11 @@ class MyPageService (
     }
 
     @Transactional
-    fun updateProfileImage(userId: Long, image: MultipartFile?, defaultImageId: Int?) {
+    fun updateProfileImage(
+        userId: Long,
+        image: MultipartFile?,
+        defaultImageId: Int?
+    ) {
         val hasImage = image != null && !image.isEmpty
         val hasDefaultId = defaultImageId != null
 
@@ -112,7 +118,10 @@ class MyPageService (
         }
 
         if (hasImage) {
-            val uploadResult = fileService.uploadFile(image!!, "profiles/$userId")
+            val uploadResult = fileService.uploadFile(
+                file = image!!,
+                directory = com.beat_it.global.service.FileDirectory.PROFILE
+            )
 
             val newAuthFile = AuthFiles(
                 user = user,
@@ -120,7 +129,7 @@ class MyPageService (
                 storageKey = uploadResult.storageKey,
                 cdnUrl = uploadResult.cdnUrl,
                 mediaCategory = MediaCategory.IMAGE,
-                fileSizeBytes = image.size,
+                fileSizeBytes = image?.size,
                 isPublic = true
             )
             val savedAuthFile = authFilesRepository.save(newAuthFile)
