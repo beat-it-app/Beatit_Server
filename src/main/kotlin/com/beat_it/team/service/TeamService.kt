@@ -49,8 +49,6 @@ class TeamService(
 
         teamMembershipRepository.save(leaderTeamMemberships)
 
-        userService.updateCurrentTeamId(userId, savedTeam.teamId!!)
-
         return TeamCreateResponse(
             teamId = savedTeam.teamId!!,
             teamPublicId = savedTeam.publicId,
@@ -150,7 +148,8 @@ class TeamService(
 
     @Transactional(readOnly = true)
     fun getTeamDetail(userId: Long): TeamDetailResponse? {
-        val teamId = userService.getCurrentTeamId(userId)
+        val teamId = userService.getCurrentTeamIdOrNull(userId)
+            ?: return null
         val team = findTeamForCommandOrThrow(teamId)
 
         validateTeamMember(teamId, userId)
