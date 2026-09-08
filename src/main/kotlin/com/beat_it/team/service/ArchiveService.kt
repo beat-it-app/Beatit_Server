@@ -148,6 +148,12 @@ class ArchiveService(
         validateArchiveBelongsToCurrentTeam(team, archive)
         validateArchiveDeletePermission(userId, archive)
 
+        val files = archivesFilesRepository.findAllByArchiveArchiveId(archiveId)
+        val storageKeys = files.map { it.storageKey }.filter { it.isNotBlank() && !it.startsWith("default/") }
+        if (storageKeys.isNotEmpty()) {
+            fileService.deleteFiles(storageKeys)
+        }
+
         archiveCommentsRepository.deleteByArchiveArchiveId(archiveId)
         archiveReactionsRepository.deleteByArchiveArchiveId(archiveId)
         archivesFilesRepository.deleteAllByArchiveArchiveId(archiveId)
@@ -201,6 +207,12 @@ class ArchiveService(
     ) {
         if (archiveImage == null || archiveImage.isEmpty) {
             return
+        }
+
+        val oldFiles = archivesFilesRepository.findAllByArchiveArchiveId(archive.archiveId!!)
+        val storageKeys = oldFiles.map { it.storageKey }.filter { it.isNotBlank() && !it.startsWith("default/") }
+        if (storageKeys.isNotEmpty()) {
+            fileService.deleteFiles(storageKeys)
         }
 
         archivesFilesRepository.deleteAllByArchiveArchiveId(archive.archiveId!!)

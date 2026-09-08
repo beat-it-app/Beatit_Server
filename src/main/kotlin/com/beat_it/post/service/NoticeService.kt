@@ -265,6 +265,11 @@ class NoticeService(
     }
 
     private fun deleteNoticeAttachments(attachments: List<NoticeAttachments>, noticeId: Long) {
+        val storageKeys = attachments.map { it.postFile.storageKey }.filter { it.isNotBlank() }
+        if (storageKeys.isNotEmpty()) {
+            fileService.deleteFiles(storageKeys)
+        }
+
         attachments.forEach { attachment ->
             attachment.postFile.delete()
             postFilesRepository.save(attachment.postFile)
