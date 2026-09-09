@@ -64,7 +64,8 @@ springdoc:
 jwt:
   secret: ${JWT_SECRET}
   expiration: 604800000 # 7 days
-  refresh-expiration: 2592000000 # 30 days
+  refresh-expiration: 2592000000 # 30 days (rememberMe: true)
+  refresh-expiration-short: 604800000 # 7 days (rememberMe: false)
 
 kakao:
   rest-api-key: ${KAKAO_REST_API_KEY}
