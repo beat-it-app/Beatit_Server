@@ -1,7 +1,9 @@
-﻿package com.beat_it.auth.dto
+package com.beat_it.auth.dto
+
+import java.time.OffsetDateTime
 
 data class WithdrawalResponse(
     val userId: Long,
-    val requestedAt: String,
-    val scheduledDeletionDate: String
+    val requestedAt: OffsetDateTime,
+    val scheduledDeletionDate: OffsetDateTime
 )

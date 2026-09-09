@@ -13,7 +13,6 @@ import com.beat_it.team.repository.TeamMembershipRepository
 import com.beat_it.team.repository.TeamRepository
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
-import java.time.format.DateTimeFormatter
 import java.util.UUID
 
 @Service
@@ -189,11 +188,10 @@ class TeamService(
     }
 
     @Transactional
-    fun joinTeam(userId: Long, inviteCode: String?): TeamJoinResponse {
-        val normalizedInviteCode = validateAndNormalizeInviteCode(inviteCode)
+    fun joinTeam(userId: Long, teamPublicId: UUID): TeamJoinResponse {
         userService.validateUserExists(userId)
 
-        val team = findInviteCodeOrThrow(normalizedInviteCode)
+        val team = findTeamForCommandOrThrow(teamPublicId)
 
         validateNotAlreadyJoined(team.teamId!!, userId)
 
@@ -204,8 +202,6 @@ class TeamService(
         )
 
         val savedMembership = teamMembershipRepository.save(teamMembership)
-
-        //TODO: 하은아, 가입하면 currentTeamId를 해당 팀으로 바꿔야 하는지 언니들에게 물어봐
 
         return TeamJoinResponse(
             teamId = team.teamId!!,
@@ -238,18 +234,17 @@ class TeamService(
     }
 
     @Transactional(readOnly = true)
-    fun getTeamInfoByInviteCode(inviteCode: String): TeamSimpleInfo {
+    fun getTeamInfoByInviteCode(inviteCode: String): TeamInviteInfoResponse {
         val normalizedInviteCode = validateAndNormalizeInviteCode(inviteCode)
-
         val team = findInviteCodeOrThrow(normalizedInviteCode)
 
-        return TeamSimpleInfo(
-            teamId = team.teamId!!,
+        return TeamInviteInfoResponse(
             teamPublicId = team.publicId,
             teamName = team.teamName,
             teamType = team.teamType,
             teamImageUrl = team.teamImageUrl,
-            createdAt = team.createdAt
+            establishedOn = team.establishedOn,
+            createdAt = team.createdAt,
         )
     }
 
@@ -346,15 +341,11 @@ class TeamService(
             userService.updateCurrentTeamId(userId, null)
         }
 
-        val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")
-        val requestedAtStr = membership.leftAt!!.format(formatter)
-        val scheduledDeletionDateStr = membership.leftAt!!.plusDays(7).format(formatter)
-
         return TeamWithdrawalResponse(
             teamPublicId = team.publicId,
             userId = userId,
-            requestedAt = requestedAtStr,
-            scheduledDeletionDate = scheduledDeletionDateStr
+            requestedAt = membership.leftAt!!,
+            scheduledDeletionDate = membership.leftAt!!.plusDays(7)
         )
     }
 
