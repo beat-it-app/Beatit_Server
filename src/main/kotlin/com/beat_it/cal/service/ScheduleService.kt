@@ -35,7 +35,7 @@ class ScheduleService(
 ) {
 
     @Transactional
-    fun createSchedule(userId: Long, request: ScheduleCreateRequest): ScheduleCreateResponse {
+    fun createSchedule(userId: Long, request: ScheduleCreateRequest, files: List<MultipartFile>?): ScheduleCreateResponse {
 
         validateScheduleCommon(request.title, request.startsAt, request.endsAt)
 
@@ -61,8 +61,8 @@ class ScheduleService(
             )
         }
 
-        if (!request.files.isNullOrEmpty()) {
-            val validFiles = request.files.filter { !it.isEmpty }
+        if (!files.isNullOrEmpty()) {
+            val validFiles = files.filter { !it.isEmpty }
             if (validFiles.isNotEmpty()) {
                 val uploadedFiles = fileService.uploadFiles(validFiles, com.beat_it.global.service.FileDirectory.SCHEDULE)
                 uploadedFiles.forEach { fileResult ->
@@ -104,14 +104,14 @@ class ScheduleService(
     }
 
     @Transactional
-    fun updateSchedule(scheduleId: Long, userId: Long, request: ScheduleUpdateRequest): ScheduleCreateResponse {
+    fun updateSchedule(scheduleId: Long, userId: Long, request: ScheduleUpdateRequest, files: List<MultipartFile>?): ScheduleCreateResponse {
 
         validateScheduleCommon(request.title, request.startsAt, request.endsAt)
         val schedule = findScheduleOrThrow(scheduleId)
 
         validateScheduleOwner(schedule.userId, userId)
 
-        if (isNotChanged(schedule, request)) {
+        if (isNotChanged(schedule, request, files)) {
             throw BusinessException(ErrorCode.CALENDAR_NO_CONTENT_TO_UPDATE)
         }
 
@@ -155,8 +155,8 @@ class ScheduleService(
         }
         schedule.files.removeIf { it.id !in retainFileIds }
 
-        if (!request.files.isNullOrEmpty()) {
-            val validFiles = request.files.filter { !it.isEmpty }
+        if (!files.isNullOrEmpty()) {
+            val validFiles = files.filter { !it.isEmpty }
             if (validFiles.isNotEmpty()) {
                 val uploadedFiles = fileService.uploadFiles(validFiles, com.beat_it.global.service.FileDirectory.SCHEDULE)
                 uploadedFiles.forEach { fileResult ->
@@ -300,7 +300,7 @@ class ScheduleService(
         }
     }
 
-    private fun isNotChanged(schedule: Schedule, request: ScheduleUpdateRequest): Boolean {
+    private fun isNotChanged(schedule: Schedule, request: ScheduleUpdateRequest, files: List<MultipartFile>?): Boolean {
         val isAnyFieldChanged =
             (request.title != null && request.title != schedule.title) ||
                     (request.content != null && request.content != schedule.content) ||
@@ -315,7 +315,7 @@ class ScheduleService(
         val isMusicsChanged = (schedule.musics.size != retainMusicIds.size) || !request.musics.isNullOrEmpty()
 
         val retainFileIds = request.retainFileIds ?: emptyList()
-        val isFilesChanged = (schedule.files.size != retainFileIds.size) || !request.files.isNullOrEmpty()
+        val isFilesChanged = (schedule.files.size != retainFileIds.size) || !files.isNullOrEmpty()
 
         return !(isAnyFieldChanged || isParticipantsChanged || isMusicsChanged || isFilesChanged)
     }

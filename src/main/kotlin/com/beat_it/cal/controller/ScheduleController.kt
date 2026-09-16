@@ -17,6 +17,7 @@ import org.springframework.http.ResponseEntity
 import org.springframework.security.core.annotation.AuthenticationPrincipal
 import org.springframework.security.core.userdetails.UserDetails
 import org.springframework.web.bind.annotation.*
+import org.springframework.web.multipart.MultipartFile
 
 @Tag(name = "3. CALENDAR API", description = "일정 관련 로직")
 @RestController
@@ -28,12 +29,13 @@ class ScheduleController(
     @PostMapping(consumes = [MediaType.MULTIPART_FORM_DATA_VALUE])
     fun createSchedule(
         @AuthenticationPrincipal userDetails: UserDetails,
-        @ModelAttribute request: ScheduleCreateRequest
+        @RequestPart("request") request: ScheduleCreateRequest,
+        @RequestPart(value = "files", required = false) files: List<MultipartFile>?
     ): ResponseEntity<BasicResponse<ScheduleCreateResponse>> {
 
         val userId = userDetails.username.toLongOrNull()
             ?: throw BusinessException(ErrorCode.UNAUTHORIZED)
-        val responseData = scheduleService.createSchedule(userId, request)
+        val responseData = scheduleService.createSchedule(userId, request, files)
 
         return ResponseEntity
             .status(HttpStatus.CREATED)
@@ -44,11 +46,12 @@ class ScheduleController(
     fun updateSchedule(
         @AuthenticationPrincipal userDetails: UserDetails,
         @PathVariable scheduleId: Long,
-        @ModelAttribute request: ScheduleUpdateRequest
+        @RequestPart("request") request: ScheduleUpdateRequest,
+        @RequestPart(value = "files", required = false) files: List<MultipartFile>?
     ): ResponseEntity<BasicResponse<ScheduleCreateResponse>> {
         val userId = userDetails.username.toLongOrNull()
             ?: throw BusinessException(ErrorCode.UNAUTHORIZED)
-        val responseData = scheduleService.updateSchedule(scheduleId, userId, request)
+        val responseData = scheduleService.updateSchedule(scheduleId, userId, request, files)
         return ResponseEntity
             .status(HttpStatus.OK)
             .body(BasicResponse.success(responseData, HttpStatus.OK, "일정이 수정되었습니다."))
