@@ -77,22 +77,16 @@ class ScheduleService(
             }
         }
 
-        request.participantUserIds.forEach { participantUserId ->
-            teamService.validateTeamMember(currentTeamId, participantUserId)
-            schedule.addParticipant(participantUserId)
+        if (request.participantUserIds.isNotEmpty()) {
+            val isValidTeamMembers = teamService.validateMembersInTeam(currentTeamId, request.participantUserIds)
+            if (!isValidTeamMembers) {
+                throw BusinessException(ErrorCode.INVALID_TEAM_PARTICIPANTS)
+            }
+
+            request.participantUserIds.forEach { participantUserId ->
+                schedule.addParticipant(participantUserId)
+            }
         }
-
-        //TODO: 여러명 검증 함수 추후 변경
-//        val isValidTeamMembers = teamService.validateMembersInTeam(currentTeamId, request.participantUserIds)
-//        if (!isValidTeamMembers) {
-//            throw BusinessException(ErrorCode.INVALID_TEAM_PARTICIPANTS)
-//        }
-//
-//        request.participantUserIds.forEach { participantUserId ->
-//            schedule.addParticipant(participantUserId)
-//        }
-
-
 
         val savedSchedule = scheduleRepository.save(schedule)
 
@@ -120,25 +114,18 @@ class ScheduleService(
         }
 
         request.participantUserIds?.let { newIds ->
+            if (newIds.isNotEmpty()) {
+                val isValidTeamMembers = teamService.validateMembersInTeam(schedule.teamId, newIds)
+                if (!isValidTeamMembers) {
+                    throw BusinessException(ErrorCode.INVALID_TEAM_PARTICIPANTS)
+                }
+            }
+
             schedule.participants.clear()
             newIds.forEach { participantId ->
-                teamService.validateTeamMember(schedule.teamId, participantId) // 팀 소속 검증
                 schedule.addParticipant(participantId)
             }
         }
-
-        //TODO: 여러명 검증 함수 추후 변경
-//        request.participantUserIds?.let { newIds ->
-//            val isValidTeamMembers = teamService.validateMembersInTeam(schedule.teamId, newIds)
-//            if (!isValidTeamMembers) {
-//                throw BusinessException(ErrorCode.INVALID_TEAM_PARTICIPANTS)
-//            }
-//
-//            schedule.participants.clear()
-//            newIds.forEach { participantId ->
-//                schedule.addParticipant(participantId)
-//            }
-//        }
 
         val retainMusicIds = request.retainMusicIds ?: emptyList()
         schedule.musics.removeIf { it.id !in retainMusicIds }
