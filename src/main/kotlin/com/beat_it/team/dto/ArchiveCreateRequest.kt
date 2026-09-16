@@ -11,5 +11,6 @@ data class ArchiveCreateRequest(
     val title: String,
     val placeName: String? = null,
     val locationId: Long,
-    val description: String? = null,
+    val description: String? = null
 )
+
