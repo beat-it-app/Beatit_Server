@@ -100,4 +100,11 @@ class LocationsService(
             searchResults
         }
     }
+
+    @Transactional(readOnly = true)
+    fun validateLocationExists(locationId: Long) {
+        if (!locationsRepository.existsById(locationId)) {
+            throw BusinessException(ErrorCode.RESOURCE_NOT_FOUND)
+        }
+    }
 }
