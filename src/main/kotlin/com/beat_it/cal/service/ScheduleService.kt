@@ -16,6 +16,7 @@ import com.beat_it.cal.repository.ScheduleRepository
 import com.beat_it.global.error.BusinessException
 import com.beat_it.global.error.ErrorCode
 import com.beat_it.global.service.FileService
+import com.beat_it.location.service.LocationsService
 import com.beat_it.team.service.TeamService
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -30,8 +31,8 @@ class ScheduleService(
     private val scheduleRepository: ScheduleRepository,
     private val teamService: TeamService,
     private val userService: UserService,
-    private val fileService: FileService
-    // private val locationService: LocationService
+    private val fileService: FileService,
+    private val locationService: LocationsService
 ) {
 
     @Transactional
@@ -40,6 +41,7 @@ class ScheduleService(
         validateScheduleCommon(request.title, request.startsAt, request.endsAt)
 
         val currentTeamId = userService.getCurrentTeamId(userId)
+        request.locationId?.let { locationService.validateLocationExists(it) }
 
         teamService.validateTeamMember(currentTeamId, userId)
 
@@ -99,6 +101,7 @@ class ScheduleService(
             title = savedSchedule.title,
             startsAt = savedSchedule.startsAt,
             endsAt = savedSchedule.endsAt,
+            locationId = savedSchedule.locationId,
             createdAt = savedSchedule.createdAt
         )
     }
@@ -107,6 +110,7 @@ class ScheduleService(
     fun updateSchedule(scheduleId: Long, userId: Long, request: ScheduleUpdateRequest): ScheduleCreateResponse {
 
         validateScheduleCommon(request.title, request.startsAt, request.endsAt)
+        request.locationId?.let { locationService.validateLocationExists(it) }
         val schedule = findScheduleOrThrow(scheduleId)
 
         validateScheduleOwner(schedule.userId, userId)
@@ -182,6 +186,7 @@ class ScheduleService(
             title = schedule.title,
             startsAt = schedule.startsAt,
             endsAt = schedule.endsAt,
+            locationId = request.locationId,
             createdAt = schedule.createdAt
         )
     }
