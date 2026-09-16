@@ -148,8 +148,7 @@ class TeamService(
 
     @Transactional(readOnly = true)
     fun getTeamDetail(userId: Long): TeamDetailResponse? {
-        val teamId = userService.getCurrentTeamIdOrNull(userId)
-            ?: return null
+        val teamId = userService.getCurrentTeamId(userId)
         val team = findTeamForCommandOrThrow(teamId)
 
         validateTeamMember(teamId, userId)
