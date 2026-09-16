@@ -12,6 +12,7 @@ import com.beat_it.team.entity.ArchiveRatings
 import com.beat_it.team.entity.Archives
 import com.beat_it.team.entity.ArchivesFiles
 import com.beat_it.team.entity.Teams
+import com.beat_it.team.entity.enum.ArchiveSortType
 import com.beat_it.team.repository.ArchiveCommentMentionRepository
 import com.beat_it.team.repository.ArchiveCommentsRepository
 import com.beat_it.team.repository.ArchiveRatingsRepository
@@ -92,15 +93,15 @@ class ArchiveService(
     @Transactional(readOnly = true)
     fun getTeamArchives(
         userId: Long,
-        sort: String = "LATEST",
+        sort: ArchiveSortType = ArchiveSortType.LATEST,
         page: Int = 0,
         size: Int = 10,
     ): ArchiveListResponse {
         val team = findCurrentTeamForArchiveOrThrow(userId)
         val teamId = team.teamId!!
 
-        val archivesPage = when (sort.uppercase()) {
-            "LATEST" -> {
+        val archivesPage = when (sort) {
+            ArchiveSortType.LATEST -> {
                 val pageRequest = PageRequest.of(
                     page,
                     size,
@@ -110,21 +111,12 @@ class ArchiveService(
                 archiveRepository.findAllByTeamTeamId(teamId, pageRequest)
             }
 
-            "RATING_DESC" -> {
+            ArchiveSortType.RATING_DESC -> {
                 archiveRepository.findAllByTeamTeamIdOrderByRatingDesc(
                     teamId = teamId,
                     pageable = PageRequest.of(page, size),
                 )
             }
-
-            "RATING_ASC" -> {
-                archiveRepository.findAllByTeamTeamIdOrderByRatingAsc(
-                    teamId = teamId,
-                    pageable = PageRequest.of(page, size),
-                )
-            }
-
-            else -> throw BusinessException(ErrorCode.INVALID_INPUT_VALUE)
         }
 
         val archives = archivesPage.content.map { archive ->

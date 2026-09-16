@@ -4,6 +4,7 @@ import com.beat_it.global.error.BusinessException
 import com.beat_it.global.error.ErrorCode
 import com.beat_it.global.response.BasicResponse
 import com.beat_it.team.dto.*
+import com.beat_it.team.entity.enum.ArchiveSortType
 import com.beat_it.team.service.ArchiveService
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.Parameter
@@ -175,7 +176,7 @@ class ArchiveController(
     @GetMapping
     fun getTeamArchives(
         @AuthenticationPrincipal userDetails: UserDetails,
-        @RequestParam(defaultValue = "LATEST") sort: String,
+        @RequestParam(defaultValue = "LATEST") sort: ArchiveSortType,
         @RequestParam(defaultValue = "0") page: Int,
         @RequestParam(defaultValue = "10") size: Int,
     ): ResponseEntity<BasicResponse<ArchiveListResponse>> {

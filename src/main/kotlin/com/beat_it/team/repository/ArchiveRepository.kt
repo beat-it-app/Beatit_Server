@@ -41,25 +41,4 @@ interface ArchiveRepository : JpaRepository<Archives, Long> {
         pageable: Pageable,
     ): Page<Archives>
 
-    @Query(
-        value = """
-            SELECT a
-            FROM Archives a
-            WHERE a.team.teamId = :teamId
-            ORDER BY CASE WHEN a.ratingCount = 0 THEN 1 ELSE 0 END ASC,
-                     a.averageRating ASC,
-                     a.ratingCount DESC,
-                     a.createdAt DESC,
-                     a.archiveId DESC
-        """,
-        countQuery = """
-            SELECT COUNT(a)
-            FROM Archives a
-            WHERE a.team.teamId = :teamId
-        """,
-    )
-    fun findAllByTeamTeamIdOrderByRatingAsc(
-        @Param("teamId") teamId: Long,
-        pageable: Pageable,
-    ): Page<Archives>
 }
