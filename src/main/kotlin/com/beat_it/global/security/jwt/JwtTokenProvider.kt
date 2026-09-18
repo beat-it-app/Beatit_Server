@@ -17,19 +17,22 @@ import javax.crypto.SecretKey
 class JwtTokenProvider(
     @Value("\${jwt.secret}") private val secretKey: String,
     @Value("\${jwt.expiration}") val accessTokenValidity: Long,
+    @Value("\${jwt.expiration-short:3600000}") val accessTokenShortValidity: Long,
     @Value("\${jwt.refresh-expiration}") val refreshTokenValidity: Long,
-    @Value("\${jwt.refresh-expiration-short:604800000}") val refreshTokenShortValidity: Long,
+    @Value("\${jwt.refresh-expiration-short:86400000}") val refreshTokenShortValidity: Long,
     private val userDetailsService: UserDetailsService
 ) {
     private val key: SecretKey = Keys.hmacShaKeyFor(secretKey.toByteArray())
 
-    fun createAccessToken(userId: String, role: Role): String {
+    fun createAccessToken(userId: String, role: Role, rememberMe: Boolean = true): String {
         val now = Date()
-        val validity = Date(now.time + accessTokenValidity)
+        val validityDuration = getAccessTokenValidity(rememberMe)
+        val validity = Date(now.time + validityDuration)
 
         return Jwts.builder()
             .subject(userId)
             .claim("role", role)
+            .claim("rememberMe", rememberMe)
             .issuedAt(now)
             .expiration(validity)
             .signWith(key)
@@ -48,6 +51,10 @@ class JwtTokenProvider(
             .expiration(validity)
             .signWith(key)
             .compact()
+    }
+
+    fun getAccessTokenValidity(rememberMe: Boolean = true): Long {
+        return if (rememberMe) accessTokenValidity else accessTokenShortValidity
     }
 
     fun getRefreshTokenValidity(rememberMe: Boolean = true): Long {
