@@ -49,8 +49,6 @@ class TeamService(
 
         teamMembershipRepository.save(leaderTeamMemberships)
 
-        userService.updateCurrentTeamId(userId, savedTeam.teamId!!)
-
         return TeamCreateResponse(
             teamId = savedTeam.teamId!!,
             teamPublicId = savedTeam.publicId,
