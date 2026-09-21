@@ -26,7 +26,12 @@ class UserService (
     private val fileService: FileService
 ) {
     @Transactional
-    fun createProfile(userId: Long, name: String, profileImage: MultipartFile?, defaultImageId: Int?) {
+    fun createProfile(
+        userId: Long,
+        name: String,
+        profileImage: MultipartFile?,
+        defaultImageId: Int?
+    ) {
         validateName(name)
 
         if (userProfilesRepository.existsByUser_UserId(userId)) {
@@ -47,7 +52,10 @@ class UserService (
         }
 
         if (hasImage) {
-            val uploadedResult = fileService.uploadFiles(listOf(profileImage!!), "profile").first()
+            val uploadedResult = fileService.uploadFile(
+                file = profileImage!!,
+                directory = com.beat_it.global.service.FileDirectory.PROFILE
+            )
             
             val authFile = AuthFiles(
                 user = user,
@@ -55,6 +63,7 @@ class UserService (
                 storageKey = uploadedResult.storageKey,
                 cdnUrl = uploadedResult.cdnUrl,
                 mediaCategory = MediaCategory.IMAGE,
+                fileSizeBytes = profileImage?.size,
                 isPublic = true
             )
             savedAuthFile = authFilesRepository.save(authFile)
@@ -168,7 +177,9 @@ class UserService (
             UserProfileResponse(
                 userId = profile.user?.userId ?: 0L,
                 name = profile.name,
-                profileImageUrl = profile.authFile?.cdnUrl ?: profile.defaultProfileImage?.url ?: ""
+                profileImageUrl = profile.authFile?.cdnUrl
+                    ?: profile.defaultProfileImage?.let { fileService.getFileUrl(it.storageKey) }
+                    ?: ""
             )
         }
     }

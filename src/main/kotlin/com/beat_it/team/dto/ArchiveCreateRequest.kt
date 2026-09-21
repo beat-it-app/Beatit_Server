@@ -5,3 +5,4 @@ data class ArchiveCreateRequest(
     val locationId: Long?,
     val description: String? = null,
 )
+

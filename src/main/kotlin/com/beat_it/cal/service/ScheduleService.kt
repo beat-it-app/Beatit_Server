@@ -62,13 +62,16 @@ class ScheduleService(
         }
 
         if (!request.files.isNullOrEmpty()) {
-            val uploadedFiles = fileService.uploadFiles(request.files, "schedules")
-            uploadedFiles.forEach { fileResult ->
-                schedule.addFile(
-                    originalFileName = fileResult.originalFileName,
-                    storageKey = fileResult.storageKey,
-                    cdnUrl = fileResult.cdnUrl
-                )
+            val validFiles = request.files.filter { !it.isEmpty }
+            if (validFiles.isNotEmpty()) {
+                val uploadedFiles = fileService.uploadFiles(validFiles, com.beat_it.global.service.FileDirectory.SCHEDULE)
+                uploadedFiles.forEach { fileResult ->
+                    schedule.addFile(
+                        originalFileName = fileResult.originalFileName,
+                        storageKey = fileResult.storageKey,
+                        cdnUrl = fileResult.cdnUrl
+                    )
+                }
             }
         }
 
@@ -147,20 +150,22 @@ class ScheduleService(
         val retainFileIds = request.retainFileIds ?: emptyList()
 
         val filesToRemove = schedule.files.filter { it.id !in retainFileIds }
-        filesToRemove.forEach { file ->
-            //TODO: fileService delete 함수 반영 시 주석 제거
-            //fileService.deleteFile(file.storageKey)
+        if (filesToRemove.isNotEmpty()) {
+            fileService.deleteFiles(filesToRemove.map { it.storageKey })
         }
         schedule.files.removeIf { it.id !in retainFileIds }
 
         if (!request.files.isNullOrEmpty()) {
-            val uploadedFiles = fileService.uploadFiles(request.files, "schedules")
-            uploadedFiles.forEach { fileResult ->
-                schedule.addFile(
-                    originalFileName = fileResult.originalFileName,
-                    storageKey = fileResult.storageKey,
-                    cdnUrl = fileResult.cdnUrl
-                )
+            val validFiles = request.files.filter { !it.isEmpty }
+            if (validFiles.isNotEmpty()) {
+                val uploadedFiles = fileService.uploadFiles(validFiles, com.beat_it.global.service.FileDirectory.SCHEDULE)
+                uploadedFiles.forEach { fileResult ->
+                    schedule.addFile(
+                        originalFileName = fileResult.originalFileName,
+                        storageKey = fileResult.storageKey,
+                        cdnUrl = fileResult.cdnUrl
+                    )
+                }
             }
         }
 
@@ -187,13 +192,10 @@ class ScheduleService(
 
         validateScheduleOwner(schedule.userId, userId)
 
-        //TODO: fileService delete 함수 반영 시 주석 제거
-//        if (schedule.files.isNotEmpty()) {
-//            schedule.files.forEach { file ->
-//                fileService.deleteFile(file.storageKey)
-//            }
-//        }
-//        scheduleRepository.delete(schedule)
+        if (schedule.files.isNotEmpty()) {
+            fileService.deleteFiles(schedule.files.map { it.storageKey })
+        }
+        scheduleRepository.delete(schedule)
     }
 
     @Transactional(readOnly = true)
