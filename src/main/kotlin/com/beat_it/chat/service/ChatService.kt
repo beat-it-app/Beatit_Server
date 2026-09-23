@@ -35,6 +35,7 @@ import org.springframework.data.domain.PageRequest
 import org.springframework.kafka.core.KafkaTemplate
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+import org.springframework.web.multipart.MultipartFile
 import java.time.OffsetDateTime
 
 @Service
@@ -119,7 +120,7 @@ class ChatService(
     }
 
     @Transactional
-    fun sendMessage(chatId: Long, senderId: Long, request: ChatMessageRequest): ChatMessageDetailResponse {
+    fun sendMessage(chatId: Long, senderId: Long, request: ChatMessageRequest, file: MultipartFile?): ChatMessageDetailResponse {
         val chatRoom = chatRepository.findById(chatId)
             .orElseThrow { BusinessException(ErrorCode.CHAT_ROOM_NOT_FOUND) }
 
@@ -131,11 +132,11 @@ class ChatService(
 
         var savedChatFile: ChatFiles? = null
 
-        val hasFile = (request.file != null && !request.file.isEmpty) || !request.storageKey.isNullOrBlank()
+        val hasFile = (file != null && !file.isEmpty) || !request.storageKey.isNullOrBlank()
 
         val finalContent = if (hasFile) {
             val uploadedResult = fileService.resolveFile(
-                file = request.file,
+                file = file,
                 storageKey = request.storageKey,
                 directory = com.beat_it.global.service.FileDirectory.CHAT
             ) ?: throw BusinessException(ErrorCode.EMPTY_FILE)
@@ -151,7 +152,7 @@ class ChatService(
                     ChatMessageType.FILE -> MediaCategory.DOCUMENT
                     else -> MediaCategory.AUDIO
                 },
-                fileSizeBytes = request.file?.size,
+                fileSizeBytes = file?.size,
                 isPublic = true
             )
             savedChatFile = chatFilesRepository.save(chatFile)
