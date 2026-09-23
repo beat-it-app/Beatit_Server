@@ -16,6 +16,7 @@ import com.beat_it.cal.repository.ScheduleRepository
 import com.beat_it.global.error.BusinessException
 import com.beat_it.global.error.ErrorCode
 import com.beat_it.global.service.FileService
+import com.beat_it.location.service.LocationsService
 import com.beat_it.team.service.TeamService
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -30,8 +31,8 @@ class ScheduleService(
     private val scheduleRepository: ScheduleRepository,
     private val teamService: TeamService,
     private val userService: UserService,
-    private val fileService: FileService
-    // private val locationService: LocationService
+    private val fileService: FileService,
+    private val locationService: LocationsService
 ) {
 
     @Transactional
@@ -40,6 +41,7 @@ class ScheduleService(
         validateScheduleCommon(request.title, request.startsAt, request.endsAt)
 
         val currentTeamId = userService.getCurrentTeamId(userId)
+        request.locationId?.let { locationService.validateLocationExists(it) }
 
         teamService.validateTeamMember(currentTeamId, userId)
 
@@ -75,22 +77,16 @@ class ScheduleService(
             }
         }
 
-        request.participantUserIds.forEach { participantUserId ->
-            teamService.validateTeamMember(currentTeamId, participantUserId)
-            schedule.addParticipant(participantUserId)
+        if (request.participantUserIds.isNotEmpty()) {
+            val isValidTeamMembers = teamService.validateMembersInTeam(currentTeamId, request.participantUserIds)
+            if (!isValidTeamMembers) {
+                throw BusinessException(ErrorCode.INVALID_TEAM_PARTICIPANTS)
+            }
+
+            request.participantUserIds.forEach { participantUserId ->
+                schedule.addParticipant(participantUserId)
+            }
         }
-
-        //TODO: 여러명 검증 함수 추후 변경
-//        val isValidTeamMembers = teamService.validateMembersInTeam(currentTeamId, request.participantUserIds)
-//        if (!isValidTeamMembers) {
-//            throw BusinessException(ErrorCode.INVALID_TEAM_PARTICIPANTS)
-//        }
-//
-//        request.participantUserIds.forEach { participantUserId ->
-//            schedule.addParticipant(participantUserId)
-//        }
-
-
 
         val savedSchedule = scheduleRepository.save(schedule)
 
@@ -99,6 +95,7 @@ class ScheduleService(
             title = savedSchedule.title,
             startsAt = savedSchedule.startsAt,
             endsAt = savedSchedule.endsAt,
+            locationId = savedSchedule.locationId,
             createdAt = savedSchedule.createdAt
         )
     }
@@ -107,6 +104,7 @@ class ScheduleService(
     fun updateSchedule(scheduleId: Long, userId: Long, request: ScheduleUpdateRequest): ScheduleCreateResponse {
 
         validateScheduleCommon(request.title, request.startsAt, request.endsAt)
+        request.locationId?.let { locationService.validateLocationExists(it) }
         val schedule = findScheduleOrThrow(scheduleId)
 
         validateScheduleOwner(schedule.userId, userId)
@@ -116,25 +114,18 @@ class ScheduleService(
         }
 
         request.participantUserIds?.let { newIds ->
+            if (newIds.isNotEmpty()) {
+                val isValidTeamMembers = teamService.validateMembersInTeam(schedule.teamId, newIds)
+                if (!isValidTeamMembers) {
+                    throw BusinessException(ErrorCode.INVALID_TEAM_PARTICIPANTS)
+                }
+            }
+
             schedule.participants.clear()
             newIds.forEach { participantId ->
-                teamService.validateTeamMember(schedule.teamId, participantId) // 팀 소속 검증
                 schedule.addParticipant(participantId)
             }
         }
-
-        //TODO: 여러명 검증 함수 추후 변경
-//        request.participantUserIds?.let { newIds ->
-//            val isValidTeamMembers = teamService.validateMembersInTeam(schedule.teamId, newIds)
-//            if (!isValidTeamMembers) {
-//                throw BusinessException(ErrorCode.INVALID_TEAM_PARTICIPANTS)
-//            }
-//
-//            schedule.participants.clear()
-//            newIds.forEach { participantId ->
-//                schedule.addParticipant(participantId)
-//            }
-//        }
 
         val retainMusicIds = request.retainMusicIds ?: emptyList()
         schedule.musics.removeIf { it.id !in retainMusicIds }
@@ -182,6 +173,7 @@ class ScheduleService(
             title = schedule.title,
             startsAt = schedule.startsAt,
             endsAt = schedule.endsAt,
+            locationId = request.locationId,
             createdAt = schedule.createdAt
         )
     }
