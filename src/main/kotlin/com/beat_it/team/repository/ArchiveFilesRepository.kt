@@ -6,6 +6,7 @@ import org.springframework.stereotype.Repository
 
 @Repository
 interface ArchivesFilesRepository : JpaRepository<ArchivesFiles, Long> {
+    fun findAllByArchiveArchiveIdOrderByArchiveFileIdAsc(archiveId: Long): List<ArchivesFiles>
     fun findAllByArchiveArchiveId(archiveId: Long): List<ArchivesFiles>
     fun deleteAllByArchiveArchiveId(archiveId: Long)
 }
