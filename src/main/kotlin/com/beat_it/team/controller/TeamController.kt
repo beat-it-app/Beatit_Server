@@ -52,7 +52,7 @@ class TeamController(
     @PatchMapping(consumes = [MediaType.MULTIPART_FORM_DATA_VALUE])
     fun updateTeamDetail(
         @AuthenticationPrincipal userDetails: UserDetails,
-        @RequestParam teamName: String,
+        @RequestParam(required = false) teamName: String?,
         @RequestParam(required = false) description: String?,
         @RequestParam(required = false) teamType: TeamType?,
         @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) establishedOn: LocalDate?,
