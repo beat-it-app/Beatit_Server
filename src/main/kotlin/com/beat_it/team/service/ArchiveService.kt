@@ -4,6 +4,7 @@ import com.beat_it.auth.entity.enum.MediaCategory
 import com.beat_it.auth.service.UserService
 import com.beat_it.global.error.BusinessException
 import com.beat_it.global.error.ErrorCode
+import com.beat_it.global.service.FileService
 import com.beat_it.location.service.LocationsService
 import com.beat_it.team.dto.*
 import com.beat_it.team.entity.ArchiveCommentMentions
@@ -36,6 +37,8 @@ class ArchiveService(
     private val locationsService: LocationsService,
     private val archivesFilesRepository: ArchivesFilesRepository,
     private val teamMembershipRepository: TeamMembershipRepository,
+    private val fileService: FileService,
+    private val teamImageUploadService: TeamImageUploadService,
 ) {
 
     private val mentionRegex = Regex("""@\{([^}]+)\}|@([a-zA-Z0-9가-힣_]+)""")
@@ -246,10 +249,12 @@ class ArchiveService(
 
         deleteCommentsByArchive(archiveId)
         archiveRatingsRepository.deleteByArchiveArchiveId(archiveId)
+        val imageKeys = archivesFilesRepository.findAllByArchiveArchiveId(archiveId).map { it.storageKey }
         archivesFilesRepository.deleteAllByArchiveArchiveId(archiveId)
 
         archiveRepository.delete(archive)
         archiveRepository.flush()
+        deleteFilesAfterCommit(imageKeys)
         refreshTopArchives(teamId)
     }
 
@@ -376,36 +381,23 @@ class ArchiveService(
             .orEmpty()
             .filterNot { archiveImage -> archiveImage.isEmpty }
 
-        val archiveFiles = if (validImages.isEmpty()) {
-            listOf(
-                ArchivesFiles(
-                    archive = archive,
-                    userId = userId,
-                    originalFileName = "default-archive.jpg",
-                    storageKey = "dummy/path/default-archive.jpg",
-                    cdnUrl = "https://example.com/default-archive-image.jpg",
-                    mimeType = "image/jpeg",
-                    mediaCategory = MediaCategory.IMAGE,
-                    fileSizeBytes = 0L,
-                    isPublic = true,
-                )
+        if (validImages.isEmpty()) return emptyList()
+        val uploads = teamImageUploadService.uploadImages(validImages)
+        val archiveFiles = uploads.mapIndexed { index, result ->
+            ArchivesFiles(
+                archive = archive,
+                userId = userId,
+                originalFileName = result.originalFileName,
+                storageKey = result.storageKey,
+                cdnUrl = result.cdnUrl,
+                mimeType = validImages[index].contentType,
+                mediaCategory = MediaCategory.IMAGE,
+                fileSizeBytes = validImages[index].size,
+                isPublic = true,
             )
-        } else {
-            validImages.mapIndexed { index, archiveImage ->
-                // TODO : S3 연동 전 임시 처리. S3 붙으면 fileService.uploadFiles 로직으로 교체.
-                ArchivesFiles(
-                    archive = archive,
-                    userId = userId,
-                    originalFileName = archiveImage.originalFilename ?: "archive-image-${index + 1}.jpg",
-                    storageKey = "dummy/path/archive-image-${index + 1}.jpg",
-                    cdnUrl = "https://example.com/archive-image-${index + 1}.jpg",
-                    mimeType = archiveImage.contentType,
-                    mediaCategory = MediaCategory.IMAGE,
-                    fileSizeBytes = archiveImage.size,
-                    isPublic = true,
-                )
-            }
         }
+
+        deleteFilesOnRollback(uploads.map { it.storageKey })
 
         return archivesFilesRepository.saveAll(archiveFiles)
     }
@@ -423,6 +415,7 @@ class ArchiveService(
             return
         }
 
+        val oldKeys = archivesFilesRepository.findAllByArchiveArchiveId(archive.archiveId!!).map { it.storageKey }
         archivesFilesRepository.deleteAllByArchiveArchiveId(archive.archiveId!!)
 
         val savedArchiveFiles = saveArchiveImages(
@@ -432,6 +425,31 @@ class ArchiveService(
         )
 
         archive.updateArchiveImageUrl(savedArchiveFiles.firstOrNull()?.cdnUrl)
+        deleteFilesAfterCommit(oldKeys)
+    }
+
+    private fun deleteFilesAfterCommit(keys: List<String>) {
+        if (keys.isEmpty()) return
+        org.springframework.transaction.support.TransactionSynchronizationManager.registerSynchronization(
+            object : org.springframework.transaction.support.TransactionSynchronization {
+                override fun afterCommit() {
+                    runCatching { fileService.deleteFiles(keys) }
+                }
+            }
+        )
+    }
+
+    private fun deleteFilesOnRollback(keys: List<String>) {
+        if (keys.isEmpty()) return
+        org.springframework.transaction.support.TransactionSynchronizationManager.registerSynchronization(
+            object : org.springframework.transaction.support.TransactionSynchronization {
+                override fun afterCompletion(status: Int) {
+                    if (status != org.springframework.transaction.support.TransactionSynchronization.STATUS_COMMITTED) {
+                        runCatching { fileService.deleteFiles(keys) }
+                    }
+                }
+            }
+        )
     }
 
     private fun toCommentResponses(

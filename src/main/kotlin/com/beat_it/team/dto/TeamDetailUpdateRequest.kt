@@ -9,7 +9,6 @@ data class TeamDetailUpdateRequest(
     val description: String? = null,
     val teamType: TeamType? = null,
     val establishedOn: LocalDate? = null,
-    val teamImageUrl: String? = null,
     val links: List<TeamLinksRequest>? = null,
 )
 

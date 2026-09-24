@@ -3,6 +3,7 @@ package com.beat_it.team.service
 import com.beat_it.auth.service.UserService
 import com.beat_it.global.error.BusinessException
 import com.beat_it.global.error.ErrorCode
+import com.beat_it.global.service.FileService
 import com.beat_it.team.dto.*
 import com.beat_it.team.entity.TeamLinks
 import com.beat_it.team.entity.TeamMemberships
@@ -13,6 +14,7 @@ import com.beat_it.team.repository.TeamMembershipRepository
 import com.beat_it.team.repository.TeamRepository
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+import org.springframework.web.multipart.MultipartFile
 import java.util.UUID
 
 @Service
@@ -21,21 +23,30 @@ class TeamService(
     private val teamRepository: TeamRepository,
     private val teamLinksRepository: TeamLinksRepository,
     private val teamMembershipRepository: TeamMembershipRepository,
+    private val fileService: FileService,
+    private val teamImageUploadService: TeamImageUploadService,
 ) {
 
     @Transactional
-    fun createTeam(userId: Long, request: TeamCreateRequest): TeamCreateResponse {
+    fun createTeam(userId: Long, request: TeamCreateRequest, teamImage: MultipartFile? = null): TeamCreateResponse {
         validateCreateRequest(request)
         userService.validateUserExists(userId)
 
         val inviteCode = generateInviteCode()
+
+        val uploadedImage = if (teamImage != null && !teamImage.isEmpty) {
+            val result = teamImageUploadService.uploadImage(teamImage)
+            deleteOnRollback(result.storageKey)
+            result
+        } else null
 
         val team = Teams(
             teamName = request.teamName,
             description = request.description,
             teamType = request.teamType,
             establishedOn = request.establishedOn,
-            teamImageUrl = request.teamImageUrl,
+            teamImageUrl = uploadedImage?.cdnUrl,
+            teamImageStorageKey = uploadedImage?.storageKey,
             inviteCode = inviteCode
         )
 
@@ -66,7 +77,8 @@ class TeamService(
     @Transactional
     fun updateTeamDetail(
         userId: Long,
-        request: TeamDetailUpdateRequest
+        request: TeamDetailUpdateRequest,
+        teamImage: MultipartFile? = null,
     ): TeamDetailUpdateResponse {
         validateUpdateRequest(request)
         val teamId = userService.getCurrentTeamId(userId)
@@ -77,7 +89,13 @@ class TeamService(
 
         val currentLinks = teamLinksRepository.findAllByTeamTeamId(team.teamId!!)
 
-        validateTeamDetailChanged(team, request, currentLinks)
+        validateTeamDetailChanged(team, request, currentLinks, teamImage)
+
+        val uploadedImage = if (teamImage != null && !teamImage.isEmpty) {
+            val result = teamImageUploadService.uploadImage(teamImage)
+            deleteOnRollback(result.storageKey)
+            result
+        } else null
 
         team.updateTeamDetail(
             teamName = request.teamName,
@@ -86,8 +104,10 @@ class TeamService(
             teamType = request.teamType,
         )
 
-        request.teamImageUrl?.let {
-            team.teamImageUrl = it
+        uploadedImage?.let { image ->
+            team.teamImageStorageKey?.let { oldKey -> deleteAfterCommit(oldKey) }
+            team.teamImageUrl = image.cdnUrl
+            team.teamImageStorageKey = image.storageKey
         }
 
         request.links?.let { linkRequests ->
@@ -117,6 +137,7 @@ class TeamService(
             teamId = teamId,
             teamPublicId = team.publicId,
             teamName = team.teamName,
+            teamImageUrl = team.teamImageUrl,
             description = team.description,
             establishedOn = team.establishedOn,
             updatedAt = team.updatedAt,
@@ -144,6 +165,7 @@ class TeamService(
         //TODO: 유효기간 관련 처리
 
         team.delete()
+        team.teamImageStorageKey?.let { deleteAfterCommit(it) }
     }
 
     @Transactional(readOnly = true)
@@ -393,14 +415,15 @@ class TeamService(
     private fun validateTeamDetailChanged(
         team: Teams,
         request: TeamDetailUpdateRequest,
-        currentLinks: List<TeamLinks>
+        currentLinks: List<TeamLinks>,
+        teamImage: MultipartFile?,
     ) {
         val isAnyFieldChanged =
             (request.teamName != null && request.teamName != team.teamName) ||
                     (request.description != null && request.description != team.description) ||
                     (request.establishedOn != null && request.establishedOn != team.establishedOn) ||
                     (request.teamType != null && request.teamType != team.teamType) ||
-                    (request.teamImageUrl != null && request.teamImageUrl != team.teamImageUrl)
+                    (teamImage != null && !teamImage.isEmpty)
 
         val isLinksChanged =
             request.links != null && !isLinksSame(currentLinks, request.links)
@@ -599,6 +622,28 @@ class TeamService(
             .replace("-", "")
             .take(6)
             .uppercase()
+    }
+
+    private fun deleteOnRollback(key: String) {
+        org.springframework.transaction.support.TransactionSynchronizationManager.registerSynchronization(
+            object : org.springframework.transaction.support.TransactionSynchronization {
+                override fun afterCompletion(status: Int) {
+                    if (status != org.springframework.transaction.support.TransactionSynchronization.STATUS_COMMITTED) {
+                        runCatching { fileService.deleteFile(key) }
+                    }
+                }
+            }
+        )
+    }
+
+    private fun deleteAfterCommit(key: String) {
+        org.springframework.transaction.support.TransactionSynchronizationManager.registerSynchronization(
+            object : org.springframework.transaction.support.TransactionSynchronization {
+                override fun afterCommit() {
+                    runCatching { fileService.deleteFile(key) }
+                }
+            }
+        )
     }
 
     fun validateMembersInTeam(teamId: Long, userIds: List<Long>): Boolean {

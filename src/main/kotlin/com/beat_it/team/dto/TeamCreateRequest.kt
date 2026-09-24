@@ -8,5 +8,4 @@ data class TeamCreateRequest(
     val description: String?,
     val teamType: TeamType,
     val establishedOn: LocalDate?,
-    val teamImageUrl: String?,
 )
