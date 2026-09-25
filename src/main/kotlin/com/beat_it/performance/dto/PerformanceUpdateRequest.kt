@@ -2,6 +2,8 @@ package com.beat_it.performance.dto
 
 import com.beat_it.performance.entity.enum.PerformanceStatus
 import io.swagger.v3.oas.annotations.media.Schema
+import jakarta.validation.constraints.Size
+import org.springframework.format.annotation.DateTimeFormat
 import java.time.OffsetDateTime
 
 @Schema(description = "공연 수정 요청 DTO")
@@ -9,6 +11,7 @@ data class PerformanceUpdateRequest(
     @Schema(description = "공연 제목", example = "제 12회 정기 밴드 공연 (수정)")
     val title: String? = null,
 
+    @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)
     @Schema(description = "공연 일시", example = "2026-10-15T20:00:00+09:00")
     val performanceDateTime: OffsetDateTime? = null,
 
@@ -18,9 +21,15 @@ data class PerformanceUpdateRequest(
     @Schema(description = "공연 장소명", example = "홍대 KT&G 상상마당")
     val placeName: String? = null,
 
+    @field:Size(max = 200, message = "공연 상세 설명은 최대 200자까지 입력 가능합니다.")
     @Schema(description = "공연 상세 설명 (200자 제한)")
     val description: String? = null,
 
+    @field:Size(max = 1000, message = "공연 상세 정보는 최대 1,000자까지 입력 가능합니다.")
+    @Schema(description = "공연 상세 정보 (최대 1,000자, 선택)")
+    val detailInfo: String? = null,
+
+    @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)
     @Schema(description = "예매 마감 일시")
     val bookingDeadline: OffsetDateTime? = null,
 

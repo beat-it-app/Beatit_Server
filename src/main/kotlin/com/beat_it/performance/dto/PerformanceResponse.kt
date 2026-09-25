@@ -42,6 +42,9 @@ data class PerformanceResponse(
     @Schema(description = "공연 상세 설명 (200자 제한)")
     val description: String?,
 
+    @Schema(description = "공연 상세 정보 (최대 1,000자)")
+    val detailInfo: String?,
+
     @Schema(description = "예매 마감 일시")
     val bookingDeadline: OffsetDateTime?,
 
@@ -89,6 +92,7 @@ data class PerformanceResponse(
                 poster = poster,
                 detailImages = detailImages,
                 description = performance.description,
+                detailInfo = performance.detailInfo,
                 bookingDeadline = performance.bookingDeadline,
                 bookingLink = performance.bookingLink,
                 hostName = performance.hostName,

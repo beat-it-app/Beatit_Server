@@ -136,7 +136,6 @@ enum class ErrorCode(
     // --- 7. 공연 관련 에러 (PERFORMANCE) ---
     PERFORMANCE_NOT_FOUND(HttpStatus.NOT_FOUND, "PERFORMANCE-001", "공연을 찾을 수 없습니다."),
     PERFORMANCE_NO_PERMISSION(HttpStatus.FORBIDDEN, "PERFORMANCE-002", "해당 공연에 대한 권한이 없습니다."),
-    PERFORMANCE_POSTER_REQUIRED(HttpStatus.BAD_REQUEST, "PERFORMANCE-003", "공연 포스터는 필수 등록 항목입니다."),
     PERFORMANCE_INVALID_PRICE_COMBINATION(HttpStatus.BAD_REQUEST, "PERFORMANCE-004", "올바르지 않은 티켓 가격 조합입니다."),
     PERFORMANCE_BOOKING_DEADLINE_REQUIRED(HttpStatus.BAD_REQUEST, "PERFORMANCE-005", "사전 예매 또는 일반 예매 시 예매 마감 일시는 필수입니다."),
     PERFORMANCE_BOOKING_LINK_REQUIRED(HttpStatus.BAD_REQUEST, "PERFORMANCE-006", "사전 예매 또는 일반 예매 시 예매 링크는 필수입니다."),
@@ -145,6 +144,4 @@ enum class ErrorCode(
     PERFORMANCE_TITLE_REQUIRED(HttpStatus.BAD_REQUEST, "PERFORMANCE-009", "공연 제목은 필수입니다."),
     PERFORMANCE_DATE_REQUIRED(HttpStatus.BAD_REQUEST, "PERFORMANCE-010", "공연 일시는 필수입니다."),
     PERFORMANCE_HOST_NAME_REQUIRED(HttpStatus.BAD_REQUEST, "PERFORMANCE-011", "호스트 이름은 필수입니다."),
-
-
 }

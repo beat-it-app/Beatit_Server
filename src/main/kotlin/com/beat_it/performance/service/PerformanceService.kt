@@ -13,6 +13,7 @@ import com.beat_it.performance.entity.PerformanceFiles
 import com.beat_it.performance.entity.PerformancePrices
 import com.beat_it.performance.entity.Performances
 import com.beat_it.performance.entity.enum.PerformanceFileType
+import com.beat_it.performance.entity.enum.PerformanceFilterStatus
 import com.beat_it.performance.entity.enum.PerformanceStatus
 import com.beat_it.performance.entity.enum.TicketPriceType
 import com.beat_it.performance.repository.PerformanceFilesRepository
@@ -25,6 +26,7 @@ import org.springframework.transaction.annotation.Transactional
 import org.springframework.web.multipart.MultipartFile
 import java.math.BigDecimal
 import java.time.OffsetDateTime
+import java.util.UUID
 
 @Service
 class PerformanceService(
@@ -62,22 +64,22 @@ class PerformanceService(
             teamId = teamId,
             createdUserId = userId,
             title = request.title,
-            performanceDateTime = request.performanceDateTime,
+            performanceDateTime = request.performanceDateTime ?: throw BusinessException(ErrorCode.INVALID_INPUT_VALUE),
             location = location,
             placeName = request.placeName ?: location?.locationName,
             posterFileId = null,
             description = request.description,
+            detailInfo = request.detailInfo,
             bookingDeadline = request.bookingDeadline,
             bookingLink = request.bookingLink,
             hostName = request.hostName,
             hostContact = request.hostContact,
             hostLink = request.hostLink,
-            performanceStatus = PerformanceStatus.PUBLISHED
+            performanceStatus = PerformanceStatus.UPCOMING
         )
 
         val savedPerformance = performanceRepository.save(performance)
 
-        // 1. 포스터 파일 S3 업로드 및 엔티티 저장 (선택)
         if (posterImage != null && !posterImage.isEmpty) {
             val posterUploadResult = fileService.uploadFile(posterImage, FileDirectory.PERFORMANCE)
             val posterFile = PerformanceFiles(
@@ -96,7 +98,6 @@ class PerformanceService(
             savedPerformance.posterFileId = savedPosterFile.performanceFileId
         }
 
-        // 2. 공연 상세 이미지 업로드 (최대 5장)
         validDetailImages.forEachIndexed { index, imageFile ->
             val uploadResult = fileService.uploadFile(imageFile, FileDirectory.PERFORMANCE)
             val detailFile = PerformanceFiles(
@@ -114,54 +115,71 @@ class PerformanceService(
             performanceFilesRepository.save(detailFile)
         }
 
-        // 3. 티켓 가격 엔티티 저장
         savePrices(savedPerformance, request.prices)
 
         return toPerformanceResponse(savedPerformance)
     }
 
     @Transactional(readOnly = true)
-    fun getPerformanceDetail(userId: Long, performanceId: Long): PerformanceResponse {
+    fun getPerformanceDetail(userId: Long, publicId: UUID): PerformanceResponse {
         val teamId = userService.getCurrentTeamId(userId)
-        val performance = findPerformanceOrThrow(performanceId)
+        val performance = findPerformanceOrThrow(publicId)
         validateTeamAccess(teamId, performance)
 
         return toPerformanceResponse(performance)
     }
 
     @Transactional(readOnly = true)
-    fun getPerformanceInvitation(performanceId: Long): PerformanceInvitationResponse {
-        val performance = findPerformanceOrThrow(performanceId)
+    fun getPerformanceInvitation(publicId: UUID): PerformanceInvitationResponse {
+        val performance = findPerformanceOrThrow(publicId)
         return PerformanceInvitationResponse.from(performance)
     }
 
     @Transactional(readOnly = true)
     fun getMyPerformanceList(
         userId: Long,
-        status: PerformanceStatus?,
+        filter: PerformanceFilterStatus = PerformanceFilterStatus.ALL,
+        keyword: String? = null,
         page: Int = 0,
         size: Int = 10
     ): PerformanceListResponse {
         val teamId = userService.getCurrentTeamId(userId)
-        val pageRequest = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "performanceDateTime"))
+        val now = OffsetDateTime.now()
+        val searchKeyword = keyword?.takeIf { it.isNotBlank() }
+        val filterType = filter.name
 
-        val pageResult = if (status != null) {
-            performanceRepository.findByTeamIdAndPerformanceStatus(teamId, status, pageRequest)
-        } else {
-            performanceRepository.findByTeamId(teamId, pageRequest)
-        }
+        val sort = Sort.by(
+            Sort.Order.asc("performanceStatus"),
+            Sort.Order.asc("performanceDateTime")
+        )
+        val pageRequest = PageRequest.of(page, size, sort)
 
-        val items = pageResult.content.map { perf ->
-            val prices = performancePricesRepository.findByPerformance(perf)
-                .map { PerformancePriceDto.from(it) }
+        val pageResult = performanceRepository.searchMyPerformances(
+            teamId = teamId,
+            keyword = searchKeyword,
+            filterType = filterType,
+            now = now,
+            pageable = pageRequest
+        )
+
+        val upcomingList = mutableListOf<PerformanceListItemResponse>()
+        val pastList = mutableListOf<PerformanceListItemResponse>()
+
+        pageResult.content.forEach { perf ->
             val posterUrl = perf.posterFileId?.let { fileId ->
                 performanceFilesRepository.findById(fileId).orElse(null)?.cdnUrl
             }
-            PerformanceListItemResponse.of(perf, prices, posterUrl)
+            val item = PerformanceListItemResponse.of(perf, posterUrl)
+            if (perf.performanceStatus == PerformanceStatus.UPCOMING || perf.performanceStatus == PerformanceStatus.PUBLISHED || perf.performanceDateTime >= now) {
+                upcomingList.add(item)
+            } else {
+                pastList.add(item)
+            }
         }
 
         return PerformanceListResponse(
-            performances = items,
+            upcoming = upcomingList,
+            past = pastList,
             totalCount = pageResult.totalElements,
             hasNext = pageResult.hasNext()
         )
@@ -169,29 +187,46 @@ class PerformanceService(
 
     @Transactional(readOnly = true)
     fun getPerformanceList(
-        status: PerformanceStatus?,
+        filter: PerformanceFilterStatus = PerformanceFilterStatus.ALL,
+        keyword: String? = null,
         page: Int = 0,
         size: Int = 10
     ): PerformanceListResponse {
-        val pageRequest = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "performanceDateTime"))
+        val now = OffsetDateTime.now()
+        val searchKeyword = keyword?.takeIf { it.isNotBlank() }
+        val filterType = filter.name
 
-        val pageResult = if (status != null) {
-            performanceRepository.findByPerformanceStatus(status, pageRequest)
-        } else {
-            performanceRepository.findAll(pageRequest)
-        }
+        val sort = Sort.by(
+            Sort.Order.asc("performanceStatus"),
+            Sort.Order.asc("performanceDateTime")
+        )
+        val pageRequest = PageRequest.of(page, size, sort)
 
-        val items = pageResult.content.map { perf ->
-            val prices = performancePricesRepository.findByPerformance(perf)
-                .map { PerformancePriceDto.from(it) }
+        val pageResult = performanceRepository.searchAllPerformances(
+            keyword = searchKeyword,
+            filterType = filterType,
+            now = now,
+            pageable = pageRequest
+        )
+
+        val upcomingList = mutableListOf<PerformanceListItemResponse>()
+        val pastList = mutableListOf<PerformanceListItemResponse>()
+
+        pageResult.content.forEach { perf ->
             val posterUrl = perf.posterFileId?.let { fileId ->
                 performanceFilesRepository.findById(fileId).orElse(null)?.cdnUrl
             }
-            PerformanceListItemResponse.of(perf, prices, posterUrl)
+            val item = PerformanceListItemResponse.of(perf, posterUrl)
+            if (perf.performanceStatus == PerformanceStatus.UPCOMING || perf.performanceStatus == PerformanceStatus.PUBLISHED || perf.performanceDateTime >= now) {
+                upcomingList.add(item)
+            } else {
+                pastList.add(item)
+            }
         }
 
         return PerformanceListResponse(
-            performances = items,
+            upcoming = upcomingList,
+            past = pastList,
             totalCount = pageResult.totalElements,
             hasNext = pageResult.hasNext()
         )
@@ -200,17 +235,16 @@ class PerformanceService(
     @Transactional
     fun updatePerformance(
         userId: Long,
-        performanceId: Long,
+        publicId: UUID,
         request: PerformanceUpdateRequest,
         posterImage: MultipartFile?,
         detailImages: List<MultipartFile>?
     ): PerformanceResponse {
         val teamId = userService.getCurrentTeamId(userId)
-        val performance = findPerformanceOrThrow(performanceId)
+        val performance = findPerformanceOrThrow(publicId)
         validateTeamAccess(teamId, performance)
         validateAuthor(userId, performance)
 
-        // 가격 수정 요청이 포함된 경우 검증
         if (request.prices != null) {
             val bookingDeadline = request.bookingDeadline ?: performance.bookingDeadline
             val bookingLink = request.bookingLink ?: performance.bookingLink
@@ -222,7 +256,6 @@ class PerformanceService(
                 .orElseThrow { BusinessException(ErrorCode.LOCATION_NOT_FOUND) }
         } ?: performance.location
 
-        // 포스터 변경 처리
         if (posterImage != null && !posterImage.isEmpty) {
             val oldPosterFiles = performanceFilesRepository.findByPerformanceAndFileType(performance, PerformanceFileType.POSTER)
             oldPosterFiles.forEach { file ->
@@ -247,7 +280,6 @@ class PerformanceService(
             performance.posterFileId = savedPoster.performanceFileId!!
         }
 
-        // 상세 이미지 삭제 처리
         if (!request.deleteDetailFileIds.isNullOrEmpty()) {
             val filesToDelete = performanceFilesRepository.findAllById(request.deleteDetailFileIds)
                 .filter { it.performance.performanceId == performance.performanceId }
@@ -257,7 +289,6 @@ class PerformanceService(
             }
         }
 
-        // 새 상세 이미지 추가 업로드
         val validDetailImages = detailImages?.filter { !it.isEmpty } ?: emptyList()
         if (validDetailImages.isNotEmpty()) {
             val currentDetailFiles = performanceFilesRepository.findByPerformanceAndFileType(performance, PerformanceFileType.DETAIL_IMAGE)
@@ -284,7 +315,6 @@ class PerformanceService(
             }
         }
 
-        // 가격 정보 재등록
         if (request.prices != null) {
             performancePricesRepository.deleteByPerformance(performance)
             savePrices(performance, request.prices)
@@ -297,6 +327,7 @@ class PerformanceService(
             placeName = request.placeName,
             posterFileId = performance.posterFileId,
             description = request.description,
+            detailInfo = request.detailInfo,
             bookingDeadline = request.bookingDeadline,
             bookingLink = request.bookingLink,
             hostName = request.hostName,
@@ -330,19 +361,9 @@ class PerformanceService(
     }
 
     @Transactional
-    fun updatePerformanceStatus(userId: Long, performanceId: Long, status: PerformanceStatus) {
+    fun deletePerformance(userId: Long, publicId: UUID) {
         val teamId = userService.getCurrentTeamId(userId)
-        val performance = findPerformanceOrThrow(performanceId)
-        validateTeamAccess(teamId, performance)
-        validateAuthor(userId, performance)
-
-        performance.updateStatus(status)
-    }
-
-    @Transactional
-    fun deletePerformance(userId: Long, performanceId: Long) {
-        val teamId = userService.getCurrentTeamId(userId)
-        val performance = findPerformanceOrThrow(performanceId)
+        val performance = findPerformanceOrThrow(publicId)
         validateTeamAccess(teamId, performance)
         validateAuthor(userId, performance)
 
@@ -376,14 +397,6 @@ class PerformanceService(
         }
     }
 
-    /**
-     * 티켓 가격 조합 5가지 케이스 검증 및 예매마감일/예매링크 유효성 검사
-     * 1. 무료 공연 [FREE]
-     * 2. 사전 예매 공연 [ADVANCE]
-     * 3. 현장 예매 공연 [ON_SITE]
-     * 4. 사전 예매 + 현장 예매 [ADVANCE, ON_SITE]
-     * 5. 일반 예매 공연 [GENERAL]
-     */
     private fun validatePricesAndBooking(
         prices: List<PerformancePriceDto>,
         bookingDeadline: OffsetDateTime?,
@@ -428,8 +441,8 @@ class PerformanceService(
         }
     }
 
-    private fun findPerformanceOrThrow(performanceId: Long): Performances {
-        return performanceRepository.findById(performanceId)
+    private fun findPerformanceOrThrow(publicId: UUID): Performances {
+        return performanceRepository.findByPublicId(publicId)
             .orElseThrow { BusinessException(ErrorCode.PERFORMANCE_NOT_FOUND) }
     }
 

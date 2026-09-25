@@ -43,6 +43,9 @@ class Performances(
     @Column(name = "description", columnDefinition = "TEXT", length = 200, nullable = true)
     var description: String? = null,
 
+    @Column(name = "detail_info", columnDefinition = "TEXT", length = 1000, nullable = true)
+    var detailInfo: String? = null,
+
     @Column(name = "booking_deadline", nullable = true)
     var bookingDeadline: OffsetDateTime? = null,
 
@@ -60,7 +63,7 @@ class Performances(
 
     @Enumerated(EnumType.STRING)
     @Column(name = "performance_status", nullable = false)
-    var performanceStatus: PerformanceStatus = PerformanceStatus.PUBLISHED,
+    var performanceStatus: PerformanceStatus = PerformanceStatus.UPCOMING,
 
 ) : BaseUpdatedTimeEntity() {
 
@@ -78,6 +81,7 @@ class Performances(
         placeName: String?,
         posterFileId: Long?,
         description: String?,
+        detailInfo: String?,
         bookingDeadline: OffsetDateTime?,
         bookingLink: String?,
         hostName: String?,
@@ -91,6 +95,7 @@ class Performances(
         placeName?.let { this.placeName = it }
         posterFileId?.let { this.posterFileId = it }
         description?.let { this.description = it }
+        detailInfo?.let { this.detailInfo = it }
         bookingDeadline?.let { this.bookingDeadline = it }
         bookingLink?.let { this.bookingLink = it }
         hostName?.let { this.hostName = it }
