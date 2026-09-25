@@ -5,12 +5,19 @@ import com.beat_it.auth.dto.WithdrawalResponse
 import com.beat_it.global.error.BusinessException
 import com.beat_it.global.error.ErrorCode
 import com.beat_it.team.service.TeamService
+import com.beat_it.team.entity.enum.TeamType
+import com.fasterxml.jackson.core.type.TypeReference
+import com.fasterxml.jackson.databind.ObjectMapper
 import com.beat_it.global.response.BasicResponse
 import com.beat_it.team.dto.*
 import io.swagger.v3.oas.annotations.Operation
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.*
+import org.springframework.http.MediaType
+import org.springframework.web.multipart.MultipartFile
+import org.springframework.format.annotation.DateTimeFormat
+import java.time.LocalDate
 import java.util.UUID
 import io.swagger.v3.oas.annotations.tags.Tag
 import jakarta.validation.Valid
@@ -22,34 +29,51 @@ import org.springframework.security.core.userdetails.UserDetails
 @RequestMapping("/teams")
 class TeamController(
     private val teamService: TeamService,
+    private val objectMapper: ObjectMapper,
 ) {
 
     @Operation(summary = "팀 생성하기")
-    @PostMapping
+    @PostMapping(consumes = [MediaType.MULTIPART_FORM_DATA_VALUE])
     fun createTeam(
         @AuthenticationPrincipal userDetails: UserDetails,
-        @RequestBody request: TeamCreateRequest
+        @RequestParam teamName: String,
+        @RequestParam(required = false) description: String?,
+        @RequestParam teamType: TeamType,
+        @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) establishedOn: LocalDate?,
+        @RequestPart(value = "teamImage", required = false) teamImage: MultipartFile?,
     ): ResponseEntity<BasicResponse<TeamCreateResponse>> {
-        val userId = extractUserId(userDetails)
-        val responseData = teamService.createTeam(userId, request)
-
-        return ResponseEntity
-            .status(HttpStatus.CREATED)
-            .body(BasicResponse.success(responseData, HttpStatus.CREATED, "팀이 성공적으로 생성되었습니다."))
+        val request = TeamCreateRequest(teamName, description, teamType, establishedOn)
+        val response = teamService.createTeam(extractUserId(userDetails), request, teamImage)
+        return ResponseEntity.status(HttpStatus.CREATED)
+            .body(BasicResponse.success(response, HttpStatus.CREATED, "팀이 성공적으로 생성되었습니다."))
     }
 
     @Operation(summary = "팀 수정하기")
-    @PatchMapping
+    @PatchMapping(consumes = [MediaType.MULTIPART_FORM_DATA_VALUE])
     fun updateTeamDetail(
         @AuthenticationPrincipal userDetails: UserDetails,
-        @RequestBody request: TeamDetailUpdateRequest,
+        @RequestParam(required = false) teamName: String?,
+        @RequestParam(required = false) description: String?,
+        @RequestParam(required = false) teamType: TeamType?,
+        @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) establishedOn: LocalDate?,
+        @RequestParam(required = false) links: String?,
+        @RequestPart(value = "teamImage", required = false) teamImage: MultipartFile?,
     ): ResponseEntity<BasicResponse<TeamDetailUpdateResponse>> {
-        val userId = extractUserId(userDetails)
-        val responseData = teamService.updateTeamDetail(userId, request)
-
-        return ResponseEntity
-            .status(HttpStatus.OK)
-            .body(BasicResponse.success(responseData, HttpStatus.OK, "팀 상세 내용이 성공적으로 수정되었습니다."))
+        val request = TeamDetailUpdateRequest(
+            teamName = teamName,
+            description = description,
+            teamType = teamType,
+            establishedOn = establishedOn,
+            links = links?.let {
+                try {
+                    objectMapper.readValue(it, object : TypeReference<List<TeamLinksRequest>>() {})
+                } catch (e: com.fasterxml.jackson.core.JsonProcessingException) {
+                    throw BusinessException(ErrorCode.INVALID_INPUT_VALUE)
+                }
+            },
+        )
+        val response = teamService.updateTeamDetail(extractUserId(userDetails), request, teamImage)
+        return ResponseEntity.ok(BasicResponse.success(response, HttpStatus.OK, "팀 상세 내용이 성공적으로 수정되었습니다."))
     }
 
     @Operation(summary = "팀 삭제하기")

@@ -5,11 +5,10 @@ import com.beat_it.team.entity.enum.TeamType
 import java.time.LocalDate
 
 data class TeamDetailUpdateRequest(
-    val teamName: String,
+    val teamName: String? = null,
     val description: String? = null,
     val teamType: TeamType? = null,
     val establishedOn: LocalDate? = null,
-    val teamImageUrl: String? = null,
     val links: List<TeamLinksRequest>? = null,
 )
 
