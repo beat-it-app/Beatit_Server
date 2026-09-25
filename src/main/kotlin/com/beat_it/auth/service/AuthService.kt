@@ -106,12 +106,13 @@ class AuthService (
         val user = userAuthAccount.user
         val isCreatedProfile = userProfilesRepository.existsByUser_UserId(user.userId)
 
+        val rememberMe = loginRequest.rememberMe
         val accessToken = jwtTokenProvider.createAccessToken(
             userId = user.userId.toString(),
-            role = user.role
+            role = user.role,
+            rememberMe = rememberMe
         )
 
-        val rememberMe = loginRequest.rememberMe
         val refreshToken = jwtTokenProvider.createRefreshToken(user.userId.toString(), rememberMe)
         refreshTokenService.saveRefreshToken(
             userId = user.userId.toString(),
@@ -329,7 +330,7 @@ class AuthService (
             .orElseThrow { BusinessException(ErrorCode.USER_NOT_FOUND) }
 
         val rememberMe = jwtTokenProvider.getRememberMe(refreshToken)
-        val newAccessToken = jwtTokenProvider.createAccessToken(userId, user.role)
+        val newAccessToken = jwtTokenProvider.createAccessToken(userId, user.role, rememberMe)
         val newRefreshToken = jwtTokenProvider.createRefreshToken(userId, rememberMe)
 
         refreshTokenService.saveRefreshToken(
@@ -361,7 +362,7 @@ class AuthService (
         val userAuthAccount = userAuthAccountRepository.findByUserUserId(user.userId!!)
 
         val rememberMe = jwtTokenProvider.getRememberMe(refreshToken)
-        val newAccessToken = jwtTokenProvider.createAccessToken(userId, user.role)
+        val newAccessToken = jwtTokenProvider.createAccessToken(userId, user.role, rememberMe)
         val newRefreshToken = jwtTokenProvider.createRefreshToken(userId, rememberMe)
 
         refreshTokenService.saveRefreshToken(
