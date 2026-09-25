@@ -170,7 +170,7 @@ class PerformanceService(
                 performanceFilesRepository.findById(fileId).orElse(null)?.cdnUrl
             }
             val item = PerformanceListItemResponse.of(perf, posterUrl)
-            if (perf.performanceStatus == PerformanceStatus.UPCOMING || perf.performanceStatus == PerformanceStatus.PUBLISHED || perf.performanceDateTime >= now) {
+            if (perf.performanceStatus == PerformanceStatus.UPCOMING || perf.performanceDateTime >= now) {
                 upcomingList.add(item)
             } else {
                 pastList.add(item)
@@ -217,7 +217,7 @@ class PerformanceService(
                 performanceFilesRepository.findById(fileId).orElse(null)?.cdnUrl
             }
             val item = PerformanceListItemResponse.of(perf, posterUrl)
-            if (perf.performanceStatus == PerformanceStatus.UPCOMING || perf.performanceStatus == PerformanceStatus.PUBLISHED || perf.performanceDateTime >= now) {
+            if (perf.performanceStatus == PerformanceStatus.UPCOMING || perf.performanceDateTime >= now) {
                 upcomingList.add(item)
             } else {
                 pastList.add(item)

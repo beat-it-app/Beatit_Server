@@ -63,7 +63,7 @@ data class PerformanceResponse(
     @Schema(description = "티켓 가격 정보 목록")
     val prices: List<PerformancePriceDto>,
 
-    @Schema(description = "공연 상태 (PUBLISHED, CLOSED)")
+    @Schema(description = "공연 상태 (UPCOMING, PAST)")
     val performanceStatus: PerformanceStatus,
 
     @Schema(description = "생성 일시")

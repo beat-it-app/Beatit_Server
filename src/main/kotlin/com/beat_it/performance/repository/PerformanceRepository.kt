@@ -21,8 +21,8 @@ interface PerformanceRepository : JpaRepository<Performances, Long> {
         AND (COALESCE(:keyword, '') = '' OR LOWER(p.title) LIKE LOWER(CONCAT('%', :keyword, '%')))
         AND (
             :filterType = 'ALL' 
-            OR (:filterType = 'UPCOMING' AND (p.performanceStatus = com.beat_it.performance.entity.enum.PerformanceStatus.UPCOMING OR p.performanceStatus = com.beat_it.performance.entity.enum.PerformanceStatus.PUBLISHED OR p.performanceDateTime >= :now))
-            OR (:filterType = 'PAST' AND (p.performanceStatus = com.beat_it.performance.entity.enum.PerformanceStatus.PAST OR p.performanceStatus = com.beat_it.performance.entity.enum.PerformanceStatus.CLOSED OR (p.performanceStatus NOT IN (com.beat_it.performance.entity.enum.PerformanceStatus.UPCOMING, com.beat_it.performance.entity.enum.PerformanceStatus.PUBLISHED) AND p.performanceDateTime < :now)))
+            OR (:filterType = 'UPCOMING' AND (p.performanceStatus = com.beat_it.performance.entity.enum.PerformanceStatus.UPCOMING OR p.performanceDateTime >= :now))
+            OR (:filterType = 'PAST' AND (p.performanceStatus = com.beat_it.performance.entity.enum.PerformanceStatus.PAST OR (p.performanceStatus != com.beat_it.performance.entity.enum.PerformanceStatus.UPCOMING AND p.performanceDateTime < :now)))
         )
     """)
     fun searchMyPerformances(
@@ -38,8 +38,8 @@ interface PerformanceRepository : JpaRepository<Performances, Long> {
         WHERE (COALESCE(:keyword, '') = '' OR LOWER(p.title) LIKE LOWER(CONCAT('%', :keyword, '%')))
         AND (
             :filterType = 'ALL' 
-            OR (:filterType = 'UPCOMING' AND (p.performanceStatus = com.beat_it.performance.entity.enum.PerformanceStatus.UPCOMING OR p.performanceStatus = com.beat_it.performance.entity.enum.PerformanceStatus.PUBLISHED OR p.performanceDateTime >= :now))
-            OR (:filterType = 'PAST' AND (p.performanceStatus = com.beat_it.performance.entity.enum.PerformanceStatus.PAST OR p.performanceStatus = com.beat_it.performance.entity.enum.PerformanceStatus.CLOSED OR (p.performanceStatus NOT IN (com.beat_it.performance.entity.enum.PerformanceStatus.UPCOMING, com.beat_it.performance.entity.enum.PerformanceStatus.PUBLISHED) AND p.performanceDateTime < :now)))
+            OR (:filterType = 'UPCOMING' AND (p.performanceStatus = com.beat_it.performance.entity.enum.PerformanceStatus.UPCOMING OR p.performanceDateTime >= :now))
+            OR (:filterType = 'PAST' AND (p.performanceStatus = com.beat_it.performance.entity.enum.PerformanceStatus.PAST OR (p.performanceStatus != com.beat_it.performance.entity.enum.PerformanceStatus.UPCOMING AND p.performanceDateTime < :now)))
         )
     """)
     fun searchAllPerformances(
