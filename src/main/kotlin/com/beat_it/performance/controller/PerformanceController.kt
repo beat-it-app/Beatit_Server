@@ -5,7 +5,6 @@ import com.beat_it.global.error.ErrorCode
 import com.beat_it.global.response.BasicResponse
 import com.beat_it.performance.dto.*
 import com.beat_it.performance.entity.enum.PerformanceFilterStatus
-import com.beat_it.performance.entity.enum.PerformanceStatus
 import com.beat_it.performance.service.PerformanceService
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.Parameter

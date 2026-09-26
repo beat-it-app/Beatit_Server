@@ -12,12 +12,13 @@ import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import org.springframework.web.client.RestClient
+import org.springframework.web.client.body
 import java.math.BigDecimal
 
 @Service
 class LocationsService(
     private val locationsRepository: LocationsRepository,
-    @Value("\${kakao.rest-api-key}") private val kakaoRestApiKey: String
+    @Value($$"${kakao.rest-api-key}") private val kakaoRestApiKey: String
 ) {
     private val restClient: RestClient by lazy {
         RestClient.builder()
@@ -78,7 +79,7 @@ class LocationsService(
                     .build()
             }
             .retrieve()
-            .body(KakaoSearchResponse::class.java)
+            .body<KakaoSearchResponse>()
 
         val searchResults = response?.documents?.map { doc ->
             LocationSearchResponse(
