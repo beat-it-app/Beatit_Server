@@ -131,7 +131,8 @@ class PerformanceService(
     @Transactional(readOnly = true)
     fun getPerformanceInvitation(publicId: UUID): PerformanceInvitationResponse {
         val performance = findPerformanceOrThrow(publicId)
-        return PerformanceInvitationResponse.from(performance)
+        val teamName = runCatching { teamService.findTeamForCommandOrThrow(performance.teamId).teamName }.getOrNull()
+        return PerformanceInvitationResponse.from(performance, teamName)
     }
 
     @Transactional(readOnly = true)

@@ -6,6 +6,9 @@ import java.time.OffsetDateTime
 
 @Schema(description = "모바일 초대장 조회 응답 DTO")
 data class PerformanceInvitationResponse(
+    @Schema(description = "팀 이름", example = "비트잇 밴드")
+    val teamName: String?,
+
     @Schema(description = "공연 제목")
     val title: String,
 
@@ -19,8 +22,9 @@ data class PerformanceInvitationResponse(
     val description: String?
 ) {
     companion object {
-        fun from(performance: Performances): PerformanceInvitationResponse {
+        fun from(performance: Performances, teamName: String? = null): PerformanceInvitationResponse {
             return PerformanceInvitationResponse(
+                teamName = teamName,
                 title = performance.title,
                 performanceDateTime = performance.performanceDateTime,
                 placeName = performance.placeName,
