@@ -107,4 +107,9 @@ class LocationsService(
             throw BusinessException(ErrorCode.RESOURCE_NOT_FOUND)
         }
     }
+
+    fun findLocation(locationId: Long): Locations {
+        return locationsRepository.findById(locationId)
+            .orElseThrow { BusinessException(ErrorCode.LOCATION_NOT_FOUND) }
+    }
 }

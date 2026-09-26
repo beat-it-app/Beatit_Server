@@ -7,7 +7,7 @@ import com.beat_it.global.error.ErrorCode
 import com.beat_it.global.service.FileDirectory
 import com.beat_it.global.service.FileService
 import com.beat_it.location.dto.LocationResponse
-import com.beat_it.location.repository.LocationsRepository
+import com.beat_it.location.service.LocationsService
 import com.beat_it.performance.dto.*
 import com.beat_it.performance.entity.PerformanceFiles
 import com.beat_it.performance.entity.PerformancePrices
@@ -33,7 +33,7 @@ class PerformanceService(
     private val performanceRepository: PerformanceRepository,
     private val performancePricesRepository: PerformancePricesRepository,
     private val performanceFilesRepository: PerformanceFilesRepository,
-    private val locationsRepository: LocationsRepository,
+    private val locationsService: LocationsService,
     private val fileService: FileService,
     private val userService: UserService
 ) {
@@ -55,10 +55,7 @@ class PerformanceService(
             throw BusinessException(ErrorCode.PERFORMANCE_DETAIL_IMAGE_EXCEEDED)
         }
 
-        val location = request.locationId?.let { locId ->
-            locationsRepository.findById(locId)
-                .orElseThrow { BusinessException(ErrorCode.LOCATION_NOT_FOUND) }
-        }
+        val location = request.locationId?.let { locationsService.findLocation(it) }
 
         val performance = Performances(
             teamId = teamId,
@@ -251,10 +248,7 @@ class PerformanceService(
             validatePricesAndBooking(request.prices, bookingDeadline, bookingLink)
         }
 
-        val location = request.locationId?.let { locId ->
-            locationsRepository.findById(locId)
-                .orElseThrow { BusinessException(ErrorCode.LOCATION_NOT_FOUND) }
-        } ?: performance.location
+        val location = request.locationId?.let { locationsService.findLocation(it) } ?: performance.location
 
         if (posterImage != null && !posterImage.isEmpty) {
             val oldPosterFiles = performanceFilesRepository.findByPerformanceAndFileType(performance, PerformanceFileType.POSTER)
@@ -413,15 +407,10 @@ class PerformanceService(
         val hasGeneral = priceTypes.contains(TicketPriceType.GENERAL)
 
         val isValidCombination = when {
-            // Case 1: 무료 공연 단독
             hasFree && priceTypes.size == 1 -> true
-            // Case 2: 사전 예매 단독
             hasAdvance && priceTypes.size == 1 -> true
-            // Case 3: 현장 예매 단독
             hasOnSite && priceTypes.size == 1 -> true
-            // Case 4: 사전 예매 + 현장 예매
             hasAdvance && hasOnSite && priceTypes.size == 2 -> true
-            // Case 5: 일반 예매 단독
             hasGeneral && priceTypes.size == 1 -> true
             else -> false
         }
@@ -430,7 +419,6 @@ class PerformanceService(
             throw BusinessException(ErrorCode.PERFORMANCE_INVALID_PRICE_COMBINATION)
         }
 
-        // 사전 예매(ADVANCE) 또는 일반 예매(GENERAL)가 포함된 경우 마감 일시 및 예매 링크 필수
         if (hasAdvance || hasGeneral) {
             if (bookingDeadline == null) {
                 throw BusinessException(ErrorCode.PERFORMANCE_BOOKING_DEADLINE_REQUIRED)

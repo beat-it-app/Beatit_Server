@@ -1,3 +1,5 @@
+@file:Suppress("DEPRECATION", "OVERRIDE_DEPRECATION")
+
 package com.beat_it.global.config
 
 import com.fasterxml.jackson.databind.ObjectMapper
@@ -10,11 +12,6 @@ import org.springframework.http.converter.json.MappingJackson2HttpMessageConvert
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer
 import java.lang.reflect.Type
 
-/**
- * WebMvc 설정 클래스.
- * multipart/form-data 요청 시 JSON Part의 Content-Type이 application/octet-stream으로 들어오더라도
- * JavaTimeModule 및 KotlinModule이 세팅된 Jackson ObjectMapper로 DTO(OffsetDateTime 포함)를 안전하게 파싱할 수 있도록 지원합니다.
- */
 @Configuration
 class WebConfig(
     private val objectMapper: ObjectMapper
