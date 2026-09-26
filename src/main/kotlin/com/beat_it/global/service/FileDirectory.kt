@@ -8,5 +8,6 @@ enum class FileDirectory(val path: String) {
     CHAT("chat"),
     SCHEDULE("schedules"),
     TEAM_CLOUD("team-clouds"),
+    PERFORMANCE("performance"),
     COMMON("common")
 }
