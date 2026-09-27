@@ -158,9 +158,7 @@ class TeamCloudController(
     fun getTeamCloudStorage(
         @AuthenticationPrincipal userDetails: UserDetails
     ): ResponseEntity<BasicResponse<TeamCloudStorageResponse>> {
-        val userId = userDetails.username.toLongOrNull()
-            ?: throw BusinessException(ErrorCode.UNAUTHORIZED)
-
+        val userId = extractUserId(userDetails)
         val responseData = teamCloudService.getTeamCloudStorage(userId)
 
         return ResponseEntity
