@@ -296,6 +296,49 @@ class TeamCloudService(
         teamCloudFolderRepository.delete(folder)
     }
 
+    @Transactional(readOnly = true)
+    fun getTeamCloudStorage(userId: Long): TeamCloudStorageResponse {
+        val teamId = userService.getCurrentTeamId(userId)
+        val team = findTeamOrThrow(teamId)
+
+        // TODO: 추후 요금제 도입 시 team.maxStorageBytes 필드로 대체
+        val maxStorageBytes = MAX_STORAGE_BYTES
+
+        val categoryUsages = teamCloudItemRepository.findStorageUsageByCategory(teamId)
+        val usedBytes = categoryUsages.sumOf { it.totalBytes }
+        val remainingBytes = (maxStorageBytes - usedBytes).coerceAtLeast(0L)
+
+        val usagePercentage = if (maxStorageBytes > 0) {
+            ((usedBytes.toDouble() / maxStorageBytes) * 100).toInt()
+        } else 0
+
+        val categoryDetails = categoryUsages.map { usage ->
+            val label = when (usage.category) {
+                MediaCategory.DOCUMENT -> "PDF"
+                MediaCategory.VIDEO -> "영상"
+                MediaCategory.AUDIO -> "MP3"
+                MediaCategory.IMAGE -> "이미지"
+            }
+            TeamCloudStorageResponse.CategoryUsageDetail(
+                category = label,
+                bytes = usage.totalBytes,
+                displaySize = TeamCloudStorageResponse.formatBytes(usage.totalBytes)
+            )
+        }
+
+        return TeamCloudStorageResponse(
+            teamName = team.teamName,
+            usagePercentage = usagePercentage,
+            totalStorageBytes = maxStorageBytes,
+            totalStorageDisplay = "${maxStorageBytes / (1024 * 1024 * 1024)}GB",
+            usedStorageBytes = usedBytes,
+            usedStorageDisplay = TeamCloudStorageResponse.formatBytes(usedBytes),
+            remainingStorageBytes = remainingBytes,
+            remainingStorageDisplay = TeamCloudStorageResponse.formatBytes(remainingBytes),
+            categories = categoryDetails
+        )
+    }
+
     private fun validateStorageLimit(team: Teams, newFileSize: Long) {
         // TODO: [요금제 및 동시성 고려] 비관락 or 분산락 적용 필요
         val items = teamCloudItemRepository.findByTeam(team)
