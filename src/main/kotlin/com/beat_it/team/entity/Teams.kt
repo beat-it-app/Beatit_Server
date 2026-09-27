@@ -27,6 +27,9 @@ class Teams(
     @Column(name = "team_image_url", nullable = true)
     var teamImageUrl: String? = null,
 
+    @Column(name = "team_image_storage_key", length = 255)
+    var teamImageStorageKey: String? = null,
+
     @Column(name = "name", nullable = false)
     var teamName: String,
 

@@ -7,5 +7,6 @@ data class ScheduleCreateResponse(
     val title: String,
     val startsAt: OffsetDateTime,
     val endsAt: OffsetDateTime,
+    val locationId: Long?,
     val createdAt: OffsetDateTime
 )

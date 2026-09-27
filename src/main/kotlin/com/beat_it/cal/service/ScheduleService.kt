@@ -16,6 +16,7 @@ import com.beat_it.cal.repository.ScheduleRepository
 import com.beat_it.global.error.BusinessException
 import com.beat_it.global.error.ErrorCode
 import com.beat_it.global.service.FileService
+import com.beat_it.location.service.LocationsService
 import com.beat_it.team.service.TeamService
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -30,16 +31,17 @@ class ScheduleService(
     private val scheduleRepository: ScheduleRepository,
     private val teamService: TeamService,
     private val userService: UserService,
-    private val fileService: FileService
-    // private val locationService: LocationService
+    private val fileService: FileService,
+    private val locationService: LocationsService
 ) {
 
     @Transactional
-    fun createSchedule(userId: Long, request: ScheduleCreateRequest): ScheduleCreateResponse {
+    fun createSchedule(userId: Long, request: ScheduleCreateRequest, files: List<MultipartFile>?): ScheduleCreateResponse {
 
         validateScheduleCommon(request.title, request.startsAt, request.endsAt)
 
         val currentTeamId = userService.getCurrentTeamId(userId)
+        request.locationId?.let { locationService.validateLocationExists(it) }
 
         teamService.validateTeamMember(currentTeamId, userId)
 
@@ -61,8 +63,8 @@ class ScheduleService(
             )
         }
 
-        if (!request.files.isNullOrEmpty()) {
-            val validFiles = request.files.filter { !it.isEmpty }
+        if (!files.isNullOrEmpty()) {
+            val validFiles = files.filter { !it.isEmpty }
             if (validFiles.isNotEmpty()) {
                 val uploadedFiles = fileService.uploadFiles(validFiles, com.beat_it.global.service.FileDirectory.SCHEDULE)
                 uploadedFiles.forEach { fileResult ->
@@ -75,22 +77,16 @@ class ScheduleService(
             }
         }
 
-        request.participantUserIds.forEach { participantUserId ->
-            teamService.validateTeamMember(currentTeamId, participantUserId)
-            schedule.addParticipant(participantUserId)
+        if (request.participantUserIds.isNotEmpty()) {
+            val isValidTeamMembers = teamService.validateMembersInTeam(currentTeamId, request.participantUserIds)
+            if (!isValidTeamMembers) {
+                throw BusinessException(ErrorCode.INVALID_TEAM_PARTICIPANTS)
+            }
+
+            request.participantUserIds.forEach { participantUserId ->
+                schedule.addParticipant(participantUserId)
+            }
         }
-
-        //TODO: 여러명 검증 함수 추후 변경
-//        val isValidTeamMembers = teamService.validateMembersInTeam(currentTeamId, request.participantUserIds)
-//        if (!isValidTeamMembers) {
-//            throw BusinessException(ErrorCode.INVALID_TEAM_PARTICIPANTS)
-//        }
-//
-//        request.participantUserIds.forEach { participantUserId ->
-//            schedule.addParticipant(participantUserId)
-//        }
-
-
 
         val savedSchedule = scheduleRepository.save(schedule)
 
@@ -99,42 +95,37 @@ class ScheduleService(
             title = savedSchedule.title,
             startsAt = savedSchedule.startsAt,
             endsAt = savedSchedule.endsAt,
+            locationId = savedSchedule.locationId,
             createdAt = savedSchedule.createdAt
         )
     }
 
     @Transactional
-    fun updateSchedule(scheduleId: Long, userId: Long, request: ScheduleUpdateRequest): ScheduleCreateResponse {
+    fun updateSchedule(scheduleId: Long, userId: Long, request: ScheduleUpdateRequest, files: List<MultipartFile>?): ScheduleCreateResponse {
 
         validateScheduleCommon(request.title, request.startsAt, request.endsAt)
+        request.locationId?.let { locationService.validateLocationExists(it) }
         val schedule = findScheduleOrThrow(scheduleId)
 
         validateScheduleOwner(schedule.userId, userId)
 
-        if (isNotChanged(schedule, request)) {
+        if (isNotChanged(schedule, request, files)) {
             throw BusinessException(ErrorCode.CALENDAR_NO_CONTENT_TO_UPDATE)
         }
 
         request.participantUserIds?.let { newIds ->
+            if (newIds.isNotEmpty()) {
+                val isValidTeamMembers = teamService.validateMembersInTeam(schedule.teamId, newIds)
+                if (!isValidTeamMembers) {
+                    throw BusinessException(ErrorCode.INVALID_TEAM_PARTICIPANTS)
+                }
+            }
+
             schedule.participants.clear()
             newIds.forEach { participantId ->
-                teamService.validateTeamMember(schedule.teamId, participantId) // 팀 소속 검증
                 schedule.addParticipant(participantId)
             }
         }
-
-        //TODO: 여러명 검증 함수 추후 변경
-//        request.participantUserIds?.let { newIds ->
-//            val isValidTeamMembers = teamService.validateMembersInTeam(schedule.teamId, newIds)
-//            if (!isValidTeamMembers) {
-//                throw BusinessException(ErrorCode.INVALID_TEAM_PARTICIPANTS)
-//            }
-//
-//            schedule.participants.clear()
-//            newIds.forEach { participantId ->
-//                schedule.addParticipant(participantId)
-//            }
-//        }
 
         val retainMusicIds = request.retainMusicIds ?: emptyList()
         schedule.musics.removeIf { it.id !in retainMusicIds }
@@ -155,8 +146,8 @@ class ScheduleService(
         }
         schedule.files.removeIf { it.id !in retainFileIds }
 
-        if (!request.files.isNullOrEmpty()) {
-            val validFiles = request.files.filter { !it.isEmpty }
+        if (!files.isNullOrEmpty()) {
+            val validFiles = files.filter { !it.isEmpty }
             if (validFiles.isNotEmpty()) {
                 val uploadedFiles = fileService.uploadFiles(validFiles, com.beat_it.global.service.FileDirectory.SCHEDULE)
                 uploadedFiles.forEach { fileResult ->
@@ -182,6 +173,7 @@ class ScheduleService(
             title = schedule.title,
             startsAt = schedule.startsAt,
             endsAt = schedule.endsAt,
+            locationId = request.locationId,
             createdAt = schedule.createdAt
         )
     }
@@ -300,7 +292,7 @@ class ScheduleService(
         }
     }
 
-    private fun isNotChanged(schedule: Schedule, request: ScheduleUpdateRequest): Boolean {
+    private fun isNotChanged(schedule: Schedule, request: ScheduleUpdateRequest, files: List<MultipartFile>?): Boolean {
         val isAnyFieldChanged =
             (request.title != null && request.title != schedule.title) ||
                     (request.content != null && request.content != schedule.content) ||
@@ -315,7 +307,7 @@ class ScheduleService(
         val isMusicsChanged = (schedule.musics.size != retainMusicIds.size) || !request.musics.isNullOrEmpty()
 
         val retainFileIds = request.retainFileIds ?: emptyList()
-        val isFilesChanged = (schedule.files.size != retainFileIds.size) || !request.files.isNullOrEmpty()
+        val isFilesChanged = (schedule.files.size != retainFileIds.size) || !files.isNullOrEmpty()
 
         return !(isAnyFieldChanged || isParticipantsChanged || isMusicsChanged || isFilesChanged)
     }
