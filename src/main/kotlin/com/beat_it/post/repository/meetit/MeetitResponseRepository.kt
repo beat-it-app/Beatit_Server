@@ -9,4 +9,7 @@ interface MeetitResponseRepository : JpaRepository<MeetitResponse, Long> {
 
     @Modifying
     fun deleteByMeetitParticipantMeetitParticipantId(meetitParticipantId: Long)
+
+    @Modifying
+    fun deleteByMeetitMeetitId(meetitId: Long)
 }

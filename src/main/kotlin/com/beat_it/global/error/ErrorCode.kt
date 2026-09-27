@@ -107,6 +107,7 @@ enum class ErrorCode(
     // --- 6. 모임 조율 관련 에러 (MEETIT) ---
     MEETIT_TEAM_MISMATCH(HttpStatus.FORBIDDEN, "MEETIT-001", "현재 팀에서 접근할 수 없는 모임 조율입니다."),
     MEETIT_NOT_PARTICIPANT(HttpStatus.FORBIDDEN, "MEETIT-002", "해당 모임 조율의 참여 대상이 아닙니다."),
+    MEETIT_NO_DELETE_PERMISSION(HttpStatus.FORBIDDEN, "MEETIT-003", "모임 조율을 삭제할 권한이 없습니다."),
 
     // --- 장소 관련 에러 ---
     LOCATION_NOT_FOUND(HttpStatus.NOT_FOUND, "LOCATION-001", "장소를 찾을 수 없습니다."),

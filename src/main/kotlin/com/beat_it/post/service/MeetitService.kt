@@ -278,6 +278,24 @@ class MeetitService(
         meetitResponseRepository.saveAll(newResponses)
     }
 
+    @Transactional
+    fun deleteMeetit(userId: Long, meetitId: Long) {
+        val meetit = meetitRepository.findById(meetitId)
+            .orElseThrow { BusinessException(ErrorCode.RESOURCE_NOT_FOUND) }
+
+        val teamId = userService.getCurrentTeamId(userId)
+        if (meetit.teamId != teamId) {
+            throw BusinessException(ErrorCode.MEETIT_TEAM_MISMATCH)
+        }
+
+        if (meetit.userId != userId) {
+            throw BusinessException(ErrorCode.MEETIT_NO_DELETE_PERMISSION)
+        }
+
+        meetitResponseRepository.deleteByMeetitMeetitId(meetitId)
+        meetitRepository.delete(meetit)
+    }
+
     private fun findOptimalIntervals(
         grid: List<MeetitGridSlotResponse>,
         threshold: Int,
