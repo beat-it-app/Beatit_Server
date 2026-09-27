@@ -9,6 +9,7 @@ import com.beat_it.team.dto.TeamCloudItemsDeleteRequest
 import com.beat_it.team.dto.TeamCloudItemsMoveRequest
 import com.beat_it.team.dto.TeamCloudLinkCreateRequest
 import com.beat_it.team.dto.TeamCloudListResponse
+import com.beat_it.team.dto.TeamCloudStorageResponse
 import com.beat_it.team.service.TeamCloudService
 import org.springframework.http.HttpStatus
 import org.springframework.http.MediaType
@@ -151,6 +152,20 @@ class TeamCloudController(
         return ResponseEntity
             .status(HttpStatus.OK)
             .body(BasicResponse.success(null, HttpStatus.OK, "팀 클라우드 아이템을 성공적으로 삭제했습니다."))
+    }
+
+    @GetMapping("/storage")
+    fun getTeamCloudStorage(
+        @AuthenticationPrincipal userDetails: UserDetails
+    ): ResponseEntity<BasicResponse<TeamCloudStorageResponse>> {
+        val userId = userDetails.username.toLongOrNull()
+            ?: throw BusinessException(ErrorCode.UNAUTHORIZED)
+
+        val responseData = teamCloudService.getTeamCloudStorage(userId)
+
+        return ResponseEntity
+            .status(HttpStatus.OK)
+            .body(BasicResponse.success(responseData, HttpStatus.OK, "저장 용량 조회에 성공했습니다."))
     }
 
     private fun extractUserId(userDetails: UserDetails): Long {
