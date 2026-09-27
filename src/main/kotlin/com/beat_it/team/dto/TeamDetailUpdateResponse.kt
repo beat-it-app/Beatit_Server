@@ -8,6 +8,7 @@ data class TeamDetailUpdateResponse(
     val teamId: Long,
     val teamPublicId: UUID,
     val teamName: String,
+    val teamImageUrl: String?,
     val description: String?,
     val establishedOn: LocalDate?,
     val updatedAt: OffsetDateTime,
