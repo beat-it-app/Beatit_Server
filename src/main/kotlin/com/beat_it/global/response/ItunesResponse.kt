@@ -9,6 +9,7 @@ data class ItunesSearchResponse(
 
 @JsonIgnoreProperties(ignoreUnknown = true)
 data class ItunesTrack(
+    val trackId: Long? = null,
     val trackName: String?,
     val artistName: String?,
     val previewUrl: String?,

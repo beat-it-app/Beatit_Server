@@ -582,6 +582,7 @@ class TeamService(
                 ?: throw BusinessException(ErrorCode.USER_NOT_FOUND)
 
             MemberItems(
+                userId = membership.userId,
                 userPublicId = userInfo.userPublicId,
                 userName = userInfo.userName,
                 profileImageUrl = userInfo.profileImageUrl,

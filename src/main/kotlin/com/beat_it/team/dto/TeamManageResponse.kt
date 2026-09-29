@@ -14,6 +14,7 @@ data class TeamMemberListResponse(
 )
 
 data class MemberItems(
+    val userId: Long,
     val userPublicId: UUID,
     val userName: String,
     val profileImageUrl: String?,

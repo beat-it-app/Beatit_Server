@@ -49,7 +49,28 @@ class Polls(
 ): BaseUpdatedTimeEntity() {
     @OneToMany(mappedBy = "poll", cascade = [CascadeType.ALL], orphanRemoval = true)
     @OrderBy("displayOrder ASC")
-    var pollOptions: List<PollOptions> = listOf()
+    var pollOptions: MutableList<PollOptions> = mutableListOf()
+
+    fun updatePoll(
+        title: String,
+        content: String?,
+        pollType: PollType,
+        allowMultipleChoice: Boolean,
+        isAnonymous: Boolean,
+        remindBeforeClose: Boolean,
+        closeAt: OffsetDateTime?,
+        newOptions: List<PollOptions>
+    ) {
+        this.title = title
+        this.content = content
+        this.pollType = pollType
+        this.allowMultipleChoice = allowMultipleChoice
+        this.isAnonymous = isAnonymous
+        this.remindBeforeClose = remindBeforeClose
+        this.closeAt = closeAt
+        this.pollOptions.clear()
+        this.pollOptions.addAll(newOptions)
+    }
 
     fun increaseComment() {
         this.commentCounter++
