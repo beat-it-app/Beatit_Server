@@ -19,6 +19,7 @@ import com.beat_it.performance.entity.enum.TicketPriceType
 import com.beat_it.performance.repository.PerformanceFilesRepository
 import com.beat_it.performance.repository.PerformancePricesRepository
 import com.beat_it.performance.repository.PerformanceRepository
+import com.beat_it.team.service.TeamService
 import org.springframework.data.domain.PageRequest
 import org.springframework.data.domain.Sort
 import org.springframework.stereotype.Service
@@ -35,7 +36,8 @@ class PerformanceService(
     private val performanceFilesRepository: PerformanceFilesRepository,
     private val locationsService: LocationsService,
     private val fileService: FileService,
-    private val userService: UserService
+    private val userService: UserService,
+    private val teamService: TeamService
 ) {
 
     @Transactional
@@ -129,7 +131,8 @@ class PerformanceService(
     @Transactional(readOnly = true)
     fun getPerformanceInvitation(publicId: UUID): PerformanceInvitationResponse {
         val performance = findPerformanceOrThrow(publicId)
-        return PerformanceInvitationResponse.from(performance)
+        val teamName = runCatching { teamService.findTeamForCommandOrThrow(performance.teamId).teamName }.getOrNull()
+        return PerformanceInvitationResponse.from(performance, teamName)
     }
 
     @Transactional(readOnly = true)
@@ -334,6 +337,7 @@ class PerformanceService(
     }
 
     private fun toPerformanceResponse(performance: Performances): PerformanceResponse {
+        val teamName = runCatching { teamService.findTeamForCommandOrThrow(performance.teamId).teamName }.getOrNull()
         val locationResponse = performance.location?.let { LocationResponse.from(it) }
         val files = performanceFilesRepository.findByPerformanceOrderByDisplayOrderAsc(performance)
         val poster = files.firstOrNull { it.fileType == PerformanceFileType.POSTER }?.let {
@@ -347,6 +351,7 @@ class PerformanceService(
 
         return PerformanceResponse.of(
             performance = performance,
+            teamName = teamName,
             locationResponse = locationResponse,
             poster = poster,
             detailImages = detailImages,

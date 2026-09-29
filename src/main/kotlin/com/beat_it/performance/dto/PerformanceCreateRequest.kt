@@ -25,7 +25,7 @@ data class PerformanceCreateRequest(
     val placeName: String? = null,
 
     @field:Size(max = 200, message = "공연 상세 설명은 최대 200자까지 입력 가능합니다.")
-    @Schema(description = "공연 상세 설명 (200자 제한)", example = "비트잇 밴드의 12번째 정기 라이브 공연입니다.")
+    @Schema(description = "공연 상세 설명 (200자 제한)", example = "빗잇 밴드의 12번째 정기 라이브 공연입니다.")
     val description: String? = null,
 
     @field:Size(max = 1000, message = "공연 상세 정보는 최대 1,000자까지 입력 가능합니다.")

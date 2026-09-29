@@ -4,6 +4,7 @@ import com.beat_it.performance.entity.Performances
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
 import org.springframework.data.jpa.repository.JpaRepository
+import org.springframework.data.jpa.repository.Modifying
 import org.springframework.data.jpa.repository.Query
 import org.springframework.data.repository.query.Param
 import org.springframework.stereotype.Repository
@@ -48,4 +49,13 @@ interface PerformanceRepository : JpaRepository<Performances, Long> {
         @Param("now") now: OffsetDateTime,
         pageable: Pageable
     ): Page<Performances>
+
+    @Modifying
+    @Query("""
+        UPDATE Performances p 
+        SET p.performanceStatus = com.beat_it.performance.entity.enum.PerformanceStatus.PAST 
+        WHERE p.performanceStatus = com.beat_it.performance.entity.enum.PerformanceStatus.UPCOMING 
+        AND p.performanceDateTime < :now
+    """)
+    fun updateExpiredPerformancesToPast(@Param("now") now: OffsetDateTime): Int
 }

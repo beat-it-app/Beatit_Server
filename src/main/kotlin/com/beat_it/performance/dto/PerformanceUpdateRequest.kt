@@ -45,7 +45,7 @@ data class PerformanceUpdateRequest(
     @Schema(description = "호스트 SNS/링크")
     val hostLink: String? = null,
 
-    @Schema(description = "공연 상태 (PUBLISHED, CLOSED)")
+    @Schema(description = "공연 상태 (UPCOMING, PAST)")
     val performanceStatus: PerformanceStatus? = null,
 
     @Schema(description = "티켓 가격 정보 목록 (수정 시 전체 교체)")

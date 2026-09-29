@@ -18,6 +18,9 @@ data class PerformanceResponse(
     @Schema(description = "팀 ID", example = "10")
     val teamId: Long,
 
+    @Schema(description = "팀 이름", example = "비트잇 밴드")
+    val teamName: String?,
+
     @Schema(description = "작성자(생성자) 유저 ID", example = "5")
     val createdUserId: Long,
 
@@ -75,6 +78,7 @@ data class PerformanceResponse(
     companion object {
         fun of(
             performance: Performances,
+            teamName: String? = null,
             locationResponse: LocationResponse?,
             poster: PerformanceFileResponse?,
             detailImages: List<PerformanceFileResponse>,
@@ -84,6 +88,7 @@ data class PerformanceResponse(
                 performanceId = performance.performanceId!!,
                 publicId = performance.publicId,
                 teamId = performance.teamId,
+                teamName = teamName,
                 createdUserId = performance.createdUserId,
                 title = performance.title,
                 performanceDateTime = performance.performanceDateTime,
