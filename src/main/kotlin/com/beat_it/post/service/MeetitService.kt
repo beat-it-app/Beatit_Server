@@ -267,8 +267,9 @@ class MeetitService(
         }
 
         meetitResponseRepository.deleteByMeetitParticipantMeetitParticipantId(participant.meetitParticipantId!!)
+        meetitResponseRepository.flush()
 
-        val newResponses = request.slotStartTimes.map { localDateTime ->
+        val newResponses = request.slotStartTimes.distinct().map { localDateTime ->
             MeetitResponse(
                 meetit = meetit,
                 meetitParticipant = participant,
