@@ -103,6 +103,33 @@ class PollService(
         )
 
         val options = request.pollList.mapIndexed { index, item ->
+
+    @Transactional
+    fun updatePoll(userId: Long, pollId: Long, request: PollRequest){
+        validateCreatePoll(request)
+        val teamId = userService.getCurrentTeamId(userId)
+        val poll = getPoll(pollId)
+        validateTeam(poll, teamId)
+        validateWriter(poll, userId)
+
+        if (poll.pollCount > 0 || pollVoteRepository.countUniqueParticipantsByPollId(pollId) > 0) {
+            throw BusinessException(ErrorCode.POLL_ALREADY_VOTED)
+        }
+
+        val newOptions = createPollOptions(poll, request)
+        poll.updatePoll(
+            title = request.title,
+            content = request.content,
+            pollType = request.pollType,
+            allowMultipleChoice = request.allowMultipleChoice ?: false,
+            isAnonymous = request.isAnonymous ?: false,
+            remindBeforeClose = request.remindBeforeClose ?: false,
+            closeAt = request.closeAt,
+            newOptions = newOptions
+        )
+        pollRepository.save(poll)
+    }
+
             var locationEntity: Locations? = null
             var metadata: String? = null
             val text = when (request.pollType) {

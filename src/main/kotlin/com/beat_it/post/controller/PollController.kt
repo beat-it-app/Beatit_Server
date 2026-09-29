@@ -57,6 +57,22 @@ class PollController (
             .body(BasicResponse.success(HttpStatus.CREATED, "투표를 성공적으로 생성했습니다."))
     }
 
+    @Operation(summary = "투표 수정하기 - 작성자만 가능, 참여자가 없을 때만 가능")
+    @PatchMapping("/{pollId}")
+    fun updatePoll(
+        @AuthenticationPrincipal userDetails: UserDetails,
+        @PathVariable pollId: Long,
+        @RequestBody dto: PollRequest
+    ): ResponseEntity<BasicResponse<Nothing>> {
+        val userId = extractUserId(userDetails)
+
+        pollService.updatePoll(userId, pollId, dto)
+
+        return ResponseEntity
+            .status(HttpStatus.OK)
+            .body(BasicResponse.success(HttpStatus.OK, "투표를 성공적으로 수정했습니다."))
+    }
+
     @Operation(summary = "투표 상세 보기")
     @GetMapping("/{pollId}")
     fun getPoll(
@@ -138,5 +154,10 @@ class PollController (
         return ResponseEntity
             .status(HttpStatus.OK)
             .body(BasicResponse.success(HttpStatus.OK, "댓글이 성공적으로 삭제되었습니다."))
+    }
+
+    private fun extractUserId(userDetails: UserDetails): Long {
+        return userDetails.username.toLongOrNull()
+            ?: throw BusinessException(ErrorCode.UNAUTHORIZED)
     }
 }
