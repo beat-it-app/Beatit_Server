@@ -3,11 +3,8 @@ package com.beat_it.post.controller
 import com.beat_it.global.error.BusinessException
 import com.beat_it.global.error.ErrorCode
 import com.beat_it.global.response.BasicResponse
-import com.beat_it.post.dto.*
-import com.beat_it.post.dto.poll.PollDetailResponse
-import com.beat_it.post.dto.poll.PollListResponse
-import com.beat_it.post.dto.poll.PollRequest
-import com.beat_it.post.dto.poll.VoteRequest
+import com.beat_it.post.dto.CommentRequest
+import com.beat_it.post.dto.poll.*
 import com.beat_it.post.service.PollService
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.tags.Tag
@@ -31,8 +28,7 @@ class PollController (
         @RequestParam(defaultValue = "0") page: Int,
         @RequestParam(defaultValue = "10") size: Int
     ): ResponseEntity<BasicResponse<PollListResponse>> {
-        val userId = userDetails.username.toLongOrNull()
-            ?: throw BusinessException(ErrorCode.UNAUTHORIZED)
+        val userId = extractUserId(userDetails)
 
         val response = pollService.getPollList(userId, keyword, page, size)
 
@@ -47,8 +43,7 @@ class PollController (
         @AuthenticationPrincipal userDetails: UserDetails,
         @RequestBody dto: PollRequest
         ): ResponseEntity<BasicResponse<Nothing>> {
-        val userId = userDetails.username.toLongOrNull()
-            ?: throw BusinessException(ErrorCode.UNAUTHORIZED)
+        val userId = extractUserId(userDetails)
 
         pollService.postPoll(userId, dto)
 
@@ -79,8 +74,7 @@ class PollController (
         @AuthenticationPrincipal userDetails: UserDetails,
         @PathVariable pollId: Long
     ): ResponseEntity<BasicResponse<PollDetailResponse>> {
-        val userId = userDetails.username.toLongOrNull()
-            ?: throw BusinessException(ErrorCode.UNAUTHORIZED)
+        val userId = extractUserId(userDetails)
 
         val response = pollService.getPoll(userId, pollId)
 
@@ -96,8 +90,7 @@ class PollController (
         @PathVariable pollId: Long,
         @RequestBody request: VoteRequest
     ): ResponseEntity<BasicResponse<Nothing>> {
-        val userId = userDetails.username.toLongOrNull()
-            ?: throw BusinessException(ErrorCode.UNAUTHORIZED)
+        val userId = extractUserId(userDetails)
 
         pollService.votePoll(userId, pollId, request)
 
@@ -112,8 +105,7 @@ class PollController (
         @AuthenticationPrincipal userDetails: UserDetails,
         @PathVariable pollId: Long
     ): ResponseEntity<BasicResponse<Nothing>> {
-        val userId = userDetails.username.toLongOrNull()
-            ?: throw BusinessException(ErrorCode.UNAUTHORIZED)
+        val userId = extractUserId(userDetails)
 
         pollService.deletePoll(userId, pollId)
 
@@ -129,8 +121,7 @@ class PollController (
         @PathVariable pollId: Long,
         @RequestBody request: CommentRequest
     ): ResponseEntity<BasicResponse<Nothing>> {
-        val userId = userDetails.username.toLongOrNull()
-            ?: throw BusinessException(ErrorCode.UNAUTHORIZED)
+        val userId = extractUserId(userDetails)
 
         pollService.createComment(userId, pollId, request)
 
@@ -146,8 +137,7 @@ class PollController (
         @PathVariable pollId: Long,
         @PathVariable commentId: Long
     ): ResponseEntity<BasicResponse<Nothing>> {
-        val userId = userDetails.username.toLongOrNull()
-            ?: throw BusinessException(ErrorCode.UNAUTHORIZED)
+        val userId = extractUserId(userDetails)
 
         pollService.deleteComment(userId, pollId, commentId)
 
