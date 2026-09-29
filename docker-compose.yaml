@@ -9,19 +9,7 @@ services:
     env_file:
       - .env
     environment:
-      SPRING_DATASOURCE_URL: jdbc:postgresql://dev-db:5432/${DB_NAME}
-      SPRING_DATASOURCE_USERNAME: ${DB_USERNAME}
-      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD}
-      SPRING_DATA_REDIS_HOST: dev-redis
-      SPRING_DATA_REDIS_PORT: 6379
-      SPRING_KAFKA_BOOTSTRAP_SERVERS: dev-kafka:29092
-      JWT_SECRET: ${JWT_SECRET}
-      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
-      GOOGLE_CLIENT_PASSWORD: ${GOOGLE_CLIENT_PASSWORD}
-      KAKAO_REST_API_KEY: ${KAKAO_REST_API_KEY}
-      EC2_DEV_DNS: ${EC2_DEV_DNS}
-      MAIL_USERNAME: ${MAIL_USERNAME}
-      MAIL_PASSWORD: ${MAIL_PASSWORD}
+      - SPRING_PROFILES_ACTIVE=dev
     depends_on:
       - dev-db
       - dev-redis
