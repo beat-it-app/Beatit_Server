@@ -71,8 +71,11 @@ class MeetitController(
             .body(BasicResponse.success(response, HttpStatus.OK, "밋잇 상세 정보를 성공적으로 불러왔습니다."))
     }
 
-    @Operation(summary = "밋잇 응답하기")
-    @PostMapping("/{meetitId}/responses")
+    @Operation(summary = "밋잇 응답/수정하기")
+    @RequestMapping(
+        value = ["/{meetitId}/responses"],
+        method = [RequestMethod.POST, RequestMethod.PUT]
+    )
     fun respondMeetit(
         @AuthenticationPrincipal userDetails: UserDetails,
         @PathVariable meetitId: Long,
@@ -84,7 +87,22 @@ class MeetitController(
 
         return ResponseEntity
             .status(HttpStatus.OK)
-            .body(BasicResponse.success(HttpStatus.OK, "성공적으로 응답하였습니다."))
+            .body(BasicResponse.success(HttpStatus.OK, "성공적으로 응답(수정)하였습니다."))
+    }
+
+    @Operation(summary = "밋잇 삭제하기")
+    @DeleteMapping("/{meetitId}")
+    fun deleteMeetit(
+        @AuthenticationPrincipal userDetails: UserDetails,
+        @PathVariable meetitId: Long
+    ): ResponseEntity<BasicResponse<Nothing>> {
+        val userId = extractUserId(userDetails)
+
+        meetitService.deleteMeetit(userId, meetitId)
+
+        return ResponseEntity
+            .status(HttpStatus.OK)
+            .body(BasicResponse.success(HttpStatus.OK, "밋잇을 성공적으로 삭제했습니다."))
     }
 
     private fun extractUserId(userDetails: UserDetails): Long {

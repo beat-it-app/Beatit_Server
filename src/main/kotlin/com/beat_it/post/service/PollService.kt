@@ -3,26 +3,14 @@ package com.beat_it.post.service
 import com.beat_it.auth.service.UserService
 import com.beat_it.global.error.BusinessException
 import com.beat_it.global.error.ErrorCode
-import com.beat_it.post.dto.*
-import com.beat_it.post.dto.poll.LocationItemResponse
-import com.beat_it.post.dto.poll.MusicItemResponse
-import com.beat_it.post.dto.poll.PollDetailResponse
-import com.beat_it.post.dto.poll.PollItems
-import com.beat_it.post.dto.poll.PollListResponse
-import com.beat_it.post.dto.poll.PollRequest
-import com.beat_it.post.dto.poll.PollMusicRequest
-import com.beat_it.post.dto.poll.TextItemResponse
-import com.beat_it.post.dto.poll.VoteRequest
-import com.beat_it.post.entity.poll.PollOptions
-import com.beat_it.post.entity.poll.PollVotes
-import com.beat_it.post.entity.poll.Polls
-import com.beat_it.post.entity.PostComments
+import com.beat_it.post.dto.CommentRequest
+import com.beat_it.post.dto.poll.*
+import com.beat_it.post.entity.poll.*
+import com.beat_it.post.repository.poll.*
 import com.beat_it.post.entity.enum.PollType
 import com.beat_it.post.entity.enum.PostType
-import com.beat_it.post.repository.poll.PollRepository
-import com.beat_it.post.repository.poll.PollVoteRepository
 import com.beat_it.location.entity.Locations
-import com.beat_it.location.repository.LocationsRepository
+import com.beat_it.location.service.LocationsService
 import com.fasterxml.jackson.databind.ObjectMapper
 import org.springframework.transaction.annotation.Transactional
 import org.springframework.data.domain.PageRequest
@@ -35,7 +23,7 @@ class PollService(
     private val pollRepository: PollRepository,
     private val commentService: CommentService,
     private val pollVoteRepository: PollVoteRepository,
-    private val locationsRepository: LocationsRepository,
+    private val locationsService: LocationsService,
     private val objectMapper: ObjectMapper,
 ) {
     @Transactional(readOnly = true)
@@ -102,7 +90,39 @@ class PollService(
             remindBeforeClose = request.remindBeforeClose ?: false
         )
 
-        val options = request.pollList.mapIndexed { index, item ->
+        val options = createPollOptions(poll, request)
+        poll.pollOptions = options.toMutableList()
+        pollRepository.save(poll)
+    }
+
+    @Transactional
+    fun updatePoll(userId: Long, pollId: Long, request: PollRequest){
+        validateCreatePoll(request)
+        val teamId = userService.getCurrentTeamId(userId)
+        val poll = getPoll(pollId)
+        validateTeam(poll, teamId)
+        validateWriter(poll, userId)
+
+        if (poll.pollCount > 0 || pollVoteRepository.countUniqueParticipantsByPollId(pollId) > 0) {
+            throw BusinessException(ErrorCode.POLL_ALREADY_VOTED)
+        }
+
+        val newOptions = createPollOptions(poll, request)
+        poll.updatePoll(
+            title = request.title,
+            content = request.content,
+            pollType = request.pollType,
+            allowMultipleChoice = request.allowMultipleChoice ?: false,
+            isAnonymous = request.isAnonymous ?: false,
+            remindBeforeClose = request.remindBeforeClose ?: false,
+            closeAt = request.closeAt,
+            newOptions = newOptions
+        )
+        pollRepository.save(poll)
+    }
+
+    private fun createPollOptions(poll: Polls, request: PollRequest): List<PollOptions> {
+        return request.pollList.mapIndexed { index, item ->
             var locationEntity: Locations? = null
             var metadata: String? = null
             val text = when (request.pollType) {
@@ -117,8 +137,7 @@ class PollService(
                 }
                 PollType.LOCATION -> {
                     if (item.locationId != null) {
-                        val loc = locationsRepository.findById(item.locationId)
-                            .orElseThrow { BusinessException(ErrorCode.RESOURCE_NOT_FOUND) }
+                        val loc = locationsService.findLocation(item.locationId)
                         locationEntity = loc
                         loc.locationName ?: loc.roadAddress ?: item.location ?: ""
                     } else {
@@ -134,9 +153,6 @@ class PollService(
                 location = locationEntity
             )
         }
-
-        poll.pollOptions = options
-        pollRepository.save(poll)
     }
 
     @Transactional(readOnly = true)
