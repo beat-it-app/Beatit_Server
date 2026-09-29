@@ -10,6 +10,7 @@ import com.beat_it.cal.dto.ScheduleCreateRequest
 import com.beat_it.cal.dto.ScheduleCreateResponse
 import com.beat_it.cal.dto.ScheduleDetailResponse
 import com.beat_it.cal.dto.ScheduleFileResponse
+import com.beat_it.cal.dto.ScheduleMusicResponse
 import com.beat_it.cal.dto.ScheduleUpdateRequest
 import com.beat_it.cal.entity.Schedule
 import com.beat_it.cal.repository.ScheduleRepository
@@ -205,6 +206,15 @@ class ScheduleService(
             )
         }
 
+        val musicResponses = schedule.musics.map { music ->
+            ScheduleMusicResponse(
+                scheduleMusicId = music.id!!,
+                musicTitle = music.musicTitle,
+                musicArtist = music.musicArtist,
+                musicPreviewUrl = music.musicPreviewUrl
+            )
+        }
+
         return ScheduleDetailResponse(
             scheduleId = schedule.scheduleId!!,
             teamId = schedule.teamId,
@@ -222,7 +232,8 @@ class ScheduleService(
                     userId = participant.userId
                 )
             },
-            files = fileResponses
+            files = fileResponses,
+            musics = musicResponses
         )
     }
 

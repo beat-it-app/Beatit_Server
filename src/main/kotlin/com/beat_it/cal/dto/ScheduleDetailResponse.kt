@@ -2,6 +2,13 @@ package com.beat_it.cal.dto
 
 import java.time.OffsetDateTime
 
+data class ScheduleMusicResponse(
+    val scheduleMusicId: Long,
+    val musicTitle: String?,
+    val musicArtist: String?,
+    val musicPreviewUrl: String?
+)
+
 data class ScheduleFileResponse(
     val fileId: Long,
     val originalFileName: String,
@@ -20,7 +27,8 @@ data class ScheduleDetailResponse(
     val createdAt: OffsetDateTime,
     val updatedAt: OffsetDateTime,
     val participants: List<ParticipantResponse>,
-    val files: List<ScheduleFileResponse>
+    val files: List<ScheduleFileResponse>,
+    val musics: List<ScheduleMusicResponse>
 )
 
 data class ParticipantResponse(
