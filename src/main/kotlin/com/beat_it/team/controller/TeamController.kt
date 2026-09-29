@@ -1,7 +1,5 @@
 package com.beat_it.team.controller
 
-import com.beat_it.auth.dto.WithdrawalRequest
-import com.beat_it.auth.dto.WithdrawalResponse
 import com.beat_it.global.error.BusinessException
 import com.beat_it.global.error.ErrorCode
 import com.beat_it.team.service.TeamService
@@ -10,6 +8,7 @@ import com.fasterxml.jackson.core.type.TypeReference
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.beat_it.global.response.BasicResponse
 import com.beat_it.team.dto.*
+import com.beat_it.team.dto.teamMember.*
 import io.swagger.v3.oas.annotations.Operation
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
@@ -189,6 +188,35 @@ class TeamController(
         return ResponseEntity
             .status(HttpStatus.OK)
             .body(BasicResponse.success(responseData, HttpStatus.OK, "팀 멤버 목록 조회에 성공했습니다."))
+    }
+
+    @Operation(summary = "팀 멤버 포지션 목록 조회")
+    @GetMapping("/members/position")
+    fun getTeamMemberPositions(
+        @AuthenticationPrincipal userDetails: UserDetails,
+    ): ResponseEntity<BasicResponse<TeamMemberPositionResponse>> {
+        val userId = extractUserId(userDetails)
+
+        val responseData = teamService.getTeamMemberPositions(userId)
+
+        return ResponseEntity
+            .status(HttpStatus.OK)
+            .body(BasicResponse.success(responseData, HttpStatus.OK, "팀 멤버 포지션 목록 조회에 성공했습니다."))
+    }
+
+    @Operation(summary = "팀 멤버 포지션 수정하기")
+    @PatchMapping("/members/position")
+    fun updateTeamMemberPositions(
+        @AuthenticationPrincipal userDetails: UserDetails,
+        @RequestBody @Valid request: TeamMemberPositionUpdateRequest,
+    ): ResponseEntity<BasicResponse<TeamMemberPositionResponse>> {
+        val userId = extractUserId(userDetails)
+
+        val responseData = teamService.updateTeamMemberPositions(userId, request)
+
+        return ResponseEntity
+            .status(HttpStatus.OK)
+            .body(BasicResponse.success(responseData, HttpStatus.OK, "팀 멤버 포지션이 성공적으로 수정되었습니다."))
     }
 
     @Operation(summary = "멤버 권한 바꾸기")
