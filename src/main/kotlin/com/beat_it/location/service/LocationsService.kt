@@ -8,6 +8,7 @@ import com.beat_it.location.dto.LocationResponse
 import com.beat_it.location.dto.LocationSearchResponse
 import com.beat_it.location.entity.Locations
 import com.beat_it.location.repository.LocationsRepository
+import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -18,8 +19,10 @@ import java.math.BigDecimal
 @Service
 class LocationsService(
     private val locationsRepository: LocationsRepository,
-    @Value($$"${kakao.rest-api-key}") private val kakaoRestApiKey: String
+    @Value("\${kakao.rest-api-key:}") private val kakaoRestApiKey: String
 ) {
+    private val log = LoggerFactory.getLogger(this::class.java)
+
     private val restClient: RestClient by lazy {
         RestClient.builder()
             .baseUrl("https://dapi.kakao.com")
@@ -29,7 +32,7 @@ class LocationsService(
 
     @Transactional
     fun createLocation(userId: Long, request: LocationRequest): Pair<LocationResponse, Boolean> {
-        val existing = request.kakaoPlaceId?.let { locationsRepository.findByKakaoPlaceId(it) }
+        val existing = request.kakaoPlaceId?.takeIf { it.isNotBlank() }?.let { locationsRepository.findByKakaoPlaceId(it) }
         if (existing != null) {
             return Pair(LocationResponse.from(existing), false)
         }
@@ -52,7 +55,7 @@ class LocationsService(
     @Transactional(readOnly = true)
     fun getLocation(locationId: Long): LocationResponse {
         val location = locationsRepository.findById(locationId)
-            .orElseThrow { BusinessException(ErrorCode.RESOURCE_NOT_FOUND) }
+            .orElseThrow { BusinessException(ErrorCode.LOCATION_NOT_FOUND) }
         return LocationResponse.from(location)
     }
 
@@ -62,31 +65,41 @@ class LocationsService(
         latitude: BigDecimal? = null,
         longitude: BigDecimal? = null
     ): List<LocationSearchResponse> {
-        if (kakaoRestApiKey.isBlank()) {
-            throw BusinessException(ErrorCode.INVALID_REQUEST_BODY)
+        if (query.isBlank()) {
+            return emptyList()
         }
 
-        val response = restClient.get()
-            .uri { uriBuilder ->
-                uriBuilder
-                    .path("/v2/local/search/keyword.json")
-                    .queryParam("query", query)
-                    .apply {
-                        if (longitude != null) queryParam("x", longitude.toPlainString())
-                        if (latitude != null) queryParam("y", latitude.toPlainString())
-                        if (longitude != null && latitude != null) queryParam("sort", "distance")
-                    }
-                    .build()
-            }
-            .retrieve()
-            .body<KakaoSearchResponse>()
+        if (kakaoRestApiKey.isBlank()) {
+            log.warn("Kakao REST API Key is not configured.")
+            return emptyList()
+        }
+
+        val response = try {
+            restClient.get()
+                .uri { uriBuilder ->
+                    uriBuilder
+                        .path("/v2/local/search/keyword.json")
+                        .queryParam("query", query)
+                        .apply {
+                            if (longitude != null) queryParam("x", longitude.toPlainString())
+                            if (latitude != null) queryParam("y", latitude.toPlainString())
+                            if (longitude != null && latitude != null) queryParam("sort", "distance")
+                        }
+                        .build()
+                }
+                .retrieve()
+                .body<KakaoSearchResponse>()
+        } catch (e: Exception) {
+            log.error("Failed to search locations from Kakao API: query={}", query, e)
+            return emptyList()
+        }
 
         val searchResults = response?.documents?.map { doc ->
             LocationSearchResponse(
                 locationName = doc.placeName,
                 roadAddress = doc.roadAddressName.ifBlank { doc.addressName },
-                latitude = BigDecimal(doc.y),
-                longitude = BigDecimal(doc.x),
+                latitude = doc.y.toBigDecimalOrNull() ?: BigDecimal.ZERO,
+                longitude = doc.x.toBigDecimalOrNull() ?: BigDecimal.ZERO,
                 mapUrl = doc.placeUrl,
                 phone = doc.phone,
                 kakaoPlaceId = doc.id,
@@ -105,7 +118,7 @@ class LocationsService(
     @Transactional(readOnly = true)
     fun validateLocationExists(locationId: Long) {
         if (!locationsRepository.existsById(locationId)) {
-            throw BusinessException(ErrorCode.RESOURCE_NOT_FOUND)
+            throw BusinessException(ErrorCode.LOCATION_NOT_FOUND)
         }
     }
 
