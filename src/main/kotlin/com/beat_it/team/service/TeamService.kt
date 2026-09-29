@@ -5,6 +5,7 @@ import com.beat_it.global.error.BusinessException
 import com.beat_it.global.error.ErrorCode
 import com.beat_it.global.service.FileService
 import com.beat_it.team.dto.*
+import com.beat_it.team.dto.teamMember.*
 import com.beat_it.team.entity.TeamLinks
 import com.beat_it.team.entity.TeamMemberships
 import com.beat_it.team.entity.Teams
@@ -339,6 +340,63 @@ class TeamService(
             totalCount = totalCount,
             hasNext = hasNext,
         )
+    }
+
+    @Transactional(readOnly = true)
+    fun getTeamMemberPositions(userId: Long): TeamMemberPositionResponse {
+        userService.validateUserExists(userId)
+
+        val teamId = userService.getCurrentTeamId(userId)
+        validateTeamMember(teamId, userId)
+
+        val memberships = teamMembershipRepository.findAllByTeamTeamIdAndLeftAtIsNull(teamId)
+        val memberItems = toTeamMemberInfos(memberships)
+        val sortedMembers = memberItems.sortedBy { it.userName }.map {
+            MemberPositionItem(
+                userId = it.userId,
+                userName = it.userName,
+                profileImageUrl = it.profileImageUrl,
+                position = it.position,
+            )
+        }
+
+        return TeamMemberPositionResponse(members = sortedMembers)
+    }
+
+    @Transactional
+    fun updateTeamMemberPositions(userId: Long, request: TeamMemberPositionUpdateRequest): TeamMemberPositionResponse {
+        userService.validateUserExists(userId)
+
+        val teamId = userService.getCurrentTeamId(userId)
+        validateTeamUpdatePermission(teamId, userId)
+
+        if (request.positions.isNotEmpty()) {
+            request.positions.forEach { item ->
+                val cleanPosition = item.position?.trim()?.ifBlank { null }
+                if (cleanPosition != null && cleanPosition.length > 10) {
+                    throw BusinessException(ErrorCode.TEAM_POSITION_TOO_LONG)
+                }
+
+                val targetMembership = teamMembershipRepository
+                    .findByTeamTeamIdAndUserIdAndLeftAtIsNull(teamId, item.userId)
+                    ?: throw BusinessException(ErrorCode.NOT_TEAM_MEMBER)
+
+                targetMembership.updatePosition(cleanPosition)
+            }
+        }
+
+        val memberships = teamMembershipRepository.findAllByTeamTeamIdAndLeftAtIsNull(teamId)
+        val memberItems = toTeamMemberInfos(memberships)
+        val sortedMembers = memberItems.sortedBy { it.userName }.map {
+            MemberPositionItem(
+                userId = it.userId,
+                userName = it.userName,
+                profileImageUrl = it.profileImageUrl,
+                position = it.position,
+            )
+        }
+
+        return TeamMemberPositionResponse(members = sortedMembers)
     }
 
     @Transactional
