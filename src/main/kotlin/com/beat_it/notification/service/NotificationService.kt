@@ -17,7 +17,8 @@ import org.springframework.transaction.annotation.Transactional
 class NotificationService(
     private val notificationRepository: NotificationRepository,
     private val teamService: TeamService,
-    private val userService: UserService
+    private val userService: UserService,
+    private val pushNotificationService: PushNotificationService
 ) {
 
     @Transactional(readOnly = true)
@@ -115,7 +116,11 @@ class NotificationService(
             isToast = message.isToast,
             isRead = false
         )
-        return notificationRepository.save(notification)
+        val savedNotification = notificationRepository.save(notification)
+        if (savedNotification.isPush) {
+            pushNotificationService.sendPush(savedNotification)
+        }
+        return savedNotification
     }
 
     @Transactional
@@ -140,6 +145,8 @@ class NotificationService(
                 isRead = false
             )
         }
-        return notificationRepository.saveAll(notifications)
+        val savedNotifications = notificationRepository.saveAll(notifications)
+        pushNotificationService.sendPushes(savedNotifications)
+        return savedNotifications
     }
 }

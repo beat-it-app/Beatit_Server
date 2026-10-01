@@ -14,7 +14,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal
 import org.springframework.security.core.userdetails.UserDetails
 import org.springframework.web.bind.annotation.*
 
-@Tag(name = "8. NOTIFICATION API", description = "팀별 알림 관련 로직")
+@Tag(name = "8-1. NOTIFICATION API", description = "팀별 알림 관련 로직")
 @RestController
 @RequestMapping("/notifications")
 class NotificationController(
