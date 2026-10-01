@@ -547,6 +547,16 @@ class TeamService(
         findActiveMembershipOrThrow(teamId, userId)
     }
 
+    @Transactional(readOnly = true)
+    fun getTeamName(teamId: Long): String {
+        return findTeamForCommandOrThrow(teamId).teamName
+    }
+
+    @Transactional(readOnly = true)
+    fun isTeamMember(teamId: Long, userId: Long): Boolean {
+        return teamMembershipRepository.existsByTeamTeamIdAndUserIdAndLeftAtIsNull(teamId, userId)
+    }
+
     private fun changeToLeader(
         requesterMembership: TeamMemberships,
         targetMembership: TeamMemberships
