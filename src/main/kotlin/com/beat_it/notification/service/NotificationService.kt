@@ -7,6 +7,7 @@ import com.beat_it.notification.dto.*
 import com.beat_it.notification.entity.Notifications
 import com.beat_it.notification.repository.NotificationRepository
 import com.beat_it.notification.template.NotificationMessage
+import com.beat_it.notification.template.NotificationTemplate
 import com.beat_it.team.service.TeamService
 import org.springframework.data.domain.PageRequest
 import org.springframework.data.domain.Sort
@@ -47,13 +48,6 @@ class NotificationService(
         )
     }
 
-    /**
-     * 알림 클릭 및 단건 읽음 처리:
-     * 1. 알림 조회 및 본인 소유 확인
-     * 2. 해당 알림의 팀 멤버인지 검증 및 활성 팀(currentTeamId) 자동 전환
-     * 3. 알림 읽음 처리 (isRead = true)
-     * 4. direct to 이동 정보(directTo, targetTeamId, targetId 등) 반환
-     */
     @Transactional
     fun markAsRead(userId: Long, notificationId: Long): NotificationClickResponse {
         val notification = notificationRepository.findById(notificationId)
@@ -63,13 +57,9 @@ class NotificationService(
             throw BusinessException(ErrorCode.NOTIFICATION_NO_PERMISSION)
         }
 
-        // 해당 팀 멤버인지 검증 후 활성 팀 전환
-        teamService.validateTeamMember(notification.teamId, userId)
-        val teamName = teamService.getTeamName(notification.teamId)
-        userService.updateCurrentTeamId(userId, notification.teamId)
-
-        // 읽음 처리
         notification.markAsRead()
+
+        val teamName = teamService.getTeamName(notification.teamId)
 
         return NotificationClickResponse(
             notificationId = notification.notificationId ?: 0L,
@@ -79,6 +69,24 @@ class NotificationService(
             targetId = notification.targetId,
             isRead = notification.isRead
         )
+    }
+
+    @Transactional
+    fun clickNotification(userId: Long, notificationId: Long): NotificationClickResponse {
+        val notification = notificationRepository.findById(notificationId)
+            .orElseThrow { BusinessException(ErrorCode.NOTIFICATION_NOT_FOUND) }
+
+        if (notification.userId != userId) {
+            throw BusinessException(ErrorCode.NOTIFICATION_NO_PERMISSION)
+        }
+
+        val currentTeamId = userService.getCurrentTeamIdOrNull(userId)
+        if (currentTeamId != notification.teamId) {
+            teamService.validateTeamMember(notification.teamId, userId)
+            userService.updateCurrentTeamId(userId, notification.teamId)
+        }
+
+        return markAsRead(userId, notificationId)
     }
 
     @Transactional
@@ -148,5 +156,60 @@ class NotificationService(
         val savedNotifications = notificationRepository.saveAll(notifications)
         pushNotificationService.sendPushes(savedNotifications)
         return savedNotifications
+    }
+
+    // 로컬 테스트용 
+    @Transactional
+    fun createMockNotifications(targetUserId: Long, targetTeamId: Long): List<NotificationItemResponse> {
+        val teamName = teamService.getTeamName(targetTeamId)
+
+        val mockMessages = listOf(
+            // 1번 알림: 공지사항 등록 / 영서님이 공지사항을 등록했습니다.
+            NotificationTemplate.noticeRegistered(
+                teamName = teamName,
+                noticeTitle = "합주 공지",
+                authorName = "영서",
+                noticeId = 1L
+            ),
+            // 2번 알림: 게시글 좋아요! / 권우혁님이 '[중요]모임 안내 공지'에 좋아요를 눌렀습니다.
+            NotificationTemplate.postLiked(
+                teamName = teamName,
+                likerName = "권우혁",
+                postTitle = "[중요]모임 안내 공지",
+                postId = 1L
+            ),
+            // 3번 알림: 일정 알림 / 내일은 '정기 합주'가 있는 날입니다!
+            NotificationTemplate.scheduleReminderD1(
+                teamName = teamName,
+                scheduleTitle = "정기 합주",
+                scheduleId = 1L
+            ),
+            // 4번 알림: 새로운 밋잇 생성 / 새로운 밋잇(시간 조율)이 열렸습니다. 가능한 일정을 등록해 보세요!
+            NotificationTemplate.meetitCreated(
+                teamName = teamName,
+                meetitTitle = "시간 조율",
+                meetitId = 1L
+            )
+        )
+
+        val notifications = mockMessages.map { message ->
+            Notifications(
+                userId = targetUserId,
+                teamId = targetTeamId,
+                notificationType = message.type,
+                category = message.category,
+                title = message.title,
+                content = message.content,
+                pushText = message.pushText,
+                directTo = message.directTo,
+                targetId = message.targetId,
+                isPush = message.isPush,
+                isToast = message.isToast,
+                isRead = false
+            )
+        }
+
+        val savedNotifications = notificationRepository.saveAll(notifications)
+        return savedNotifications.map { NotificationItemResponse.from(it) }
     }
 }

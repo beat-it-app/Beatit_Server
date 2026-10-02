@@ -14,7 +14,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal
 import org.springframework.security.core.userdetails.UserDetails
 import org.springframework.web.bind.annotation.*
 
-@Tag(name = "8-1. NOTIFICATION API", description = "팀별 알림 관련 로직")
+@Tag(name = "9-1. NOTIFICATION API", description = "팀별 알림 관련 로직")
 @RestController
 @RequestMapping("/notifications")
 class NotificationController(
@@ -36,7 +36,7 @@ class NotificationController(
         )
     }
 
-    @Operation(summary = "알림 클릭 및 읽음 처리")
+    @Operation(summary = "인앱 알림 클릭 및 읽음 처리", description = "인앱 알림 목록에서 알림을 클릭했을 때 팀 전환 없이 읽음 처리하고 directTo 이동 정보를 반환합니다.")
     @PatchMapping("/{notificationId}/read")
     fun markAsRead(@AuthenticationPrincipal userDetails: UserDetails, @PathVariable notificationId: Long
     ): ResponseEntity<BasicResponse<NotificationClickResponse>> {
@@ -48,15 +48,15 @@ class NotificationController(
         )
     }
 
-    @Operation(summary = "알림 탭(클릭) 시 direct 이동 및 팀 전환")
+    @Operation(summary = "푸시 알림 탭(클릭) 시 direct 이동 및 조건부 팀 전환", description = "외부 푸시 알림을 탭했을 때 필요한 경우 해당 팀으로 자동 전환하고, 읽음 처리 후 directTo 이동 정보를 반환합니다.")
     @PostMapping("/{notificationId}/click")
     fun clickNotification(@AuthenticationPrincipal userDetails: UserDetails, @PathVariable notificationId: Long
     ): ResponseEntity<BasicResponse<NotificationClickResponse>> {
         val userId = extractUserId(userDetails)
-        val response = notificationService.markAsRead(userId, notificationId)
+        val response = notificationService.clickNotification(userId, notificationId)
 
         return ResponseEntity.ok(
-            BasicResponse.success(response, HttpStatus.OK, "해당 팀으로 전환되었으며 direct 정보를 반환합니다.")
+            BasicResponse.success(response, HttpStatus.OK, "알림이 처리되었으며 direct 이동 정보를 반환합니다.")
         )
     }
 
@@ -72,15 +72,16 @@ class NotificationController(
         )
     }
 
-    @Operation(summary = "현재 팀의 안 읽은 알림 상태 확인")
-    @GetMapping("/unread-status")
-    fun getUnreadStatus(@AuthenticationPrincipal userDetails: UserDetails
-    ): ResponseEntity<BasicResponse<NotificationUnreadStatusResponse>> {
-        val userId = extractUserId(userDetails)
-        val response = notificationService.getUnreadStatus(userId)
+    @Operation(summary = "[테스트용] 로컬 샘플 알림 4개 생성")
+    @PostMapping("/test/mock-data")
+    fun createMockData(
+        @RequestParam userId: Long,
+        @RequestParam teamId: Long
+    ): ResponseEntity<BasicResponse<List<NotificationItemResponse>>> {
+        val response = notificationService.createMockNotifications(userId, teamId)
 
-        return ResponseEntity.ok(
-            BasicResponse.success(response, HttpStatus.OK, "안 읽은 알림 상태를 성공적으로 조회했습니다.")
+        return ResponseEntity.status(HttpStatus.CREATED).body(
+            BasicResponse.success(response, HttpStatus.CREATED, "샘플 알림 4개가 성공적으로 생성되었습니다.")
         )
     }
 
