@@ -50,12 +50,7 @@ class NotificationService(
 
     @Transactional
     fun markAsRead(userId: Long, notificationId: Long): NotificationClickResponse {
-        val notification = notificationRepository.findById(notificationId)
-            .orElseThrow { BusinessException(ErrorCode.NOTIFICATION_NOT_FOUND) }
-
-        if (notification.userId != userId) {
-            throw BusinessException(ErrorCode.NOTIFICATION_NO_PERMISSION)
-        }
+        val notification = getNotificationWithPermission(notificationId, userId)
 
         notification.markAsRead()
 
@@ -73,12 +68,7 @@ class NotificationService(
 
     @Transactional
     fun clickNotification(userId: Long, notificationId: Long): NotificationClickResponse {
-        val notification = notificationRepository.findById(notificationId)
-            .orElseThrow { BusinessException(ErrorCode.NOTIFICATION_NOT_FOUND) }
-
-        if (notification.userId != userId) {
-            throw BusinessException(ErrorCode.NOTIFICATION_NO_PERMISSION)
-        }
+        val notification = getNotificationWithPermission(notificationId, userId)
 
         val currentTeamId = userService.getCurrentTeamIdOrNull(userId)
         if (currentTeamId != notification.teamId) {
@@ -87,6 +77,16 @@ class NotificationService(
         }
 
         return markAsRead(userId, notificationId)
+    }
+
+    private fun getNotificationWithPermission(notificationId: Long, userId: Long): Notifications {
+        val notification = notificationRepository.findById(notificationId)
+            .orElseThrow { BusinessException(ErrorCode.NOTIFICATION_NOT_FOUND) }
+
+        if (notification.userId != userId) {
+            throw BusinessException(ErrorCode.NOTIFICATION_NO_PERMISSION)
+        }
+        return notification
     }
 
     @Transactional
@@ -158,7 +158,7 @@ class NotificationService(
         return savedNotifications
     }
 
-    // 로컬 테스트용 
+    // 테스트용
     @Transactional
     fun createMockNotifications(targetUserId: Long, targetTeamId: Long): List<NotificationItemResponse> {
         val teamName = teamService.getTeamName(targetTeamId)

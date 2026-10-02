@@ -10,10 +10,4 @@ interface PushTokenRepository : JpaRepository<PushTokens, Long> {
     fun findByDeviceIdAndUserId(deviceId: String, userId: Long): PushTokens?
 
     fun findAllByUserIdAndIsActiveTrue(userId: Long): List<PushTokens>
-
-    fun findAllByUserIdInAndIsActiveTrue(userIds: List<Long>): List<PushTokens>
-
-    fun findByPushToken(pushToken: String): PushTokens?
-
-    fun deleteByDeviceIdAndUserId(deviceId: String, userId: Long)
 }

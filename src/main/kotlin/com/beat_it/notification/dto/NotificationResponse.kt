@@ -71,9 +71,6 @@ data class NotificationUnreadStatusResponse(
     val hasUnread: Boolean
 )
 
-/**
- * 알림 탭(클릭) 시 direct 이동 및 팀 전환 응답 DTO
- */
 data class NotificationClickResponse(
     val notificationId: Long,
     val targetTeamId: Long,

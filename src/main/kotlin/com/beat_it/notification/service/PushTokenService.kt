@@ -11,10 +11,6 @@ import org.springframework.transaction.annotation.Transactional
 class PushTokenService(
     private val pushTokenRepository: PushTokenRepository
 ) {
-
-    /**
-     * 디바이스의 푸시 토큰 등록 또는 갱신
-     */
     @Transactional
     fun registerOrUpdateToken(userId: Long, request: PushTokenRegisterRequest): PushTokenResponse {
         val existingToken = pushTokenRepository.findByDeviceIdAndUserId(request.deviceId, userId)
@@ -46,18 +42,12 @@ class PushTokenService(
         )
     }
 
-    /**
-     * 로그아웃 또는 푸시 비활성화 시 토큰 비활성화 처리
-     */
     @Transactional
     fun deactivateToken(userId: Long, deviceId: String) {
         val token = pushTokenRepository.findByDeviceIdAndUserId(deviceId, userId)
         token?.deactivate()
     }
 
-    /**
-     * 회원 탈퇴 시 해당 회원의 모든 푸시 토큰 비활성화
-     */
     @Transactional
     fun deactivateAllUserTokens(userId: Long) {
         val tokens = pushTokenRepository.findAllByUserIdAndIsActiveTrue(userId)

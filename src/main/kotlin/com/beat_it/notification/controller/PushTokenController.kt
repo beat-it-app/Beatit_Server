@@ -3,8 +3,7 @@ package com.beat_it.notification.controller
 import com.beat_it.global.error.BusinessException
 import com.beat_it.global.error.ErrorCode
 import com.beat_it.global.response.BasicResponse
-import com.beat_it.notification.dto.PushTokenRegisterRequest
-import com.beat_it.notification.dto.PushTokenResponse
+import com.beat_it.notification.dto.*
 import com.beat_it.notification.service.PushTokenService
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.tags.Tag

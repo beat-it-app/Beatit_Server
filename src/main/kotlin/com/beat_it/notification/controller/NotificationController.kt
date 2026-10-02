@@ -6,7 +6,6 @@ import com.beat_it.global.response.BasicResponse
 import com.beat_it.notification.dto.*
 import com.beat_it.notification.service.NotificationService
 import io.swagger.v3.oas.annotations.Operation
-import io.swagger.v3.oas.annotations.Parameter
 import io.swagger.v3.oas.annotations.tags.Tag
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
@@ -36,7 +35,7 @@ class NotificationController(
         )
     }
 
-    @Operation(summary = "인앱 알림 클릭 및 읽음 처리", description = "인앱 알림 목록에서 알림을 클릭했을 때 팀 전환 없이 읽음 처리하고 directTo 이동 정보를 반환합니다.")
+    @Operation(summary = "인앱 알림 클릭 및 읽음 처리")
     @PatchMapping("/{notificationId}/read")
     fun markAsRead(@AuthenticationPrincipal userDetails: UserDetails, @PathVariable notificationId: Long
     ): ResponseEntity<BasicResponse<NotificationClickResponse>> {
@@ -48,7 +47,7 @@ class NotificationController(
         )
     }
 
-    @Operation(summary = "푸시 알림 탭(클릭) 시 direct 이동 및 조건부 팀 전환", description = "외부 푸시 알림을 탭했을 때 필요한 경우 해당 팀으로 자동 전환하고, 읽음 처리 후 directTo 이동 정보를 반환합니다.")
+    @Operation(summary = "푸시 알림 탭(클릭) 시 direct 이동 및 조건부 팀 전환")
     @PostMapping("/{notificationId}/click")
     fun clickNotification(@AuthenticationPrincipal userDetails: UserDetails, @PathVariable notificationId: Long
     ): ResponseEntity<BasicResponse<NotificationClickResponse>> {

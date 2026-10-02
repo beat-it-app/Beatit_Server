@@ -19,9 +19,6 @@ class PushNotificationService(
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
 
-    /**
-     * 알림에 대한 푸시 발송 및 발송 로그 기록
-     */
     @Transactional
     fun sendPush(notification: Notifications) {
         val notificationId = notification.notificationId ?: return
@@ -71,7 +68,6 @@ class PushNotificationService(
                 log.error("FCM 푸시 발송 실패 (Firebase 에러) - code: {}, msg: {}", e.messagingErrorCode, e.message)
                 savedLog.markFailed(e.message)
 
-                // 토큰이 만료되었거나 유효하지 않은 경우 자동 비활성화
                 if (e.messagingErrorCode == MessagingErrorCode.UNREGISTERED ||
                     e.messagingErrorCode == MessagingErrorCode.INVALID_ARGUMENT
                 ) {
@@ -85,9 +81,6 @@ class PushNotificationService(
         }
     }
 
-    /**
-     * 다수 사용자 대상 푸시 발송 및 발송 로그 기록
-     */
     @Transactional
     fun sendPushes(notifications: List<Notifications>) {
         notifications.forEach { notification ->
