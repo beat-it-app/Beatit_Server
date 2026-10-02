@@ -66,6 +66,9 @@ dependencies {
 	// AWS S3
 	implementation(platform("software.amazon.awssdk:bom:2.29.51"))
 	implementation("software.amazon.awssdk:s3")
+
+	// Firebase Admin SDK (FCM 푸시 발송용)
+	implementation("com.google.firebase:firebase-admin:9.2.0")
 }
 
 kotlin {

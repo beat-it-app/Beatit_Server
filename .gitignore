@@ -48,3 +48,6 @@ data/
 
 # Private Keys
 *.pem
+
+### Firebase
+**/firebase/*.json

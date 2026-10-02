@@ -27,6 +27,9 @@ import jakarta.transaction.Transactional
 import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.stereotype.Service
 import org.springframework.data.redis.core.StringRedisTemplate
+import com.beat_it.notification.dto.PushTokenRegisterRequest
+import com.beat_it.notification.entity.enum.PlatformType
+import com.beat_it.notification.service.PushTokenService
 import org.slf4j.LoggerFactory
 
 @Service
@@ -42,7 +45,8 @@ class AuthService (
     private val naverAuthService: NaverAuthService,
     private val refreshTokenService: RefreshTokenService,
     private val emailService: EmailService,
-    private val redisTemplate: StringRedisTemplate
+    private val redisTemplate: StringRedisTemplate,
+    private val pushTokenService: PushTokenService
 ){
     private val log = LoggerFactory.getLogger(AuthService::class.java)
     @Transactional
@@ -110,10 +114,15 @@ class AuthService (
         val accessToken = jwtTokenProvider.createAccessToken(
             userId = user.userId.toString(),
             role = user.role,
-            rememberMe = rememberMe
+            rememberMe = rememberMe,
+            deviceId = loginRequest.deviceId
         )
 
-        val refreshToken = jwtTokenProvider.createRefreshToken(user.userId.toString(), rememberMe)
+        val refreshToken = jwtTokenProvider.createRefreshToken(
+            userId = user.userId.toString(),
+            rememberMe = rememberMe,
+            deviceId = loginRequest.deviceId
+        )
         refreshTokenService.saveRefreshToken(
             userId = user.userId.toString(),
             refreshToken = refreshToken,
@@ -126,6 +135,7 @@ class AuthService (
                 userSetting.allowAutoLogin = rememberMe
                 userSettingsRepository.save(userSetting)
             }
+            registerPushTokenIfPresent(uid, loginRequest.deviceId, loginRequest.platformType, loginRequest.pushToken, loginRequest.appVersion)
         }
 
         return Triple(
@@ -181,15 +191,24 @@ class AuthService (
 
         val accessToken = jwtTokenProvider.createAccessToken(
             userId = user.userId.toString(),
-            role = user.role
+            role = user.role,
+            deviceId = dto.deviceId
         )
 
-        val refreshToken = jwtTokenProvider.createRefreshToken(user.userId.toString(), true)
+        val refreshToken = jwtTokenProvider.createRefreshToken(
+            userId = user.userId.toString(),
+            rememberMe = true,
+            deviceId = dto.deviceId
+        )
         refreshTokenService.saveRefreshToken(
             userId = user.userId.toString(),
             refreshToken = refreshToken,
             expirationMs = jwtTokenProvider.getRefreshTokenValidity(true)
         )
+
+        user.userId?.let { uid ->
+            registerPushTokenIfPresent(uid, dto.deviceId, dto.platformType, dto.pushToken, dto.appVersion)
+        }
 
         return Triple(
             accessToken,
@@ -236,15 +255,23 @@ class AuthService (
 
         val accessToken = jwtTokenProvider.createAccessToken(
             userId = user.userId.toString(),
-            role = user.role
+            role = user.role,
+            deviceId = dto.deviceId
         )
 
-        val refreshToken = jwtTokenProvider.createRefreshToken(user.userId.toString())
+        val refreshToken = jwtTokenProvider.createRefreshToken(
+            userId = user.userId.toString(),
+            deviceId = dto.deviceId
+        )
         refreshTokenService.saveRefreshToken(
             userId = user.userId.toString(),
             refreshToken = refreshToken,
             expirationMs = jwtTokenProvider.refreshTokenValidity
         )
+
+        user.userId?.let { uid ->
+            registerPushTokenIfPresent(uid, dto.deviceId, dto.platformType, dto.pushToken, dto.appVersion)
+        }
 
         return Triple(
             accessToken,
@@ -291,15 +318,23 @@ class AuthService (
 
         val accessToken = jwtTokenProvider.createAccessToken(
             userId = user.userId.toString(),
-            role = user.role
+            role = user.role,
+            deviceId = dto.deviceId
         )
 
-        val refreshToken = jwtTokenProvider.createRefreshToken(user.userId.toString())
+        val refreshToken = jwtTokenProvider.createRefreshToken(
+            userId = user.userId.toString(),
+            deviceId = dto.deviceId
+        )
         refreshTokenService.saveRefreshToken(
             userId = user.userId.toString(),
             refreshToken = refreshToken,
             expirationMs = jwtTokenProvider.refreshTokenValidity
         )
+
+        user.userId?.let { uid ->
+            registerPushTokenIfPresent(uid, dto.deviceId, dto.platformType, dto.pushToken, dto.appVersion)
+        }
 
         return Triple(
             accessToken,
@@ -311,6 +346,26 @@ class AuthService (
                 socialProvider = SocialProvider.NAVER
             )
         )
+    }
+
+    private fun registerPushTokenIfPresent(
+        userId: Long,
+        deviceId: String?,
+        platformType: PlatformType?,
+        pushToken: String?,
+        appVersion: String?
+    ) {
+        if (!deviceId.isNullOrBlank() && !pushToken.isNullOrBlank()) {
+            pushTokenService.registerOrUpdateToken(
+                userId = userId,
+                request = PushTokenRegisterRequest(
+                    deviceId = deviceId,
+                    platformType = platformType ?: PlatformType.ANDROID,
+                    pushToken = pushToken,
+                    appVersion = appVersion
+                )
+            )
+        }
     }
 
     fun reissue(refreshToken: String): Pair<String, String> {
@@ -330,8 +385,9 @@ class AuthService (
             .orElseThrow { BusinessException(ErrorCode.USER_NOT_FOUND) }
 
         val rememberMe = jwtTokenProvider.getRememberMe(refreshToken)
-        val newAccessToken = jwtTokenProvider.createAccessToken(userId, user.role, rememberMe)
-        val newRefreshToken = jwtTokenProvider.createRefreshToken(userId, rememberMe)
+        val deviceId = jwtTokenProvider.getDeviceId(refreshToken)
+        val newAccessToken = jwtTokenProvider.createAccessToken(userId, user.role, rememberMe, deviceId)
+        val newRefreshToken = jwtTokenProvider.createRefreshToken(userId, rememberMe, deviceId)
 
         refreshTokenService.saveRefreshToken(
             userId = userId,
@@ -362,8 +418,9 @@ class AuthService (
         val userAuthAccount = userAuthAccountRepository.findByUserUserId(user.userId!!)
 
         val rememberMe = jwtTokenProvider.getRememberMe(refreshToken)
-        val newAccessToken = jwtTokenProvider.createAccessToken(userId, user.role, rememberMe)
-        val newRefreshToken = jwtTokenProvider.createRefreshToken(userId, rememberMe)
+        val deviceId = jwtTokenProvider.getDeviceId(refreshToken)
+        val newAccessToken = jwtTokenProvider.createAccessToken(userId, user.role, rememberMe, deviceId)
+        val newRefreshToken = jwtTokenProvider.createRefreshToken(userId, rememberMe, deviceId)
 
         refreshTokenService.saveRefreshToken(
             userId = userId,
