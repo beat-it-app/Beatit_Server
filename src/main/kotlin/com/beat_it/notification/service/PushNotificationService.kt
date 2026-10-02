@@ -83,9 +83,98 @@ class PushNotificationService(
 
     @Transactional
     fun sendPushes(notifications: List<Notifications>) {
-        notifications.forEach { notification ->
-            if (notification.isPush) {
-                sendPush(notification)
+        val pushTargetNotifications = notifications.filter { it.isPush && it.notificationId != null }
+        if (pushTargetNotifications.isEmpty()) return
+
+        if (FirebaseApp.getApps().isEmpty()) {
+            log.warn("FirebaseApp이 초기화되지 않아 FCM 푸시 발송을 건너뜁니다.")
+            return
+        }
+
+        val userIds = pushTargetNotifications.map { it.userId }.distinct()
+        val allTokens = pushTokenRepository.findAllByUserIdInAndIsActiveTrue(userIds)
+        if (allTokens.isEmpty()) {
+            log.info("푸시 발송 건너뜀 (대상 사용자들의 활성 푸시 토큰 없음)")
+            return
+        }
+
+        val tokensByUserId = allTokens.groupBy { it.userId }
+
+        data class PushTask(
+            val token: com.beat_it.notification.entity.PushTokens,
+            val message: Message,
+            var deliveryLog: NotificationDeliveryLogs
+        )
+
+        val tasks = mutableListOf<PushTask>()
+
+        pushTargetNotifications.forEach { notification ->
+            val userTokens = tokensByUserId[notification.userId] ?: return@forEach
+            val notificationId = notification.notificationId!!
+
+            userTokens.forEach { token ->
+                val fcmMessage = Message.builder()
+                    .setToken(token.pushToken)
+                    .setNotification(
+                        Notification.builder()
+                            .setTitle(notification.title)
+                            .setBody(notification.pushText)
+                            .build()
+                    )
+                    .putData("notificationId", notificationId.toString())
+                    .putData("teamId", notification.teamId.toString())
+                    .putData("directTo", notification.directTo ?: "")
+                    .putData("targetId", notification.targetId?.toString() ?: "")
+                    .putData("category", notification.category.name)
+                    .putData("type", notification.notificationType.name)
+                    .build()
+
+                val deliveryLog = NotificationDeliveryLogs(
+                    notificationId = notificationId,
+                    deliveryChannel = DeliveryChannel.PUSH,
+                    deliveryStatus = DeliveryStatus.PENDING
+                )
+
+                tasks.add(PushTask(token, fcmMessage, deliveryLog))
+            }
+        }
+
+        if (tasks.isEmpty()) return
+
+        val savedLogs = deliveryLogRepository.saveAll(tasks.map { it.deliveryLog })
+        savedLogs.forEachIndexed { index, savedLog ->
+            tasks[index].deliveryLog = savedLog
+        }
+
+        tasks.chunked(500).forEach { chunkTasks ->
+            try {
+                val messages = chunkTasks.map { it.message }
+                val batchResponse = FirebaseMessaging.getInstance().sendEach(messages)
+                log.info("FCM 배치 푸시 발송 완료 - 성공: {}, 실패: {}", batchResponse.successCount, batchResponse.failureCount)
+
+                batchResponse.responses.forEachIndexed { index, response ->
+                    val task = chunkTasks[index]
+                    if (response.isSuccessful) {
+                        task.token.markAsUsed()
+                        task.deliveryLog.markSuccess()
+                    } else {
+                        val exception = response.exception
+                        log.error("FCM 푸시 발송 실패 - token: {}, error: {}", task.token.pushToken.take(15) + "...", exception?.message)
+                        task.deliveryLog.markFailed(exception?.message)
+
+                        if (exception is FirebaseMessagingException) {
+                            if (exception.messagingErrorCode == MessagingErrorCode.UNREGISTERED ||
+                                exception.messagingErrorCode == MessagingErrorCode.INVALID_ARGUMENT
+                            ) {
+                                log.warn("유효하지 않은 FCM 토큰 감지 -> 비활성화 처리: {}", task.token.pushToken.take(15) + "...")
+                                task.token.deactivate()
+                            }
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                log.error("FCM 배치 푸시 발송 중 예외 발생", e)
+                chunkTasks.forEach { it.deliveryLog.markFailed(e.message) }
             }
         }
     }
