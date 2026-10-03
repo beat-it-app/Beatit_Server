@@ -175,7 +175,7 @@ class TeamService(
         val teamId = userService.getCurrentTeamId(userId)
         val team = findTeamForCommandOrThrow(teamId)
 
-        validateTeamMember(teamId, userId)
+        val requesterMembership = findActiveMembershipOrThrow(teamId, userId)
 
         val memberCount = teamMembershipRepository.countByTeamTeamIdAndLeftAtIsNull(teamId)
 
@@ -209,6 +209,7 @@ class TeamService(
             establishedOn = team.establishedOn,
             inviteCode = team.inviteCode,
             memberCount = memberCount,
+            myRole = requesterMembership.teamRole,
             createdAt = team.createdAt,
             updatedAt = team.updatedAt,
             links = links,
@@ -316,7 +317,7 @@ class TeamService(
         userService.validateUserExists(userId)
 
         val teamId = userService.getCurrentTeamId(userId)
-        validateTeamMember(teamId, userId)
+        val requesterMembership = findActiveMembershipOrThrow(teamId, userId)
 
         val memberships = teamMembershipRepository
             .findAllByTeamTeamIdAndLeftAtIsNull(teamId)
@@ -344,7 +345,8 @@ class TeamService(
         val hasNext = (fromIndex + safeSize) < totalCount
 
         return TeamMemberListResponse(
-            memberListResponse = pagedMembers,
+            myRole = requesterMembership.teamRole,
+            members = pagedMembers,
             totalCount = totalCount,
             hasNext = hasNext,
         )
@@ -475,6 +477,16 @@ class TeamService(
 
         if ((request.description?.length ?: 0) > 500) {
             throw BusinessException(ErrorCode.TEAM_DESCRIPTION_TOO_LONG)
+        }
+
+        val hasDuplicatePlatform = request.links
+            ?.groupingBy { it.platformCode }
+            ?.eachCount()
+            ?.any { (_, count) -> count > 1 }
+            ?: false
+
+        if (hasDuplicatePlatform) {
+            throw BusinessException(ErrorCode.TEAM_LINK_DUPLICATED)
         }
     }
 

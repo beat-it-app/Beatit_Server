@@ -133,6 +133,39 @@ class PerformanceService(
     }
 
     @Transactional(readOnly = true)
+    fun getUpcomingTeamPerformances(userId: Long): List<PerformanceListItemResponse> {
+        userService.validateUserExists(userId)
+
+        val teamId = userService.getCurrentTeamId(userId)
+        val performances = performanceRepository
+            .findTop10ByTeamIdAndPerformanceDateTimeGreaterThanEqualOrderByPerformanceDateTimeAsc(
+                teamId = teamId,
+                performanceDateTime = OffsetDateTime.now(),
+            )
+
+        val posterFileIds = performances
+            .mapNotNull { it.posterFileId }
+            .distinct()
+
+        val posterUrlById: Map<Long, String> = if (posterFileIds.isEmpty()) {
+            emptyMap()
+        } else {
+            performanceFilesRepository.findAllById(posterFileIds)
+                .mapNotNull { file ->
+                    file.performanceFileId?.let { fileId -> fileId to file.cdnUrl }
+                }
+                .toMap()
+        }
+
+        return performances.map { performance ->
+            PerformanceListItemResponse.of(
+                performance = performance,
+                posterImageUrl = performance.posterFileId?.let(posterUrlById::get),
+            )
+        }
+    }
+
+    @Transactional(readOnly = true)
     fun getMyPerformanceList(
         userId: Long,
         filter: PerformanceFilterStatus = PerformanceFilterStatus.ALL,

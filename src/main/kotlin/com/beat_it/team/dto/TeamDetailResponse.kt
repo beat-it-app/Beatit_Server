@@ -1,6 +1,7 @@
 package com.beat_it.team.dto
 
 import com.beat_it.team.entity.enum.PlatformCode
+import com.beat_it.team.entity.enum.TeamRole
 import com.beat_it.team.entity.enum.TeamType
 import java.time.LocalDate
 import java.time.OffsetDateTime
@@ -16,6 +17,7 @@ data class TeamDetailResponse(
     val establishedOn: LocalDate?,
     val inviteCode: String,
     val memberCount: Int,
+    val myRole: TeamRole,
     val createdAt: OffsetDateTime,
     val updatedAt: OffsetDateTime?,
     val links: List<LinksResponse>,

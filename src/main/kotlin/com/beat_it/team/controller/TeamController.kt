@@ -3,7 +3,8 @@ package com.beat_it.team.controller
 import com.beat_it.global.error.BusinessException
 import com.beat_it.global.error.ErrorCode
 import com.beat_it.team.service.TeamService
-import com.beat_it.team.service.TeamOverviewService
+import com.beat_it.cal.service.ScheduleService
+import com.beat_it.performance.service.PerformanceService
 import com.beat_it.team.entity.enum.TeamType
 import com.fasterxml.jackson.core.type.TypeReference
 import com.fasterxml.jackson.databind.ObjectMapper
@@ -29,7 +30,8 @@ import org.springframework.security.core.userdetails.UserDetails
 @RequestMapping("/teams")
 class TeamController(
     private val teamService: TeamService,
-    private val teamOverviewService: TeamOverviewService,
+    private val scheduleService: ScheduleService,
+    private val performanceService: PerformanceService,
     private val objectMapper: ObjectMapper,
 ) {
 
@@ -110,7 +112,18 @@ class TeamController(
         @AuthenticationPrincipal userDetails: UserDetails,
     ): ResponseEntity<BasicResponse<TeamCalendarsResponse>> {
         val userId = extractUserId(userDetails)
-        val responseData = teamOverviewService.getTeamCalendars(userId)
+        val schedules = scheduleService.getUpcomingTeamSchedules(userId)
+        val responseData = TeamCalendarsResponse(
+            items = schedules.map { schedule ->
+                TeamCalendarItemResponse(
+                    scheduleId = schedule.scheduleId,
+                    title = schedule.title,
+                    startsAt = schedule.startsAt,
+                    endsAt = schedule.endsAt,
+                    locationName = schedule.locationName,
+                )
+            }
+        )
 
         return ResponseEntity
             .status(HttpStatus.OK)
@@ -123,7 +136,17 @@ class TeamController(
         @AuthenticationPrincipal userDetails: UserDetails,
     ): ResponseEntity<BasicResponse<TeamPerformancesResponse>> {
         val userId = extractUserId(userDetails)
-        val responseData = teamOverviewService.getTeamPerformances(userId)
+        val performances = performanceService.getUpcomingTeamPerformances(userId)
+        val responseData = TeamPerformancesResponse(
+            items = performances.map { performance ->
+                TeamPerformanceItemResponse(
+                    performancePublicId = performance.performancePublicId,
+                    title = performance.title,
+                    performanceDateTime = performance.performanceDateTime,
+                    posterImageUrl = performance.posterImageUrl,
+                )
+            }
+        )
 
         return ResponseEntity
             .status(HttpStatus.OK)

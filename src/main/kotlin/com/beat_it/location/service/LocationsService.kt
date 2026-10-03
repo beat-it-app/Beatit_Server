@@ -60,6 +60,19 @@ class LocationsService(
     }
 
     @Transactional(readOnly = true)
+    fun getLocationNamesByIds(locationIds: Collection<Long>): Map<Long, String?> {
+        if (locationIds.isEmpty()) {
+            return emptyMap()
+        }
+
+        return locationsRepository.findAllById(locationIds.distinct())
+            .mapNotNull { location ->
+                location.locationId?.let { locationId -> locationId to location.locationName }
+            }
+            .toMap()
+    }
+
+    @Transactional(readOnly = true)
     fun searchLocations(
         query: String,
         latitude: BigDecimal? = null,

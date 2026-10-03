@@ -48,4 +48,9 @@ interface PerformanceRepository : JpaRepository<Performances, Long> {
         @Param("now") now: OffsetDateTime,
         pageable: Pageable
     ): Page<Performances>
+
+    fun findTop10ByTeamIdAndPerformanceDateTimeGreaterThanEqualOrderByPerformanceDateTimeAsc(
+        teamId: Long,
+        performanceDateTime: OffsetDateTime,
+    ): List<Performances>
 }
