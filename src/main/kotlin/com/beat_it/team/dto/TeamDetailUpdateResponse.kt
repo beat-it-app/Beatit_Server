@@ -1,5 +1,6 @@
 package com.beat_it.team.dto
 
+import com.beat_it.team.entity.enum.TeamType
 import java.time.LocalDate
 import java.time.OffsetDateTime
 import java.util.UUID
@@ -10,6 +11,7 @@ data class TeamDetailUpdateResponse(
     val teamName: String,
     val teamImageUrl: String?,
     val description: String?,
+    val teamType: TeamType,
     val establishedOn: LocalDate?,
     val updatedAt: OffsetDateTime,
     val links: List<LinksResponse>? = null,

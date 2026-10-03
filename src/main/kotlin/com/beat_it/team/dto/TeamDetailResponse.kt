@@ -1,6 +1,8 @@
 package com.beat_it.team.dto
 
 import com.beat_it.team.entity.enum.PlatformCode
+import com.beat_it.team.entity.enum.TeamRole
+import com.beat_it.team.entity.enum.TeamType
 import java.time.LocalDate
 import java.time.OffsetDateTime
 import java.util.UUID
@@ -11,15 +13,15 @@ data class TeamDetailResponse(
     val teamImageUrl: String?,
     val teamName: String,
     val description: String?,
+    val teamType: TeamType,
     val establishedOn: LocalDate?,
     val inviteCode: String,
     val memberCount: Int,
+    val myRole: TeamRole,
     val createdAt: OffsetDateTime,
     val updatedAt: OffsetDateTime?,
     val links: List<LinksResponse>,
-    val parts: List<PartsResponse> = emptyList(),
-    val archiveCount: Int,
-    val cloudItemCount: Int,
+    val members: List<TeamDetailMemberResponse>,
 )
 
 data class LinksResponse(
@@ -28,8 +30,8 @@ data class LinksResponse(
     val linkUrl: String,
 )
 
-data class PartsResponse(
-    val teamPartId: Long,
-    val partName: String,
-    val displayOrder: Int,
+data class TeamDetailMemberResponse(
+    val userName: String,
+    val profileImageUrl: String?,
+    val position: String?,
 )

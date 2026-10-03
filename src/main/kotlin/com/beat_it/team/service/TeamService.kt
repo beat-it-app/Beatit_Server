@@ -140,6 +140,7 @@ class TeamService(
             teamName = team.teamName,
             teamImageUrl = team.teamImageUrl,
             description = team.description,
+            teamType = team.teamType,
             establishedOn = team.establishedOn,
             updatedAt = team.updatedAt,
             links = links
@@ -170,13 +171,13 @@ class TeamService(
     }
 
     @Transactional(readOnly = true)
-    fun getTeamDetail(userId: Long): TeamDetailResponse? {
+    fun getTeamDetail(userId: Long): TeamDetailResponse {
         val teamId = userService.getCurrentTeamId(userId)
         val team = findTeamForCommandOrThrow(teamId)
 
-        validateTeamMember(teamId, userId)
+        val requesterMembership = findActiveMembershipOrThrow(teamId, userId)
 
-        val memberCount = teamMembershipRepository.countByTeamTeamIdAndLeftAtIsNull(team.teamId!!)
+        val memberCount = teamMembershipRepository.countByTeamTeamIdAndLeftAtIsNull(teamId)
 
         val links = teamLinksRepository
             .findAllByTeamTeamId(teamId)
@@ -188,7 +189,15 @@ class TeamService(
                 )
             }
 
-        val parts = emptyList<PartsResponse>()
+        val members = toTeamMemberInfos(
+            teamMembershipRepository.findTop10ByTeamTeamIdAndLeftAtIsNullOrderByJoinedAtAsc(teamId)
+        ).map { member ->
+            TeamDetailMemberResponse(
+                userName = member.userName,
+                profileImageUrl = member.profileImageUrl,
+                position = member.position,
+            )
+        }
 
         return TeamDetailResponse(
             teamId = team.teamId,
@@ -196,15 +205,15 @@ class TeamService(
             teamImageUrl = team.teamImageUrl,
             teamName = team.teamName,
             description = team.description,
+            teamType = team.teamType,
             establishedOn = team.establishedOn,
             inviteCode = team.inviteCode,
             memberCount = memberCount,
+            myRole = requesterMembership.teamRole,
             createdAt = team.createdAt,
             updatedAt = team.updatedAt,
             links = links,
-            parts = parts,
-            archiveCount = 0,
-            cloudItemCount = 0
+            members = members,
         )
     }
 
@@ -308,7 +317,7 @@ class TeamService(
         userService.validateUserExists(userId)
 
         val teamId = userService.getCurrentTeamId(userId)
-        validateTeamMember(teamId, userId)
+        val requesterMembership = findActiveMembershipOrThrow(teamId, userId)
 
         val memberships = teamMembershipRepository
             .findAllByTeamTeamIdAndLeftAtIsNull(teamId)
@@ -336,7 +345,8 @@ class TeamService(
         val hasNext = (fromIndex + safeSize) < totalCount
 
         return TeamMemberListResponse(
-            memberListResponse = pagedMembers,
+            myRole = requesterMembership.teamRole,
+            members = pagedMembers,
             totalCount = totalCount,
             hasNext = hasNext,
         )
@@ -467,6 +477,16 @@ class TeamService(
 
         if ((request.description?.length ?: 0) > 500) {
             throw BusinessException(ErrorCode.TEAM_DESCRIPTION_TOO_LONG)
+        }
+
+        val hasDuplicatePlatform = request.links
+            ?.groupingBy { it.platformCode }
+            ?.eachCount()
+            ?.any { (_, count) -> count > 1 }
+            ?: false
+
+        if (hasDuplicatePlatform) {
+            throw BusinessException(ErrorCode.TEAM_LINK_DUPLICATED)
         }
     }
 

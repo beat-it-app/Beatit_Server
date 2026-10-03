@@ -12,6 +12,7 @@ import com.beat_it.cal.dto.ScheduleDetailResponse
 import com.beat_it.cal.dto.ScheduleFileResponse
 import com.beat_it.cal.dto.ScheduleMusicResponse
 import com.beat_it.cal.dto.ScheduleUpdateRequest
+import com.beat_it.cal.dto.UpcomingTeamScheduleResponse
 import com.beat_it.cal.entity.Schedule
 import com.beat_it.cal.repository.ScheduleRepository
 import com.beat_it.global.error.BusinessException
@@ -235,6 +236,32 @@ class ScheduleService(
             files = fileResponses,
             musics = musicResponses
         )
+    }
+
+    @Transactional(readOnly = true)
+    fun getUpcomingTeamSchedules(userId: Long): List<UpcomingTeamScheduleResponse> {
+        userService.validateUserExists(userId)
+
+        val teamId = userService.getCurrentTeamId(userId)
+        teamService.validateTeamMember(teamId, userId)
+
+        val startAt = OffsetDateTime.now()
+        val endAt = startAt.plusDays(7)
+        val schedules = scheduleRepository.findUpcomingByTeamIdAndRange(teamId, startAt, endAt)
+
+        val locationNamesById = locationService.getLocationNamesByIds(
+            schedules.mapNotNull { it.locationId }.distinct()
+        )
+
+        return schedules.map { schedule ->
+            UpcomingTeamScheduleResponse(
+                scheduleId = schedule.scheduleId ?: throw BusinessException(ErrorCode.CALENDAR_NOT_FOUND),
+                title = schedule.title,
+                startsAt = schedule.startsAt,
+                endsAt = schedule.endsAt,
+                locationName = schedule.locationId?.let(locationNamesById::get),
+            )
+        }
     }
 
     @Transactional(readOnly = true)
