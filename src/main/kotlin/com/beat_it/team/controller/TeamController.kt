@@ -3,6 +3,7 @@ package com.beat_it.team.controller
 import com.beat_it.global.error.BusinessException
 import com.beat_it.global.error.ErrorCode
 import com.beat_it.team.service.TeamService
+import com.beat_it.team.service.TeamOverviewService
 import com.beat_it.team.entity.enum.TeamType
 import com.fasterxml.jackson.core.type.TypeReference
 import com.fasterxml.jackson.databind.ObjectMapper
@@ -28,6 +29,7 @@ import org.springframework.security.core.userdetails.UserDetails
 @RequestMapping("/teams")
 class TeamController(
     private val teamService: TeamService,
+    private val teamOverviewService: TeamOverviewService,
     private val objectMapper: ObjectMapper,
 ) {
 
@@ -93,28 +95,39 @@ class TeamController(
     @GetMapping
     fun getTeamDetail(
         @AuthenticationPrincipal userDetails: UserDetails
-    ): ResponseEntity<BasicResponse<out Any>> {
+    ): ResponseEntity<BasicResponse<TeamDetailResponse>> {
         val userId = extractUserId(userDetails)
+        val responseData = teamService.getTeamDetail(userId)
 
-        val teamDetail = teamService.getTeamDetail(userId)
+        return ResponseEntity
+            .status(HttpStatus.OK)
+            .body(BasicResponse.success(responseData, HttpStatus.OK, "팀 상세 내용 조회에 성공했습니다."))
+    }
 
-        if (teamDetail != null) {
-            return ResponseEntity
-                .status(HttpStatus.OK)
-                .body(BasicResponse.success(teamDetail, HttpStatus.OK, "팀 상세 내용 조회에 성공했습니다."))
-        }
+    @Operation(summary = "팀의 일주일 일정 조회")
+    @GetMapping("/calendars")
+    fun getTeamCalendars(
+        @AuthenticationPrincipal userDetails: UserDetails,
+    ): ResponseEntity<BasicResponse<TeamCalendarsResponse>> {
+        val userId = extractUserId(userDetails)
+        val responseData = teamOverviewService.getTeamCalendars(userId)
 
-        val userTeams = teamService.getUserTeams(userId)
+        return ResponseEntity
+            .status(HttpStatus.OK)
+            .body(BasicResponse.success(responseData, HttpStatus.OK, "팀 일정 조회에 성공했습니다."))
+    }
 
-        if (userTeams.teams.isEmpty()) {
-            return ResponseEntity
-                .status(HttpStatus.OK)
-                .body(BasicResponse.success(HttpStatus.OK, "소속된 팀이 없습니다. 팀을 생성하거나 초대코드를 입력하세요."))
-        } else {
-            return ResponseEntity
-                .status(HttpStatus.OK)
-                .body(BasicResponse.success(userTeams, HttpStatus.OK, "선택된 팀이 없어 소속된 팀 리스트를 반환합니다."))
-        }
+    @Operation(summary = "팀의 다가오는 공연 조회")
+    @GetMapping("/performances")
+    fun getTeamPerformances(
+        @AuthenticationPrincipal userDetails: UserDetails,
+    ): ResponseEntity<BasicResponse<TeamPerformancesResponse>> {
+        val userId = extractUserId(userDetails)
+        val responseData = teamOverviewService.getTeamPerformances(userId)
+
+        return ResponseEntity
+            .status(HttpStatus.OK)
+            .body(BasicResponse.success(responseData, HttpStatus.OK, "팀 공연 조회에 성공했습니다."))
     }
 
     @Operation(summary = "로그인할 팀 선택하기")

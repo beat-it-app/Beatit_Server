@@ -19,6 +19,8 @@ interface TeamMembershipRepository : JpaRepository<TeamMemberships, Long> {
 
     fun findAllByTeamTeamIdAndLeftAtIsNull(teamId: Long): List<TeamMemberships>
 
+    fun findTop10ByTeamTeamIdAndLeftAtIsNullOrderByJoinedAtAsc(teamId: Long): List<TeamMemberships>
+
     fun findAllByUserIdAndLeftAtIsNullAndTeamDeletedAtIsNullOrderByJoinedAtDesc(
         userId: Long
     ): List<TeamMemberships>
