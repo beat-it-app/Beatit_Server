@@ -12,6 +12,7 @@ import com.beat_it.team.service.TeamService
 import org.springframework.data.domain.PageRequest
 import org.springframework.data.domain.Sort
 import org.springframework.stereotype.Service
+import com.beat_it.notification.kafka.NotificationProducer
 import org.springframework.transaction.annotation.Transactional
 
 @Service
@@ -19,7 +20,8 @@ class NotificationService(
     private val notificationRepository: NotificationRepository,
     private val teamService: TeamService,
     private val userService: UserService,
-    private val pushNotificationService: PushNotificationService
+    private val pushNotificationService: PushNotificationService,
+    private val notificationProducer: NotificationProducer
 ) {
 
     @Transactional(readOnly = true)
@@ -158,9 +160,8 @@ class NotificationService(
         return savedNotifications
     }
 
-    // 테스트용
-    @Transactional
-    fun createMockNotifications(targetUserId: Long, targetTeamId: Long): List<NotificationItemResponse> {
+    // 테스트용: 카프카를 통한 샘플 알림 4개 발행
+    fun createMockNotifications(targetUserId: Long, targetTeamId: Long): String {
         val teamName = teamService.getTeamName(targetTeamId)
 
         val mockMessages = listOf(
@@ -192,24 +193,14 @@ class NotificationService(
             )
         )
 
-        val notifications = mockMessages.map { message ->
-            Notifications(
-                userId = targetUserId,
+        mockMessages.forEach { message ->
+            notificationProducer.sendNotification(
+                targetUserId = targetUserId,
                 teamId = targetTeamId,
-                notificationType = message.type,
-                category = message.category,
-                title = message.title,
-                content = message.content,
-                pushText = message.pushText,
-                directTo = message.directTo,
-                targetId = message.targetId,
-                isPush = message.isPush,
-                isToast = message.isToast,
-                isRead = false
+                message = message
             )
         }
 
-        val savedNotifications = notificationRepository.saveAll(notifications)
-        return savedNotifications.map { NotificationItemResponse.from(it) }
+        return "샘플 알림 4개가 카프카 토픽으로 발행되었습니다."
     }
 }

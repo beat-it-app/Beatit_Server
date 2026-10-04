@@ -71,16 +71,16 @@ class NotificationController(
         )
     }
 
-    @Operation(summary = "[테스트용] 로컬 샘플 알림 4개 생성")
+    @Operation(summary = "[테스트용] 카프카를 통한 샘플 알림 4개 발송 테스트")
     @PostMapping("/test/mock-data")
     fun createMockData(
         @RequestParam userId: Long,
         @RequestParam teamId: Long
-    ): ResponseEntity<BasicResponse<List<NotificationItemResponse>>> {
+    ): ResponseEntity<BasicResponse<String>> {
         val response = notificationService.createMockNotifications(userId, teamId)
 
-        return ResponseEntity.status(HttpStatus.CREATED).body(
-            BasicResponse.success(response, HttpStatus.CREATED, "샘플 알림 4개가 성공적으로 생성되었습니다.")
+        return ResponseEntity.ok(
+            BasicResponse.success(response, HttpStatus.OK, "카프카를 통해 샘플 알림 4개가 성공적으로 발행되었습니다.")
         )
     }
 

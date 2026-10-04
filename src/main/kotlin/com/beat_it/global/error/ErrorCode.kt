@@ -151,4 +151,5 @@ enum class ErrorCode(
     // --- 8. 알림 관련 에러 (NOTIFICATION) ---
     NOTIFICATION_NOT_FOUND(HttpStatus.NOT_FOUND, "NOTIFICATION-001", "알림을 찾을 수 없습니다."),
     NOTIFICATION_NO_PERMISSION(HttpStatus.FORBIDDEN, "NOTIFICATION-002", "해당 알림에 대한 권한이 없습니다."),
+    KAFKA_SERVER_UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE, "NOTIFICATION-003", "카프카 브로커에 연결할 수 없습니다. 카프카 서버 상태를 확인해주세요."),
 }
