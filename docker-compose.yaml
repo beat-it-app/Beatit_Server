@@ -1,11 +1,24 @@
 version: '3.8'
 
 services:
+  nginx:
+    image: nginx:alpine
+    container_name: dev-nginx
+    restart: always
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf
+    depends_on:
+      - beat-it-app
+    networks:
+      - chat-network
+
   beat-it-app:
     build: .
     container_name: beat-it-app
-    ports:
-      - "8083:8080"
+    expose:
+      - "8080"
     env_file:
       - .env
     environment:
