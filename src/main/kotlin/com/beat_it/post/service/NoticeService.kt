@@ -70,8 +70,11 @@ class NoticeService(
             )
         }
 
+        val userIds = notices.map { it.userId }.distinct()
+        val userProfilesMap = userService.getUserProfiles(userIds).associateBy { it.userId }
+
         val noticeItems = notices.map { notice ->
-            val userProfile = userService.getUserProfile(notice.userId)
+            val userProfile = userProfilesMap[notice.userId]
             val writerName = userProfile?.name ?: "알 수 없음"
 
             val description = if (notice.content.length > 20) {
@@ -127,7 +130,7 @@ class NoticeService(
         val notice = getNotice(noticeId)
         validateTeam(notice, teamId)
 
-        val writerProfile = userService.getUserProfile(notice.userId)
+        val writerProfile = userService.getUserProfileResponse(notice.userId)
         val writerName = writerProfile?.name ?: "알 수 없음"
 
         val attachments = noticeAttachmentsRepository.findByNoticeNoticeIdOrderByDisplayOrderAsc(noticeId)
@@ -157,7 +160,7 @@ class NoticeService(
             title = notice.title,
             content = notice.content,
             writerName = writerName,
-            writerProfileImageUrl = writerProfile?.authFile?.cdnUrl,
+            writerProfileImageUrl = writerProfile?.profileImageUrl,
             createdAt = notice.createdAt,
             updatedAt = notice.updatedAt,
             images = imageUrls,

@@ -149,7 +149,7 @@ class ArchiveService(
     @Transactional(readOnly = true)
     fun getArchiveDetail(userId: Long, archiveId: Long): ArchiveDetailResponse {
         val archive = findAccessibleArchiveOrThrow(userId, archiveId)
-        val writerProfile = userService.getUserProfile(archive.writerId)
+        val writerProfile = userService.getUserProfileResponse(archive.writerId)
         val archiveImageUrls = archivesFilesRepository
             .findAllByArchiveArchiveIdOrderByArchiveFileIdAsc(archiveId)
             .map { archiveFile -> archiveFile.cdnUrl }
@@ -176,7 +176,7 @@ class ArchiveService(
             description = archive.description,
             archiveImageUrls = archiveImageUrls,
             writerName = writerProfile?.name ?: "알 수 없음",
-            writerProfileImageUrl = writerProfile?.authFile?.cdnUrl,
+            writerProfileImageUrl = writerProfile?.profileImageUrl,
             isWriter = archive.writerId == userId,
             topArchive = archive.topArchive,
             rating = ArchiveRatingResponse(
