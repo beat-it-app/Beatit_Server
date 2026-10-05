@@ -148,4 +148,9 @@ enum class ErrorCode(
     PERFORMANCE_TITLE_REQUIRED(HttpStatus.BAD_REQUEST, "PERFORMANCE-009", "공연 제목은 필수입니다."),
     PERFORMANCE_DATE_REQUIRED(HttpStatus.BAD_REQUEST, "PERFORMANCE-010", "공연 일시는 필수입니다."),
     PERFORMANCE_HOST_NAME_REQUIRED(HttpStatus.BAD_REQUEST, "PERFORMANCE-011", "호스트 이름은 필수입니다."),
+
+    // --- 8. 알림 관련 에러 (NOTIFICATION) ---
+    NOTIFICATION_NOT_FOUND(HttpStatus.NOT_FOUND, "NOTIFICATION-001", "알림을 찾을 수 없습니다."),
+    NOTIFICATION_NO_PERMISSION(HttpStatus.FORBIDDEN, "NOTIFICATION-002", "해당 알림에 대한 권한이 없습니다."),
+    KAFKA_SERVER_UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE, "NOTIFICATION-003", "카프카 브로커에 연결할 수 없습니다. 카프카 서버 상태를 확인해주세요."),
 }

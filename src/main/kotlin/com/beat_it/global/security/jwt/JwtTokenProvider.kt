@@ -24,33 +24,41 @@ class JwtTokenProvider(
 ) {
     private val key: SecretKey = Keys.hmacShaKeyFor(secretKey.toByteArray())
 
-    fun createAccessToken(userId: String, role: Role, rememberMe: Boolean = true): String {
+    fun createAccessToken(userId: String, role: Role, rememberMe: Boolean = true, deviceId: String? = null): String {
         val now = Date()
         val validityDuration = getAccessTokenValidity(rememberMe)
         val validity = Date(now.time + validityDuration)
 
-        return Jwts.builder()
+        val builder = Jwts.builder()
             .subject(userId)
             .claim("role", role)
             .claim("rememberMe", rememberMe)
             .issuedAt(now)
             .expiration(validity)
-            .signWith(key)
-            .compact()
+
+        if (!deviceId.isNullOrBlank()) {
+            builder.claim("deviceId", deviceId)
+        }
+
+        return builder.signWith(key).compact()
     }
 
-    fun createRefreshToken(userId: String, rememberMe: Boolean = true): String {
+    fun createRefreshToken(userId: String, rememberMe: Boolean = true, deviceId: String? = null): String {
         val now = Date()
         val validityDuration = getRefreshTokenValidity(rememberMe)
         val validity = Date(now.time + validityDuration)
 
-        return Jwts.builder()
+        val builder = Jwts.builder()
             .subject(userId)
             .claim("rememberMe", rememberMe)
             .issuedAt(now)
             .expiration(validity)
-            .signWith(key)
-            .compact()
+
+        if (!deviceId.isNullOrBlank()) {
+            builder.claim("deviceId", deviceId)
+        }
+
+        return builder.signWith(key).compact()
     }
 
     fun getAccessTokenValidity(rememberMe: Boolean = true): Long {
@@ -65,9 +73,17 @@ class JwtTokenProvider(
         return parseClaims(token)["rememberMe"] as? Boolean ?: true
     }
 
+    fun getDeviceId(token: String): String? {
+        return parseClaims(token)["deviceId"] as? String
+    }
+
     fun getAuthentication(token: String): Authentication {
         val userDetails = userDetailsService.loadUserByUsername(getUserId(token))
-        return UsernamePasswordAuthenticationToken(userDetails, "", userDetails.authorities)
+        val auth = UsernamePasswordAuthenticationToken(userDetails, "", userDetails.authorities)
+        getDeviceId(token)?.let { deviceId ->
+            auth.details = deviceId
+        }
+        return auth
     }
 
     fun getUserId(token: String): String {
