@@ -161,7 +161,7 @@ class PollService(
         val poll = getPoll(pollId)
         validateTeam(poll, teamId)
 
-        val writerProfile = userService.getUserProfile(poll.userId)
+        val writerProfile = userService.getUserProfileResponse(poll.userId)
         val writerName = writerProfile?.name ?: "알 수 없음"
 
         val myVotedOptionIds = pollVoteRepository.findVotedOptionIdsByUserIdAndPollId(userId, pollId).toSet()
@@ -229,7 +229,7 @@ class PollService(
             closeAt = poll.closeAt,
             remindBeforeClose = if (poll.remindBeforeClose) "REMIND" else "NONE",
             writerName = writerName,
-            writerProfileImageUrl = writerProfile?.authFile?.cdnUrl ?: "",
+            writerProfileImageUrl = writerProfile?.profileImageUrl ?: "",
             createdAt = poll.createdAt,
             updatedAt = poll.updatedAt,
             pollItems = pollItemResponses,
