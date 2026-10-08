@@ -8,7 +8,7 @@ data class ChatRoomListResponse(
 
 data class ChatRoomSummaryDto(
     val chatId: Long,
-    val roomName: String,
+    val roomName: String?,
     val lastMessage: String?,
     val lastMessageTime: OffsetDateTime?,
     val unreadCount: Int,

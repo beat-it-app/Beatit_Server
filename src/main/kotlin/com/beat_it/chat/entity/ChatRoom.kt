@@ -29,8 +29,8 @@ class ChatRoom(
     @Column(name = "team_id", nullable = false)
     val teamId: Long,
 
-    @Column(name = "title", nullable = false, length = 100)
-    var title: String,
+    @Column(name = "title", length = 100)
+    var title: String? = null,
 
     @Enumerated(EnumType.STRING)
     @Column(name = "type", nullable = false)
