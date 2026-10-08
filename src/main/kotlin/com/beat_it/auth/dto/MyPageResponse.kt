@@ -9,7 +9,7 @@ data class MyPageResponse (
     val email: String,
     val profileImageUrl: String,
     val socialAccounts: List<SocialProvider>,
-    val teams: List<MyPageTeamResponse>
+    val team: MyPageTeamResponse?
 )
 
 data class MyPageTeamResponse(
