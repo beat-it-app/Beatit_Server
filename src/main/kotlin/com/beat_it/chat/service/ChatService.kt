@@ -30,6 +30,7 @@ import com.beat_it.chat.repository.ChatRepository
 import com.beat_it.global.error.BusinessException
 import com.beat_it.global.error.ErrorCode
 import com.beat_it.global.service.FileService
+import com.beat_it.global.util.formatBytes
 import com.beat_it.team.service.TeamService
 import com.fasterxml.jackson.databind.ObjectMapper
 import org.springframework.context.ApplicationEventPublisher
@@ -258,8 +259,16 @@ class ChatService(
         val otherMemberUserIds = otherMembers.map { it.userId }
 
         val targetUserIds = (senderIds + otherMemberUserIds).distinct()
-        val userProfileMap = if (senderIds.isNotEmpty()) {
+        val userProfileMap = if (targetUserIds.isNotEmpty()) {
             userService.getUserProfiles(senderIds).associateBy { it.userId }
+        } else {
+            emptyMap()
+        }
+
+        val messageIds = messageSlice.content.mapNotNull { it.chatMessageId }
+        val messageFileMap = if (messageIds.isNotEmpty()) {
+            chatMessageFilesRepository.findAllByChatMessageChatMessageIdIn(messageIds)
+                .associate { it.chatMessage.chatMessageId!! to it.chatFile.fileSizeBytes }
         } else {
             emptyMap()
         }
@@ -286,10 +295,15 @@ class ChatService(
 
             val readersAtThisMessage = readUsersByMessageId[msgId] ?: emptyList()
 
+            val fileSizeBytes = messageFileMap[msgId]
+            val fileSizeDisplay = fileSizeBytes?.let { formatBytes(it) }
+
             GetChatMessageQueryResponse.of(
                 message = message,
                 profile = profileResponse,
                 currentUserId = currentUserId,
+                fileSizeBytes = fileSizeBytes,
+                fileSizeDisplay = fileSizeDisplay,
                 readByUsers = readersAtThisMessage
             )
         }.reversed()

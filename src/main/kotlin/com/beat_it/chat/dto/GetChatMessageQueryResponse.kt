@@ -11,6 +11,8 @@ data class GetChatMessageQueryResponse(
     val profileImageUrl: String?,
     val content: String,
     val messageType: String,
+    val fileSizeBytes: Long? = null,
+    val fileSizeDisplay: String? = null,
     val createdAt: OffsetDateTime,
     val isMine: Boolean,
     val readByUsers: List<ChatMessageReadUserResponse> = emptyList()
@@ -20,6 +22,8 @@ data class GetChatMessageQueryResponse(
             message: ChatMessage,
             profile: UserProfileResponse?,
             currentUserId: Long,
+            fileSizeBytes: Long? = null,
+            fileSizeDisplay: String? = null,
             readByUsers: List<ChatMessageReadUserResponse> = emptyList()
         ): GetChatMessageQueryResponse {
             val isMine = (message.senderId == currentUserId)
@@ -30,6 +34,8 @@ data class GetChatMessageQueryResponse(
                 profileImageUrl = if (isMine) null else profile?.profileImageUrl,
                 content = message.content,
                 messageType = message.type.name,
+                fileSizeBytes = fileSizeBytes,
+                fileSizeDisplay = fileSizeDisplay,
                 createdAt = message.createdAt,
                 isMine = isMine,
                 readByUsers = readByUsers
