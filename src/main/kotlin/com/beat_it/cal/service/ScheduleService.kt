@@ -267,8 +267,11 @@ class ScheduleService(
     @Transactional(readOnly = true)
     fun getCalendarSchedules(userId: Long, year: Int, month: Int): CalendarSchedulesResponse {
         validateYearAndMonth(year, month)
-        val startLocalDate = LocalDate.of(year, month, 1)
-        val endLocalDate = startLocalDate.withDayOfMonth(startLocalDate.lengthOfMonth())
+        val firstDayOfMonth = LocalDate.of(year, month, 1)
+        val lastDayOfMonth = firstDayOfMonth.withDayOfMonth(firstDayOfMonth.lengthOfMonth())
+
+        val startLocalDate = firstDayOfMonth.minusDays(6)
+        val endLocalDate = lastDayOfMonth.plusDays(6)
 
         val zoneOffset = ZoneOffset.ofHours(9)
         val startDateTime = OffsetDateTime.of(startLocalDate, LocalTime.MIN, zoneOffset)
