@@ -27,4 +27,7 @@ interface PollVoteRepository : JpaRepository<PollVotes, Long> {
 
     @Query("SELECT COUNT(DISTINCT pv.userId) FROM PollVotes pv WHERE pv.poll.pollId = :pollId")
     fun countUniqueParticipantsByPollId(@Param("pollId") pollId: Long): Long
+
+    @Query("SELECT DISTINCT pv.userId FROM PollVotes pv WHERE pv.poll.pollId = :pollId")
+    fun findVotedUserIdsByPollId(@Param("pollId") pollId: Long): List<Long>
 }

@@ -17,6 +17,10 @@ import org.springframework.data.domain.PageRequest
 import org.springframework.data.domain.Sort
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+import com.beat_it.notification.event.NotificationEvent
+import com.beat_it.notification.template.NotificationTemplate
+import com.beat_it.team.service.TeamService
+import org.springframework.context.ApplicationEventPublisher
 import java.time.LocalDate
 import java.time.LocalTime
 import java.time.OffsetDateTime
@@ -29,7 +33,9 @@ class MeetitService(
     private val meetitParticipantRepository: MeetitParticipantRepository,
     private val meetitResponseRepository: MeetitResponseRepository,
     private val teamMembershipRepository: TeamMembershipRepository,
-    private val objectMapper: ObjectMapper
+    private val objectMapper: ObjectMapper,
+    private val teamService: TeamService,
+    private val eventPublisher: ApplicationEventPublisher
 ) {
 
     @Transactional
@@ -87,6 +93,22 @@ class MeetitService(
             )
         }
         meetitParticipantRepository.saveAll(participants)
+
+        val targets = request.participantUserIds.filter { it != userId }
+        if (targets.isNotEmpty()) {
+            val teamName = teamService.getTeamName(teamId)
+            eventPublisher.publishEvent(
+                NotificationEvent(
+                    targetUserIds = targets,
+                    teamId = teamId,
+                    message = NotificationTemplate.meetitCreated(
+                        teamName = teamName,
+                        meetitTitle = savedMeetit.title,
+                        meetitId = savedMeetit.meetitId
+                    )
+                )
+            )
+        }
     }
 
     @Transactional(readOnly = true)
@@ -266,6 +288,9 @@ class MeetitService(
             }
         }
 
+        val previouslyRespondedCount = meetitResponseRepository.findByMeetitMeetitId(meetitId)
+            .map { it.meetitParticipant.meetitParticipantId }.distinct().size
+
         meetitResponseRepository.deleteByMeetitParticipantMeetitParticipantId(participant.meetitParticipantId!!)
         meetitResponseRepository.flush()
 
@@ -277,6 +302,28 @@ class MeetitService(
             )
         }
         meetitResponseRepository.saveAll(newResponses)
+
+        val allParticipants = meetitParticipantRepository.findByMeetitMeetitId(meetitId)
+        val newlyRespondedCount = meetitResponseRepository.findByMeetitMeetitId(meetitId)
+            .map { it.meetitParticipant.meetitParticipantId }.distinct().size
+
+        if (allParticipants.isNotEmpty() &&
+            previouslyRespondedCount < allParticipants.size &&
+            newlyRespondedCount >= allParticipants.size
+        ) {
+            val teamName = teamService.getTeamName(meetit.teamId)
+            eventPublisher.publishEvent(
+                NotificationEvent(
+                    targetUserId = meetit.userId,
+                    teamId = meetit.teamId,
+                    message = NotificationTemplate.meetitCompleted(
+                        teamName = teamName,
+                        meetitTitle = meetit.title,
+                        meetitId = meetit.meetitId
+                    )
+                )
+            )
+        }
     }
 
     @Transactional

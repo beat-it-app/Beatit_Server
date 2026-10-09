@@ -11,7 +11,11 @@ import com.beat_it.post.entity.enum.PollType
 import com.beat_it.post.entity.enum.PostType
 import com.beat_it.location.entity.Locations
 import com.beat_it.location.service.LocationsService
+import com.beat_it.notification.event.NotificationEvent
+import com.beat_it.notification.template.NotificationTemplate
+import com.beat_it.team.service.TeamService
 import com.fasterxml.jackson.databind.ObjectMapper
+import org.springframework.context.ApplicationEventPublisher
 import org.springframework.transaction.annotation.Transactional
 import org.springframework.data.domain.PageRequest
 import org.springframework.stereotype.Service
@@ -25,6 +29,8 @@ class PollService(
     private val pollVoteRepository: PollVoteRepository,
     private val locationsService: LocationsService,
     private val objectMapper: ObjectMapper,
+    private val teamService: TeamService,
+    private val eventPublisher: ApplicationEventPublisher
 ) {
     @Transactional(readOnly = true)
     fun getPollList(
@@ -92,7 +98,24 @@ class PollService(
 
         val options = createPollOptions(poll, request)
         poll.pollOptions = options.toMutableList()
-        pollRepository.save(poll)
+        val savedPoll = pollRepository.save(poll)
+
+        val teamMembers = teamService.getTeamMemberUserIds(teamId)
+        val targetUserIds = teamMembers.filter { it != userId }
+        if (targetUserIds.isNotEmpty()) {
+            val teamName = teamService.getTeamName(teamId)
+            eventPublisher.publishEvent(
+                NotificationEvent(
+                    targetUserIds = targetUserIds,
+                    teamId = teamId,
+                    message = NotificationTemplate.pollCreated(
+                        teamName = teamName,
+                        pollTitle = savedPoll.title,
+                        pollId = savedPoll.pollId
+                    )
+                )
+            )
+        }
     }
 
     @Transactional
@@ -277,6 +300,7 @@ class PollService(
 
         pollVoteRepository.flush()
 
+        val previousParticipantCount = poll.pollCount
         val participantCount = pollVoteRepository.countUniqueParticipantsByPollId(pollId).toInt()
         poll.pollCount = participantCount
 
@@ -288,6 +312,25 @@ class PollService(
         }
 
         pollRepository.save(poll)
+
+        val totalTeamMembers = teamService.getTeamMemberUserIds(teamId)
+        if (totalTeamMembers.isNotEmpty() &&
+            previousParticipantCount < totalTeamMembers.size &&
+            participantCount >= totalTeamMembers.size
+        ) {
+            val teamName = teamService.getTeamName(teamId)
+            eventPublisher.publishEvent(
+                NotificationEvent(
+                    targetUserId = poll.userId,
+                    teamId = teamId,
+                    message = NotificationTemplate.pollCompleted(
+                        teamName = teamName,
+                        pollTitle = poll.title,
+                        pollId = poll.pollId
+                    )
+                )
+            )
+        }
     }
 
     @Transactional
@@ -308,7 +351,15 @@ class PollService(
         val teamId = userService.getCurrentTeamId(userId)
         validateTeam(poll, teamId)
 
-        commentService.createComment(userId, teamId, PostType.POLL, pollId, request)
+        commentService.createComment(
+            userId = userId,
+            teamId = teamId,
+            postType = PostType.POLL,
+            postId = pollId,
+            dto = request,
+            postTitle = poll.title,
+            postWriterId = poll.userId
+        )
 
         poll.increaseComment()
         pollRepository.save(poll)
@@ -363,6 +414,57 @@ class PollService(
     private fun validateWriter(poll: Polls, userId: Long){
         if (poll.userId != userId) {
             throw BusinessException(ErrorCode.NOT_AUTHOR)
+        }
+    }
+
+    @Transactional(readOnly = true)
+    fun sendPollDeadlineApproachingReminders(
+        now: OffsetDateTime = OffsetDateTime.now(),
+        windowMinutes: Long = 1L
+    ) {
+        // 1. 투표 마감 24시간 전 알림
+        sendPollDeadlineRemindersForWindow(
+            startDateTime = now.plusHours(24),
+            endDateTime = now.plusHours(24).plusMinutes(windowMinutes),
+            remainingText = "24시간 전"
+        )
+
+        // 2. 투표 마감 1시간 전 알림
+        sendPollDeadlineRemindersForWindow(
+            startDateTime = now.plusHours(1),
+            endDateTime = now.plusHours(1).plusMinutes(windowMinutes),
+            remainingText = "1시간 전"
+        )
+    }
+
+    private fun sendPollDeadlineRemindersForWindow(
+        startDateTime: OffsetDateTime,
+        endDateTime: OffsetDateTime,
+        remainingText: String
+    ) {
+        val polls = pollRepository.findByRemindBeforeCloseTrueAndCloseAtBetween(startDateTime, endDateTime)
+
+        polls.forEach { poll ->
+            val pollId = poll.pollId ?: return@forEach
+            val teamMembers = teamService.getTeamMemberUserIds(poll.teamId)
+            val votedUserIds = pollVoteRepository.findVotedUserIdsByPollId(pollId).toSet()
+            val unvotedUserIds = teamMembers.filter { it !in votedUserIds }
+
+            if (unvotedUserIds.isNotEmpty()) {
+                val teamName = teamService.getTeamName(poll.teamId)
+                eventPublisher.publishEvent(
+                    NotificationEvent(
+                        targetUserIds = unvotedUserIds,
+                        teamId = poll.teamId,
+                        message = NotificationTemplate.pollDeadlineApproaching(
+                            teamName = teamName,
+                            pollTitle = poll.title,
+                            remainingText = remainingText,
+                            pollId = pollId
+                        )
+                    )
+                )
+            }
         }
     }
 }

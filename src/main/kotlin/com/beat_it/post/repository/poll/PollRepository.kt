@@ -35,4 +35,17 @@ interface PollRepository : JpaRepository<Polls, Long> {
         @Param("userId") userId: Long,
         @Param("pollIds") pollIds: List<Long>
     ): List<Long>
+
+    @Query("""
+        SELECT p FROM Polls p 
+        WHERE p.remindBeforeClose = true 
+          AND p.closeAt IS NOT NULL 
+          AND p.closeAt >= :startDateTime 
+          AND p.closeAt < :endDateTime
+        ORDER BY p.closeAt ASC
+    """)
+    fun findByRemindBeforeCloseTrueAndCloseAtBetween(
+        @Param("startDateTime") startDateTime: OffsetDateTime,
+        @Param("endDateTime") endDateTime: OffsetDateTime
+    ): List<Polls>
 }
