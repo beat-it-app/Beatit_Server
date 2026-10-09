@@ -12,5 +12,12 @@ data class DateSchedule(
     val content: String,
     val startsAt: OffsetDateTime,
     val endsAt: OffsetDateTime,
-    val locationId: Long?
+    val locationId: Long?,
+    val participants: List<ScheduleParticipantProfileResponse>
+)
+
+data class ScheduleParticipantProfileResponse(
+    val userId: Long,
+    val name: String,
+    val profileImageUrl: String?
 )
