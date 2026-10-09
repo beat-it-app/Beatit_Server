@@ -107,6 +107,5 @@ class Performances(
 
     fun updateStatus(status: PerformanceStatus) {
         this.performanceStatus = status
-        this.updateTimestamp()
     }
 }
