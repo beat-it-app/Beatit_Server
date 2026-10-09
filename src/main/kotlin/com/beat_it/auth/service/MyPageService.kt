@@ -16,6 +16,7 @@ import com.beat_it.auth.repository.*
 import com.beat_it.global.error.BusinessException
 import com.beat_it.global.error.ErrorCode
 import com.beat_it.global.service.FileService
+import com.beat_it.notification.service.PushTokenService
 import com.beat_it.team.repository.TeamMembershipRepository
 import jakarta.transaction.Transactional
 import org.springframework.data.repository.findByIdOrNull
@@ -33,6 +34,7 @@ class MyPageService (
     private val fileService: FileService,
     private val passwordEncoder: PasswordEncoder,
     private val refreshTokenService: RefreshTokenService,
+    private val pushTokenService: PushTokenService
 ){
     fun getMyPage(userId: Long): MyPageResponse {
         val user = getUser(userId)
@@ -173,6 +175,7 @@ class MyPageService (
         }
 
         user.withdraw()
+        pushTokenService.deactivateAllUserTokens(userId)
 
         return WithdrawalResponse(
             userId = userId,
@@ -196,7 +199,10 @@ class MyPageService (
             ?: throw BusinessException(ErrorCode.USER_NOT_FOUND)
     }
 
-    fun logout(userId: Long) {
+    fun logout(userId: Long, deviceId: String? = null) {
         refreshTokenService.deleteRefreshToken(userId.toString())
+        if (!deviceId.isNullOrBlank()) {
+            pushTokenService.deactivateToken(userId, deviceId)
+        }
     }
 }

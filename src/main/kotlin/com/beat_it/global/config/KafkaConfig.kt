@@ -30,6 +30,8 @@ class KafkaConfig {
         props[ProducerConfig.BOOTSTRAP_SERVERS_CONFIG] = bootstrapServers
         props[ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG] = StringSerializer::class.java
         props[ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG] = StringSerializer::class.java
+        props[ProducerConfig.MAX_BLOCK_MS_CONFIG] = 3000
+        props[ProducerConfig.REQUEST_TIMEOUT_MS_CONFIG] = 3000
 
         return KafkaTemplate(DefaultKafkaProducerFactory(props))
     }
