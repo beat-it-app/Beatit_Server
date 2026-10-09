@@ -13,6 +13,7 @@ data class MyPageResponse (
 )
 
 data class MyPageTeamResponse(
+    val teamId: Long,
     val type: TeamType,
     val name: String,
     val imageUrl: String,
