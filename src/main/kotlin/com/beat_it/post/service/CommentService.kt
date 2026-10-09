@@ -75,7 +75,6 @@ class CommentService(
         val teamName = teamService.getTeamName(teamId)
 
         if (parentCommentWriterId != null) {
-            // 1. 답글 작성 시: 원댓글 작성자에게 답글 알림
             if (parentCommentWriterId != userId) {
                 eventPublisher.publishEvent(
                     NotificationEvent(
@@ -90,7 +89,6 @@ class CommentService(
                     )
                 )
             }
-            // 2. 답글 작성 시: 글 작성자(원댓글 작성자와 다르고, 본인도 아닌 경우)에게 새 댓글 알림
             if (postWriterId != null && postWriterId != userId && postWriterId != parentCommentWriterId) {
                 eventPublisher.publishEvent(
                     NotificationEvent(
@@ -106,7 +104,6 @@ class CommentService(
                 )
             }
         } else {
-            // 일반 댓글 작성 시: 글 작성자에게 새 댓글 알림
             if (postWriterId != null && postWriterId != userId) {
                 eventPublisher.publishEvent(
                     NotificationEvent(

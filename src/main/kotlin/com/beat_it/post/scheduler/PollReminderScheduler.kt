@@ -11,9 +11,6 @@ class PollReminderScheduler(
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
 
-    /**
-     * 매 분(1분 주기)마다 마감 24시간 전 및 1시간 전인 투표의 미참여자들에게 알림을 발송합니다.
-     */
     @Scheduled(cron = "0 * * * * *")
     fun sendPollDeadlineReminders() {
         try {

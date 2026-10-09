@@ -362,7 +362,6 @@ class ArchiveService(
         val teamName = archive.team.teamName
 
         if (parentCommentWriterId != null) {
-            // 1. 답글 작성 시: 원댓글 작성자에게 답글 알림
             if (parentCommentWriterId != userId) {
                 eventPublisher.publishEvent(
                     NotificationEvent(
@@ -377,7 +376,6 @@ class ArchiveService(
                     )
                 )
             }
-            // 2. 답글 작성 시: 아카이브 작성자(원댓글 작성자와 다르고 본인도 아닌 경우)에게 새 댓글 알림
             if (archive.writerId != userId && archive.writerId != parentCommentWriterId) {
                 eventPublisher.publishEvent(
                     NotificationEvent(
@@ -393,7 +391,6 @@ class ArchiveService(
                 )
             }
         } else {
-            // 일반 댓글 작성 시: 아카이브 작성자에게 새 댓글 알림
             if (archive.writerId != userId) {
                 eventPublisher.publishEvent(
                     NotificationEvent(

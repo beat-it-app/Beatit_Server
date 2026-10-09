@@ -41,7 +41,6 @@ enum class NotificationType(
 
     COMMENT_CREATED(NotificationCategory.POST, "새로운 댓글", true, true),
     COMMENT_MENTIONED(NotificationCategory.POST, "댓글 멘션", true, true),
-    POST_LIKED(NotificationCategory.POST, "게시글 좋아요!", true, true),
 
     // 7. 채팅
     CHAT_MESSAGE(NotificationCategory.CHAT, "채팅", true, false)
@@ -184,28 +183,6 @@ object NotificationTemplate {
             pushText = pushContent,
             directTo = noticeId?.let { "/posts/notices/$it" } ?: "/posts/notices",
             targetId = noticeId
-        )
-    }
-
-    // 게시글/공지 좋아요 반응 (수신: 글 작성자 / direct to: 해당 글)
-    // 인앱 알림 UI 예시: title: "게시글 좋아요!", content: "{name}님이 '{title}'에 좋아요를 눌렀습니다."
-    fun postLiked(
-        teamName: String,
-        likerName: String,
-        postTitle: String,
-        postId: Long? = null
-    ): NotificationMessage {
-        val title = "게시글 좋아요!"
-        val content = "${likerName}님이 '$postTitle'에 좋아요를 눌렀습니다."
-        val pushContent = "[$teamName] $content"
-        return NotificationMessage(
-            type = NotificationType.POST_LIKED,
-            category = NotificationCategory.POST,
-            title = title,
-            content = content,
-            pushText = pushContent,
-            directTo = postId?.let { "/posts/$it" } ?: "/posts",
-            targetId = postId
         )
     }
 
