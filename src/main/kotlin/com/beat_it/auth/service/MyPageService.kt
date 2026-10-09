@@ -51,6 +51,7 @@ class MyPageService (
                 } ?: "알 수 없음"
 
                 MyPageTeamResponse(
+                    teamId = teamId,
                     type = team.teamType,
                     name = team.teamName,
                     imageUrl = team.teamImageUrl ?: "",
