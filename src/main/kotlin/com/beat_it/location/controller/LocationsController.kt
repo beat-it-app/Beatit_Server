@@ -48,9 +48,11 @@ class LocationsController(
     fun searchLocations(
         @RequestParam query: String,
         @RequestParam(required = false) latitude: BigDecimal?,
-        @RequestParam(required = false) longitude: BigDecimal?
+        @RequestParam(required = false) longitude: BigDecimal?,
+        @RequestParam(defaultValue = "0") page: Int,
+        @RequestParam(defaultValue = "10") limit: Int
     ): ResponseEntity<BasicResponse<List<LocationSearchResponse>>> {
-        val responseData = locationsService.searchLocations(query, latitude, longitude)
+        val responseData = locationsService.searchLocations(query, latitude, longitude, page, limit)
 
         return ResponseEntity
             .status(HttpStatus.OK)
