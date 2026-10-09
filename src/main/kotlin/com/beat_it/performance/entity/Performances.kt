@@ -102,9 +102,11 @@ class Performances(
         hostContact?.let { this.hostContact = it }
         hostLink?.let { this.hostLink = it }
         performanceStatus?.let { this.performanceStatus = it }
+        this.updateTimestamp()
     }
 
     fun updateStatus(status: PerformanceStatus) {
         this.performanceStatus = status
+        this.updateTimestamp()
     }
 }

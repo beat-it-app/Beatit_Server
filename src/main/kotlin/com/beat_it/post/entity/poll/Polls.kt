@@ -70,6 +70,7 @@ class Polls(
         this.closeAt = closeAt
         this.pollOptions.clear()
         this.pollOptions.addAll(newOptions)
+        this.updateTimestamp()
     }
 
     fun increaseComment() {
