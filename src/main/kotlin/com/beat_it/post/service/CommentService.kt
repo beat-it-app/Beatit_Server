@@ -12,6 +12,10 @@ import com.beat_it.post.entity.enum.PostType
 import com.beat_it.post.repository.PostCommentMentionRepository
 import com.beat_it.post.repository.PostCommentRepository
 import com.beat_it.team.repository.TeamMembershipRepository
+import com.beat_it.notification.event.NotificationEvent
+import com.beat_it.notification.template.NotificationTemplate
+import com.beat_it.team.service.TeamService
+import org.springframework.context.ApplicationEventPublisher
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 
@@ -21,6 +25,8 @@ class CommentService(
     private val postCommentMentionRepository: PostCommentMentionRepository,
     private val userService: UserService,
     private val teamMembershipRepository: TeamMembershipRepository,
+    private val teamService: TeamService,
+    private val eventPublisher: ApplicationEventPublisher
 ) {
 
     private val mentionRegex = Regex("""@\{([^}]+)\}|@([a-zA-Z0-9가-힣_]+)""")
@@ -31,11 +37,14 @@ class CommentService(
         teamId: Long,
         postType: PostType,
         postId: Long,
-        dto: CommentRequest
+        dto: CommentRequest,
+        postTitle: String? = null,
+        postWriterId: Long? = null
     ): PostComments {
         validateComment(dto.content)
 
         var effectiveParentId: Long? = null
+        var parentCommentWriterId: Long? = null
 
         dto.parentCommentId?.let { requestedParentId ->
             val parentComment = postCommentRepository.findById(requestedParentId)
@@ -46,6 +55,7 @@ class CommentService(
             }
 
             effectiveParentId = parentComment.parentCommentId ?: parentComment.commentId
+            parentCommentWriterId = parentComment.userId
         }
 
         val comment = PostComments.createComment(
@@ -56,7 +66,59 @@ class CommentService(
             parentCommentId = effectiveParentId
         )
         val savedComment = postCommentRepository.save(comment)
-        saveMentions(savedComment, teamId, dto.content, dto.mentionedUserIds)
+        val directToPath = when (postType) {
+            PostType.NOTICE -> "/posts/notices/$postId"
+            PostType.POLL -> "/posts/polls/$postId"
+        }
+        saveMentions(savedComment, teamId, dto.content, dto.mentionedUserIds, directToPath)
+
+        val teamName = teamService.getTeamName(teamId)
+
+        if (parentCommentWriterId != null) {
+            if (parentCommentWriterId != userId) {
+                eventPublisher.publishEvent(
+                    NotificationEvent(
+                        targetUserId = parentCommentWriterId!!,
+                        teamId = teamId,
+                        message = NotificationTemplate.replyCreated(
+                            teamName = teamName,
+                            postTitle = postTitle,
+                            postId = postId,
+                            directTo = directToPath
+                        )
+                    )
+                )
+            }
+            if (postWriterId != null && postWriterId != userId && postWriterId != parentCommentWriterId) {
+                eventPublisher.publishEvent(
+                    NotificationEvent(
+                        targetUserId = postWriterId,
+                        teamId = teamId,
+                        message = NotificationTemplate.commentCreated(
+                            teamName = teamName,
+                            postTitle = postTitle ?: "게시글",
+                            postId = postId,
+                            directTo = directToPath
+                        )
+                    )
+                )
+            }
+        } else {
+            if (postWriterId != null && postWriterId != userId) {
+                eventPublisher.publishEvent(
+                    NotificationEvent(
+                        targetUserId = postWriterId,
+                        teamId = teamId,
+                        message = NotificationTemplate.commentCreated(
+                            teamName = teamName,
+                            postTitle = postTitle ?: "게시글",
+                            postId = postId,
+                            directTo = directToPath
+                        )
+                    )
+                )
+            }
+        }
 
         return savedComment
     }
@@ -165,7 +227,8 @@ class CommentService(
         comment: PostComments,
         teamId: Long,
         content: String,
-        explicitMentionedUserIds: List<Long>?
+        explicitMentionedUserIds: List<Long>?,
+        directTo: String? = null
     ) {
         val activeMembers = teamMembershipRepository.findAllByTeamTeamIdAndLeftAtIsNull(teamId)
         if (activeMembers.isEmpty()) return
@@ -211,6 +274,24 @@ class CommentService(
 
         if (mentionsToSave.isNotEmpty()) {
             postCommentMentionRepository.saveAll(mentionsToSave)
+
+            val targetMentionedUserIds = alreadyMentionedUserIds.filter { it != comment.userId }
+            if (targetMentionedUserIds.isNotEmpty()) {
+                val teamName = teamService.getTeamName(teamId)
+                val mentionerName = userService.getUserProfile(comment.userId)?.name ?: "누군가"
+                eventPublisher.publishEvent(
+                    NotificationEvent(
+                        targetUserIds = targetMentionedUserIds,
+                        teamId = teamId,
+                        message = NotificationTemplate.commentMentioned(
+                            teamName = teamName,
+                            mentionerName = mentionerName,
+                            postId = comment.postId,
+                            directTo = directTo
+                        )
+                    )
+                )
+            }
         }
     }
 

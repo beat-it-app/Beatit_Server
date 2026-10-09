@@ -13,6 +13,9 @@ import com.beat_it.team.entity.enum.TeamRole
 import com.beat_it.team.repository.TeamLinksRepository
 import com.beat_it.team.repository.TeamMembershipRepository
 import com.beat_it.team.repository.TeamRepository
+import com.beat_it.notification.event.NotificationEvent
+import com.beat_it.notification.template.NotificationTemplate
+import org.springframework.context.ApplicationEventPublisher
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import org.springframework.web.multipart.MultipartFile
@@ -26,6 +29,7 @@ class TeamService(
     private val teamMembershipRepository: TeamMembershipRepository,
     private val fileService: FileService,
     private val teamImageUploadService: TeamImageUploadService,
+    private val eventPublisher: ApplicationEventPublisher
 ) {
 
     @Transactional
@@ -233,6 +237,22 @@ class TeamService(
 
         val savedMembership = teamMembershipRepository.save(teamMembership)
 
+        val managerUserIds = teamMembershipRepository.findAllByTeamTeamIdAndLeftAtIsNull(team.teamId!!)
+            .filter { it.teamRole == TeamRole.LEADER || it.teamRole == TeamRole.MANAGER }
+            .map { it.userId }
+            .filter { it != userId }
+
+        if (managerUserIds.isNotEmpty()) {
+            val memberName = userService.getUserProfile(userId)?.name ?: "새로운 멤버"
+            eventPublisher.publishEvent(
+                NotificationEvent(
+                    targetUserIds = managerUserIds,
+                    teamId = team.teamId!!,
+                    message = NotificationTemplate.memberJoin(team.teamName, memberName)
+                )
+            )
+        }
+
         return TeamJoinResponse(
             teamId = team.teamId!!,
             teamPublicId = team.publicId,
@@ -392,6 +412,17 @@ class TeamService(
                     ?: throw BusinessException(ErrorCode.NOT_TEAM_MEMBER)
 
                 targetMembership.updatePosition(cleanPosition)
+
+                if (cleanPosition != null && item.userId != userId) {
+                    val teamName = findTeamForCommandOrThrow(teamId).teamName
+                    eventPublisher.publishEvent(
+                        NotificationEvent(
+                            targetUserId = item.userId,
+                            teamId = teamId,
+                            message = NotificationTemplate.partAssigned(teamName, cleanPosition)
+                        )
+                    )
+                }
             }
         }
 
@@ -423,6 +454,22 @@ class TeamService(
         }
 
         membership.leaveTeam()
+
+        val managerUserIds = teamMembershipRepository.findAllByTeamTeamIdAndLeftAtIsNull(teamId)
+            .filter { it.teamRole == TeamRole.LEADER || it.teamRole == TeamRole.MANAGER }
+            .map { it.userId }
+            .filter { it != userId }
+
+        if (managerUserIds.isNotEmpty()) {
+            val memberName = userService.getUserProfile(userId)?.name ?: "멤버"
+            eventPublisher.publishEvent(
+                NotificationEvent(
+                    targetUserIds = managerUserIds,
+                    teamId = teamId,
+                    message = NotificationTemplate.memberLeave(team.teamName, memberName)
+                )
+            )
+        }
 
         val currentTeamId = userService.getCurrentTeamIdOrNull(userId)
         if (currentTeamId == teamId) {
@@ -570,6 +617,11 @@ class TeamService(
     @Transactional(readOnly = true)
     fun getTeamName(teamId: Long): String {
         return findTeamForCommandOrThrow(teamId).teamName
+    }
+
+    @Transactional(readOnly = true)
+    fun getTeamMemberUserIds(teamId: Long): List<Long> {
+        return teamMembershipRepository.findAllByTeamTeamIdAndLeftAtIsNull(teamId).map { it.userId }
     }
 
     private fun changeToLeader(
