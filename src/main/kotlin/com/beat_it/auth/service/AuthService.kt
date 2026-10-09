@@ -49,6 +49,17 @@ class AuthService (
     private val pushTokenService: PushTokenService
 ){
     private val log = LoggerFactory.getLogger(AuthService::class.java)
+
+    companion object {
+        private val PASSWORD_PATTERN = Regex("^(?=.*[A-Za-z])(?=.*\\d)(?=.*[!@#\\$%^&*?_~])[A-Za-z\\d!@#\\$%^&*?_~]{8,20}$")
+    }
+
+    private fun validatePassword(password: String) {
+        if (!PASSWORD_PATTERN.matches(password)) {
+            throw BusinessException(ErrorCode.INVALID_PASSWORD_FORMAT)
+        }
+    }
+
     @Transactional
     fun signUp(dto : SignUpRequest): SignUpResponse {
         val identifier = dto.identifier
@@ -78,6 +89,7 @@ class AuthService (
         userSettingsRepository.save(userSetting)
 
         val password = dto.password
+        validatePassword(password)
         val encodedPassword = passwordEncoder.encode(password)
 
         val userAuthAccount = UserAuthAccounts.createNormalUser(
@@ -559,6 +571,7 @@ class AuthService (
         val account = userAuthAccountRepository.findByIdentifierAndEmail(request.identifier, request.email)
             ?: throw BusinessException(ErrorCode.USER_NOT_FOUND)
 
+        validatePassword(request.newPassword)
         val encodedPassword = passwordEncoder.encode(request.newPassword)
         account.updatePassword(encodedPassword)
         userAuthAccountRepository.save(account)
