@@ -64,6 +64,8 @@ class ArchiveController(
         @Parameter(description = "장소 ID")
         @RequestParam(required = false) locationId: Long?,
         @RequestParam(required = false) description: String?,
+        @Parameter(description = "보존할 기존 이미지 URL의 JSON 배열. 미전달 시 기존 이미지 수정 방식 유지, [] 전달 시 전체 삭제. JSON part의 Content-Type은 application/json")
+        @RequestPart(value = "retainArchiveImageUrls", required = false) retainArchiveImageUrls: List<String>?,
         @RequestPart(value = "archiveImages", required = false) archiveImages: List<MultipartFile>?,
     ): ResponseEntity<BasicResponse<ArchiveUpdateResponse>> {
         val userId = extractUserId(userDetails)
@@ -72,6 +74,7 @@ class ArchiveController(
             title = title,
             locationId = locationId,
             description = description,
+            retainArchiveImageUrls = retainArchiveImageUrls,
         )
 
         val responseData = archiveService.updateArchive(
