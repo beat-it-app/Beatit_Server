@@ -106,6 +106,7 @@ enum class ErrorCode(
     POLL_MULTIPLE_CHOICE_NOT_ALLOWED(HttpStatus.BAD_REQUEST, "POST-009", "중복 투표가 허용되지 않는 투표입니다."),
     POLL_OPTION_REQUIRED(HttpStatus.BAD_REQUEST, "POST-010", "투표할 항목을 선택해주세요."),
     POLL_ALREADY_VOTED(HttpStatus.BAD_REQUEST, "POST-011", "이미 참여자가 있는 투표는 수정할 수 없습니다."),
+    POLL_NOT_VOTED(HttpStatus.BAD_REQUEST, "POST-012", "투표에 참여하지 않은 상태입니다."),
 
     // --- 6. 모임 조율 관련 에러 (MEETIT) ---
     MEETIT_TEAM_MISMATCH(HttpStatus.FORBIDDEN, "MEETIT-001", "현재 팀에서 접근할 수 없는 모임 조율입니다."),
