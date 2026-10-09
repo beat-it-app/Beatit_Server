@@ -11,6 +11,7 @@ import com.beat_it.post.entity.enum.PollType
 import com.beat_it.post.entity.enum.PostType
 import com.beat_it.location.entity.Locations
 import com.beat_it.location.service.LocationsService
+import com.beat_it.team.repository.TeamMembershipRepository
 import com.beat_it.notification.event.NotificationEvent
 import com.beat_it.notification.template.NotificationTemplate
 import com.beat_it.team.service.TeamService
@@ -31,6 +32,7 @@ class PollService(
     private val objectMapper: ObjectMapper,
     private val teamService: TeamService,
     private val eventPublisher: ApplicationEventPublisher
+    private val teamMembershipRepository: TeamMembershipRepository,
 ) {
     @Transactional(readOnly = true)
     fun getPollList(
@@ -192,14 +194,40 @@ class PollService(
         val voteCountsMap = pollVoteRepository.countVotesByPollId(pollId)
             .associate { row -> row[0] as Long to (row[1] as Long).toInt() }
 
+        val votersMap: Map<Long, List<PollVoterResponse>>? = if (!poll.isAnonymous) {
+            val optionVotes = pollVoteRepository.findOptionVotesByPollId(pollId)
+            val voterUserIds = optionVotes.map { it[1] as Long }.distinct()
+            val userProfiles = userService.getUserProfiles(voterUserIds).associateBy { it.userId }
+            val memberPositions = teamMembershipRepository
+                .findAllByTeamTeamIdAndUserIdInAndLeftAtIsNull(poll.teamId, voterUserIds)
+                .associate { it.userId to it.position }
+
+            optionVotes.groupBy(
+                keySelector = { it[0] as Long },
+                valueTransform = { row ->
+                    val voterId = row[1] as Long
+                    val profile = userProfiles[voterId]
+                    PollVoterResponse(
+                        userId = voterId,
+                        name = profile?.name ?: "알 수 없음",
+                        profileImageUrl = profile?.profileImageUrl,
+                        position = memberPositions[voterId]
+                    )
+                }
+            )
+        } else {
+            null
+        }
+
         val pollItemResponses = poll.pollOptions.map { option ->
             val optionId = option.pollOptionId!!
             val voteCount = voteCountsMap[optionId] ?: 0
             val isVoted = myVotedOptionIds.contains(optionId)
+            val voters = votersMap?.get(optionId) ?: if (!poll.isAnonymous) emptyList() else null
 
             when (poll.pollType) {
                 PollType.TEXT -> TextItemResponse(
-                    itemId = optionId, voteCount = voteCount, isVoted = isVoted,
+                    itemId = optionId, voteCount = voteCount, isVoted = isVoted, voters = voters,
                     content = option.optionText
                 )
                 PollType.MUSIC -> {
@@ -214,13 +242,14 @@ class PollService(
                         itemId = optionId,
                         voteCount = voteCount,
                         isVoted = isVoted,
+                        voters = voters,
                         title = musicInfo?.title ?: option.optionText,
                         artist = musicInfo?.artist ?: "Unknown Artist",
                         previewUrl = musicInfo?.previewUrl
                     )
                 }
                 PollType.LOCATION -> LocationItemResponse(
-                    itemId = optionId, voteCount = voteCount, isVoted = isVoted,
+                    itemId = optionId, voteCount = voteCount, isVoted = isVoted, voters = voters,
                     location = option.optionText,
                     locationId = option.location?.locationId,
                     locationName = option.location?.locationName,
@@ -298,6 +327,37 @@ class PollService(
         }
         pollVoteRepository.saveAll(newVotes)
 
+        pollVoteRepository.flush()
+
+        val participantCount = pollVoteRepository.countUniqueParticipantsByPollId(pollId).toInt()
+        poll.pollCount = participantCount
+
+        val voteCountsMap = pollVoteRepository.countVotesByPollId(pollId)
+            .associate { row -> row[0] as Long to (row[1] as Long).toInt() }
+
+        poll.pollOptions.forEach { option ->
+            option.optionCount = voteCountsMap[option.pollOptionId] ?: 0
+        }
+
+        pollRepository.save(poll)
+    }
+
+    @Transactional
+    fun cancelVote(userId: Long, pollId: Long) {
+        val teamId = userService.getCurrentTeamId(userId)
+        val poll = getPoll(pollId)
+        validateTeam(poll, teamId)
+
+        if (poll.closeAt != null && OffsetDateTime.now().isAfter(poll.closeAt)) {
+            throw BusinessException(ErrorCode.POLL_CLOSED)
+        }
+
+        val votedOptionIds = pollVoteRepository.findVotedOptionIdsByUserIdAndPollId(userId, pollId)
+        if (votedOptionIds.isEmpty()) {
+            throw BusinessException(ErrorCode.POLL_NOT_VOTED)
+        }
+
+        pollVoteRepository.deleteByUserIdAndPollId(userId, pollId)
         pollVoteRepository.flush()
 
         val previousParticipantCount = poll.pollCount
