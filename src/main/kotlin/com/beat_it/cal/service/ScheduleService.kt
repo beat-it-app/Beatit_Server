@@ -11,9 +11,11 @@ import com.beat_it.cal.dto.ScheduleCreateResponse
 import com.beat_it.cal.dto.ScheduleDetailResponse
 import com.beat_it.cal.dto.ScheduleFileResponse
 import com.beat_it.cal.dto.ScheduleMusicResponse
+import com.beat_it.cal.dto.ScheduleParticipantProfileResponse
 import com.beat_it.cal.dto.ScheduleUpdateRequest
 import com.beat_it.cal.dto.UpcomingTeamScheduleResponse
 import com.beat_it.cal.entity.Schedule
+import com.beat_it.cal.repository.ScheduleParticipantRepository
 import com.beat_it.cal.repository.ScheduleRepository
 import com.beat_it.global.error.BusinessException
 import com.beat_it.global.error.ErrorCode
@@ -31,6 +33,7 @@ import java.time.ZoneOffset
 @Service
 class ScheduleService(
     private val scheduleRepository: ScheduleRepository,
+    private val scheduleParticipantRepository: ScheduleParticipantRepository,
     private val teamService: TeamService,
     private val userService: UserService,
     private val fileService: FileService,
@@ -267,8 +270,11 @@ class ScheduleService(
     @Transactional(readOnly = true)
     fun getCalendarSchedules(userId: Long, year: Int, month: Int): CalendarSchedulesResponse {
         validateYearAndMonth(year, month)
-        val startLocalDate = LocalDate.of(year, month, 1)
-        val endLocalDate = startLocalDate.withDayOfMonth(startLocalDate.lengthOfMonth())
+        val firstDayOfMonth = LocalDate.of(year, month, 1)
+        val lastDayOfMonth = firstDayOfMonth.withDayOfMonth(firstDayOfMonth.lengthOfMonth())
+
+        val startLocalDate = firstDayOfMonth.minusDays(6)
+        val endLocalDate = lastDayOfMonth.plusDays(6)
 
         val zoneOffset = ZoneOffset.ofHours(9)
         val startDateTime = OffsetDateTime.of(startLocalDate, LocalTime.MIN, zoneOffset)
@@ -299,14 +305,44 @@ class ScheduleService(
 
         val schedules = scheduleRepository.findByUserIdAndDailyRange(userId, startDateTime, endDateTime)
 
+        if (schedules.isEmpty()) {
+            return DateSchedulesResponse(items = emptyList())
+        }
+
+        val scheduleIds = schedules.mapNotNull { it.scheduleId }
+
+        val participants = scheduleParticipantRepository.findAllByScheduleScheduleIdIn(scheduleIds)
+
+        val participantUserIds = participants.map { it.userId }.distinct()
+        val userProfileMap = if (participantUserIds.isNotEmpty()) {
+            userService.getUserProfiles(participantUserIds).associateBy { it.userId }
+        } else {
+            emptyMap()
+        }
+
+        val participantsByScheduleId = participants.groupBy(
+            keySelector = { it.schedule.scheduleId!! },
+            valueTransform = { participant ->
+                val profile = userProfileMap[participant.userId]
+                ScheduleParticipantProfileResponse(
+                    userId = participant.userId,
+                    name = profile?.name ?: "알 수 없는 사용자",
+                    profileImageUrl = profile?.profileImageUrl
+                )
+            }
+        )
+
         val dateSchedules = schedules.map { schedule ->
+            val scheduleId = schedule.scheduleId ?: throw BusinessException(ErrorCode.CALENDAR_NOT_FOUND)
+
             DateSchedule(
-                scheduleId = schedule.scheduleId ?: throw BusinessException(ErrorCode.CALENDAR_NOT_FOUND),
+                scheduleId = scheduleId,
                 title = schedule.title,
                 content = schedule.content ?: "",
                 startsAt = schedule.startsAt,
                 endsAt = schedule.endsAt,
-                locationId = schedule.locationId
+                locationId = schedule.locationId,
+                participants = participantsByScheduleId[scheduleId] ?: emptyList()
             )
         }
 
