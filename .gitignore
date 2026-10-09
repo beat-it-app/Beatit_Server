@@ -51,3 +51,6 @@ data/
 
 ### Firebase
 **/firebase/*.json
+**/firebase-service-key.json
+firebase-service-key.json
+*-service-key.json

@@ -19,10 +19,13 @@ services:
     container_name: beat-it-app
     expose:
       - "8080"
+    volumes:
+      - ./firebase-service-key.json:/app/firebase-service-key.json
     env_file:
       - .env
     environment:
       - SPRING_PROFILES_ACTIVE=dev
+      - FIREBASE_CONFIG_PATH=/app/firebase-service-key.json
     depends_on:
       - dev-db
       - dev-redis
