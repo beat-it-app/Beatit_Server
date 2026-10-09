@@ -320,6 +320,37 @@ class PollService(
     }
 
     @Transactional
+    fun cancelVote(userId: Long, pollId: Long) {
+        val teamId = userService.getCurrentTeamId(userId)
+        val poll = getPoll(pollId)
+        validateTeam(poll, teamId)
+
+        if (poll.closeAt != null && OffsetDateTime.now().isAfter(poll.closeAt)) {
+            throw BusinessException(ErrorCode.POLL_CLOSED)
+        }
+
+        val votedOptionIds = pollVoteRepository.findVotedOptionIdsByUserIdAndPollId(userId, pollId)
+        if (votedOptionIds.isEmpty()) {
+            throw BusinessException(ErrorCode.POLL_NOT_VOTED)
+        }
+
+        pollVoteRepository.deleteByUserIdAndPollId(userId, pollId)
+        pollVoteRepository.flush()
+
+        val participantCount = pollVoteRepository.countUniqueParticipantsByPollId(pollId).toInt()
+        poll.pollCount = participantCount
+
+        val voteCountsMap = pollVoteRepository.countVotesByPollId(pollId)
+            .associate { row -> row[0] as Long to (row[1] as Long).toInt() }
+
+        poll.pollOptions.forEach { option ->
+            option.optionCount = voteCountsMap[option.pollOptionId] ?: 0
+        }
+
+        pollRepository.save(poll)
+    }
+
+    @Transactional
     fun deletePoll(userId: Long, pollId: Long){
         val teamId = userService.getCurrentTeamId(userId)
         val poll = getPoll(pollId)
