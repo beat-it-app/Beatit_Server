@@ -31,7 +31,7 @@ class PollService(
     private val locationsService: LocationsService,
     private val objectMapper: ObjectMapper,
     private val teamService: TeamService,
-    private val eventPublisher: ApplicationEventPublisher
+    private val eventPublisher: ApplicationEventPublisher,
     private val teamMembershipRepository: TeamMembershipRepository,
 ) {
     @Transactional(readOnly = true)
