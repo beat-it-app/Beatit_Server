@@ -42,12 +42,21 @@ interface PollItemResponse {
     val itemId: Long
     val voteCount: Int
     val isVoted: Boolean
+    val voters: List<PollVoterResponse>?
 }
+
+data class PollVoterResponse(
+    val userId: Long,
+    val name: String,
+    val profileImageUrl: String? = null,
+    val position: String? = null
+)
 
 data class TextItemResponse(
     override val itemId: Long,
     override val voteCount: Int,
     override val isVoted: Boolean,
+    override val voters: List<PollVoterResponse>? = null,
     val content: String
 ) : PollItemResponse
 
@@ -55,6 +64,7 @@ data class MusicItemResponse(
     override val itemId: Long,
     override val voteCount: Int,
     override val isVoted: Boolean,
+    override val voters: List<PollVoterResponse>? = null,
     val title: String,
     val artist: String,
     val previewUrl: String?
@@ -64,6 +74,7 @@ data class LocationItemResponse(
     override val itemId: Long,
     override val voteCount: Int,
     override val isVoted: Boolean,
+    override val voters: List<PollVoterResponse>? = null,
     val location: String,
     val locationId: Long? = null,
     val locationName: String? = null,

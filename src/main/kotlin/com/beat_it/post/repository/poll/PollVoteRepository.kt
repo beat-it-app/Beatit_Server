@@ -17,6 +17,9 @@ interface PollVoteRepository : JpaRepository<PollVotes, Long> {
     @Query("SELECT pv.pollOption.pollOptionId, COUNT(pv) FROM PollVotes pv WHERE pv.poll.pollId = :pollId GROUP BY pv.pollOption.pollOptionId")
     fun countVotesByPollId(@Param("pollId") pollId: Long): List<Array<Any>>
 
+    @Query("SELECT pv.pollOption.pollOptionId, pv.userId FROM PollVotes pv WHERE pv.poll.pollId = :pollId ORDER BY pv.pollVoteId ASC")
+    fun findOptionVotesByPollId(@Param("pollId") pollId: Long): List<Array<Any>>
+
     @Modifying
     @Query("DELETE FROM PollVotes pv WHERE pv.userId = :userId AND pv.poll.pollId = :pollId")
     fun deleteByUserIdAndPollId(@Param("userId") userId: Long, @Param("pollId") pollId: Long)

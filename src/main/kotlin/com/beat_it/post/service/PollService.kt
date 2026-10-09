@@ -11,6 +11,7 @@ import com.beat_it.post.entity.enum.PollType
 import com.beat_it.post.entity.enum.PostType
 import com.beat_it.location.entity.Locations
 import com.beat_it.location.service.LocationsService
+import com.beat_it.team.repository.TeamMembershipRepository
 import com.fasterxml.jackson.databind.ObjectMapper
 import org.springframework.transaction.annotation.Transactional
 import org.springframework.data.domain.PageRequest
@@ -25,6 +26,7 @@ class PollService(
     private val pollVoteRepository: PollVoteRepository,
     private val locationsService: LocationsService,
     private val objectMapper: ObjectMapper,
+    private val teamMembershipRepository: TeamMembershipRepository,
 ) {
     @Transactional(readOnly = true)
     fun getPollList(
@@ -169,14 +171,40 @@ class PollService(
         val voteCountsMap = pollVoteRepository.countVotesByPollId(pollId)
             .associate { row -> row[0] as Long to (row[1] as Long).toInt() }
 
+        val votersMap: Map<Long, List<PollVoterResponse>>? = if (!poll.isAnonymous) {
+            val optionVotes = pollVoteRepository.findOptionVotesByPollId(pollId)
+            val voterUserIds = optionVotes.map { it[1] as Long }.distinct()
+            val userProfiles = userService.getUserProfiles(voterUserIds).associateBy { it.userId }
+            val memberPositions = teamMembershipRepository
+                .findAllByTeamTeamIdAndUserIdInAndLeftAtIsNull(poll.teamId, voterUserIds)
+                .associate { it.userId to it.position }
+
+            optionVotes.groupBy(
+                keySelector = { it[0] as Long },
+                valueTransform = { row ->
+                    val voterId = row[1] as Long
+                    val profile = userProfiles[voterId]
+                    PollVoterResponse(
+                        userId = voterId,
+                        name = profile?.name ?: "알 수 없음",
+                        profileImageUrl = profile?.profileImageUrl,
+                        position = memberPositions[voterId]
+                    )
+                }
+            )
+        } else {
+            null
+        }
+
         val pollItemResponses = poll.pollOptions.map { option ->
             val optionId = option.pollOptionId!!
             val voteCount = voteCountsMap[optionId] ?: 0
             val isVoted = myVotedOptionIds.contains(optionId)
+            val voters = votersMap?.get(optionId) ?: if (!poll.isAnonymous) emptyList() else null
 
             when (poll.pollType) {
                 PollType.TEXT -> TextItemResponse(
-                    itemId = optionId, voteCount = voteCount, isVoted = isVoted,
+                    itemId = optionId, voteCount = voteCount, isVoted = isVoted, voters = voters,
                     content = option.optionText
                 )
                 PollType.MUSIC -> {
@@ -191,13 +219,14 @@ class PollService(
                         itemId = optionId,
                         voteCount = voteCount,
                         isVoted = isVoted,
+                        voters = voters,
                         title = musicInfo?.title ?: option.optionText,
                         artist = musicInfo?.artist ?: "Unknown Artist",
                         previewUrl = musicInfo?.previewUrl
                     )
                 }
                 PollType.LOCATION -> LocationItemResponse(
-                    itemId = optionId, voteCount = voteCount, isVoted = isVoted,
+                    itemId = optionId, voteCount = voteCount, isVoted = isVoted, voters = voters,
                     location = option.optionText,
                     locationId = option.location?.locationId,
                     locationName = option.location?.locationName,
