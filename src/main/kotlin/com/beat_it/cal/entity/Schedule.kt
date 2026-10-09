@@ -93,6 +93,7 @@ class Schedule(
         this.locationId = locationId
         this.startsAt = startsAt
         this.endsAt = endsAt
+        this.updateTimestamp()
     }
 
     fun isParticipantsSame(targetIds: List<Long>): Boolean {
