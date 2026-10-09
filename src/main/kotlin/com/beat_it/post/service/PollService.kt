@@ -11,7 +11,7 @@ import com.beat_it.post.entity.enum.PollType
 import com.beat_it.post.entity.enum.PostType
 import com.beat_it.location.entity.Locations
 import com.beat_it.location.service.LocationsService
-import com.beat_it.team.repository.TeamMembershipRepository
+import com.beat_it.team.service.TeamService
 import com.fasterxml.jackson.databind.ObjectMapper
 import org.springframework.transaction.annotation.Transactional
 import org.springframework.data.domain.PageRequest
@@ -26,7 +26,7 @@ class PollService(
     private val pollVoteRepository: PollVoteRepository,
     private val locationsService: LocationsService,
     private val objectMapper: ObjectMapper,
-    private val teamMembershipRepository: TeamMembershipRepository,
+    private val teamService: TeamService,
 ) {
     @Transactional(readOnly = true)
     fun getPollList(
@@ -175,9 +175,7 @@ class PollService(
             val optionVotes = pollVoteRepository.findOptionVotesByPollId(pollId)
             val voterUserIds = optionVotes.map { it[1] as Long }.distinct()
             val userProfiles = userService.getUserProfiles(voterUserIds).associateBy { it.userId }
-            val memberPositions = teamMembershipRepository
-                .findAllByTeamTeamIdAndUserIdInAndLeftAtIsNull(poll.teamId, voterUserIds)
-                .associate { it.userId to it.position }
+            val memberPositions = teamService.getMemberPositions(poll.teamId, voterUserIds)
 
             optionVotes.groupBy(
                 keySelector = { it[0] as Long },

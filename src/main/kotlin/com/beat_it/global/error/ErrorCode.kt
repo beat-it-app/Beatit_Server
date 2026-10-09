@@ -28,6 +28,7 @@ enum class ErrorCode(
     MISSING_PASSWORD(HttpStatus.BAD_REQUEST, "SIGNUP-008", "일반 회원가입 시 비밀번호는 필수입니다."),
     EMAIL_NOT_VERIFIED(HttpStatus.BAD_REQUEST, "SIGNUP-009", "인증되지 않은 이메일입니다."),
     EMAIL_DUPLICATED(HttpStatus.BAD_REQUEST, "SIGNUP-010", "이미 가입된 이메일입니다."),
+    INVALID_PASSWORD_FORMAT(HttpStatus.BAD_REQUEST, "SIGNUP-011", "비밀번호는 영문, 숫자, 특수문자(!@#$%^&*?_~)를 포함하여 8~20자여야 합니다."),
 
     IDENTIFIER_NOT_FOUND(HttpStatus.NOT_FOUND, "LOGIN-001", "존재하지 않는 아이디입니다."),
     INVALID_PASSWORD(HttpStatus.BAD_REQUEST, "LOGIN-002", "비밀번호가 일치하지 않습니다."),

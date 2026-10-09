@@ -26,7 +26,6 @@ data class PollDetailResponse(
     val commentList: List<CommentResponse>
 )
 
-// --- 응답용 투표 아이템 다형성 처리 ---
 @JsonTypeInfo(
     use = JsonTypeInfo.Id.NAME,
     include = JsonTypeInfo.As.EXTERNAL_PROPERTY,
