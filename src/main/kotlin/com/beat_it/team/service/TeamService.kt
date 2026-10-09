@@ -624,11 +624,6 @@ class TeamService(
         return teamMembershipRepository.findAllByTeamTeamIdAndLeftAtIsNull(teamId).map { it.userId }
     }
 
-    @Transactional(readOnly = true)
-    fun isTeamMember(teamId: Long, userId: Long): Boolean {
-        return teamMembershipRepository.existsByTeamTeamIdAndUserIdAndLeftAtIsNull(teamId, userId)
-    }
-
     private fun changeToLeader(
         requesterMembership: TeamMemberships,
         targetMembership: TeamMemberships
@@ -792,5 +787,13 @@ class TeamService(
         val activeMembers = teamMembershipRepository.findAllByTeamTeamIdAndUserIdInAndLeftAtIsNull(teamId, userIds)
         val uniqueUserIdsCount = userIds.distinct().size
         return activeMembers.size == uniqueUserIdsCount
+    }
+
+    @Transactional(readOnly = true)
+    fun getMemberPositions(teamId: Long, userIds: List<Long>): Map<Long, String?> {
+        if (userIds.isEmpty()) return emptyMap()
+        return teamMembershipRepository
+            .findAllByTeamTeamIdAndUserIdInAndLeftAtIsNull(teamId, userIds)
+            .associate { it.userId to it.position }
     }
 }

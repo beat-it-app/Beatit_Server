@@ -3,11 +3,22 @@ package com.beat_it.global.error
 import com.beat_it.global.response.BasicResponse
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
+import org.springframework.web.bind.MethodArgumentNotValidException
 import org.springframework.web.bind.annotation.ExceptionHandler
 import org.springframework.web.bind.annotation.RestControllerAdvice
 
 @RestControllerAdvice
 class GlobalExceptionHandler {
+
+    @ExceptionHandler(MethodArgumentNotValidException::class)
+    protected fun handleMethodArgumentNotValidException(e: MethodArgumentNotValidException): ResponseEntity<BasicResponse<Nothing>> {
+        val errorMessage = e.bindingResult.fieldErrors.firstOrNull()?.defaultMessage
+            ?: ErrorCode.INVALID_INPUT_VALUE.message
+
+        return ResponseEntity
+            .status(HttpStatus.BAD_REQUEST)
+            .body(BasicResponse.fail(ErrorCode.INVALID_INPUT_VALUE.code, errorMessage))
+    }
 
     @ExceptionHandler(BusinessException::class)
     protected fun handleBusinessException(e: BusinessException): ResponseEntity<BasicResponse<Nothing>> {

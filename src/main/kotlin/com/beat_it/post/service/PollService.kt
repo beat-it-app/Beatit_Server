@@ -11,7 +11,6 @@ import com.beat_it.post.entity.enum.PollType
 import com.beat_it.post.entity.enum.PostType
 import com.beat_it.location.entity.Locations
 import com.beat_it.location.service.LocationsService
-import com.beat_it.team.repository.TeamMembershipRepository
 import com.beat_it.notification.event.NotificationEvent
 import com.beat_it.notification.template.NotificationTemplate
 import com.beat_it.team.service.TeamService
@@ -31,8 +30,7 @@ class PollService(
     private val locationsService: LocationsService,
     private val objectMapper: ObjectMapper,
     private val teamService: TeamService,
-    private val eventPublisher: ApplicationEventPublisher,
-    private val teamMembershipRepository: TeamMembershipRepository,
+    private val eventPublisher: ApplicationEventPublisher
 ) {
     @Transactional(readOnly = true)
     fun getPollList(
@@ -198,9 +196,7 @@ class PollService(
             val optionVotes = pollVoteRepository.findOptionVotesByPollId(pollId)
             val voterUserIds = optionVotes.map { it[1] as Long }.distinct()
             val userProfiles = userService.getUserProfiles(voterUserIds).associateBy { it.userId }
-            val memberPositions = teamMembershipRepository
-                .findAllByTeamTeamIdAndUserIdInAndLeftAtIsNull(poll.teamId, voterUserIds)
-                .associate { it.userId to it.position }
+            val memberPositions = teamService.getMemberPositions(poll.teamId, voterUserIds)
 
             optionVotes.groupBy(
                 keySelector = { it[0] as Long },
@@ -482,14 +478,11 @@ class PollService(
         now: OffsetDateTime = OffsetDateTime.now(),
         windowMinutes: Long = 1L
     ) {
-        // 1. 투표 마감 24시간 전 알림
         sendPollDeadlineRemindersForWindow(
             startDateTime = now.plusHours(24),
             endDateTime = now.plusHours(24).plusMinutes(windowMinutes),
             remainingText = "24시간 전"
         )
-
-        // 2. 투표 마감 1시간 전 알림
         sendPollDeadlineRemindersForWindow(
             startDateTime = now.plusHours(1),
             endDateTime = now.plusHours(1).plusMinutes(windowMinutes),
