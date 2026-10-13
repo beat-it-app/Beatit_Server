@@ -6,7 +6,7 @@ import java.time.OffsetDateTime
 
 @Schema(description = "모바일 초대장 조회 응답 DTO")
 data class PerformanceInvitationResponse(
-    @Schema(description = "팀 이름", example = "비트잇 밴드")
+    @Schema(description = "팀 이름", example = "빗잇 밴드")
     val teamName: String?,
 
     @Schema(description = "공연 제목")

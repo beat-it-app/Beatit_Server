@@ -18,7 +18,7 @@ data class PerformanceResponse(
     @Schema(description = "팀 ID", example = "10")
     val teamId: Long,
 
-    @Schema(description = "팀 이름", example = "비트잇 밴드")
+    @Schema(description = "팀 이름", example = "빗잇 밴드")
     val teamName: String?,
 
     @Schema(description = "작성자(생성자) 유저 ID", example = "5")
