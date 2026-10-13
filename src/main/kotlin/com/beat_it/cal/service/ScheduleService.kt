@@ -25,6 +25,9 @@ import com.beat_it.team.service.TeamService
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import org.springframework.web.multipart.MultipartFile
+import com.beat_it.notification.event.NotificationEvent
+import com.beat_it.notification.template.NotificationTemplate
+import org.springframework.context.ApplicationEventPublisher
 import java.time.LocalDate
 import java.time.LocalTime
 import java.time.OffsetDateTime
@@ -37,7 +40,8 @@ class ScheduleService(
     private val teamService: TeamService,
     private val userService: UserService,
     private val fileService: FileService,
-    private val locationService: LocationsService
+    private val locationService: LocationsService,
+    private val eventPublisher: ApplicationEventPublisher
 ) {
 
     @Transactional
@@ -94,6 +98,22 @@ class ScheduleService(
         }
 
         val savedSchedule = scheduleRepository.save(schedule)
+
+        val targets = request.participantUserIds.filter { it != userId }
+        if (targets.isNotEmpty()) {
+            val teamName = teamService.getTeamName(currentTeamId)
+            eventPublisher.publishEvent(
+                NotificationEvent(
+                    targetUserIds = targets,
+                    teamId = currentTeamId,
+                    message = NotificationTemplate.scheduleRegistered(
+                        teamName = teamName,
+                        scheduleTitle = savedSchedule.title,
+                        scheduleId = savedSchedule.scheduleId
+                    )
+                )
+            )
+        }
 
         return ScheduleCreateResponse(
             scheduleId = savedSchedule.scheduleId!!,
@@ -425,6 +445,35 @@ class ScheduleService(
             java.time.YearMonth.of(year, month).atDay(date)
         } catch (e: java.time.DateTimeException) {
             throw BusinessException(ErrorCode.CALENDAR_NON_EXISTENT_DATE)
+        }
+    }
+
+    @Transactional(readOnly = true)
+    fun sendUpcomingScheduleReminders(
+        now: OffsetDateTime = OffsetDateTime.now(),
+        windowMinutes: Long = 1L
+    ) {
+        val startDateTime = now.plusHours(24)
+        val endDateTime = startDateTime.plusMinutes(windowMinutes)
+
+        val upcomingSchedules = scheduleRepository.findByStartsAtBetween(startDateTime, endDateTime)
+
+        upcomingSchedules.forEach { schedule ->
+            val participantIds = (schedule.participants.map { it.userId } + schedule.userId).distinct()
+            if (participantIds.isNotEmpty()) {
+                val teamName = teamService.getTeamName(schedule.teamId)
+                eventPublisher.publishEvent(
+                    NotificationEvent(
+                        targetUserIds = participantIds,
+                        teamId = schedule.teamId,
+                        message = NotificationTemplate.scheduleReminderD1(
+                            teamName = teamName,
+                            scheduleTitle = schedule.title,
+                            scheduleId = schedule.scheduleId
+                        )
+                    )
+                )
+            }
         }
     }
 }

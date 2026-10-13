@@ -172,12 +172,11 @@ class NotificationService(
                 authorName = "영서",
                 noticeId = 1L
             ),
-            // 2번 알림: 게시글 좋아요! / 권우혁님이 '[중요]모임 안내 공지'에 좋아요를 눌렀습니다.
-            NotificationTemplate.postLiked(
+            // 2번 알림: 투표 생성 / 새로운 투표(정기 연습곡 투표)가 생성되었습니다. 투표에 참여해 보세요!
+            NotificationTemplate.pollCreated(
                 teamName = teamName,
-                likerName = "권우혁",
-                postTitle = "[중요]모임 안내 공지",
-                postId = 1L
+                pollTitle = "정기 연습곡 투표",
+                pollId = 1L
             ),
             // 3번 알림: 일정 알림 / 내일은 '정기 합주'가 있는 날입니다!
             NotificationTemplate.scheduleReminderD1(

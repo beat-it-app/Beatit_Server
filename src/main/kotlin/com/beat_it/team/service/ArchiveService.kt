@@ -20,6 +20,9 @@ import com.beat_it.team.repository.ArchiveRatingsRepository
 import com.beat_it.team.repository.ArchiveRepository
 import com.beat_it.team.repository.ArchivesFilesRepository
 import com.beat_it.team.repository.TeamMembershipRepository
+import com.beat_it.notification.event.NotificationEvent
+import com.beat_it.notification.template.NotificationTemplate
+import org.springframework.context.ApplicationEventPublisher
 import org.springframework.data.domain.PageRequest
 import org.springframework.data.domain.Sort
 import org.springframework.stereotype.Service
@@ -39,6 +42,7 @@ class ArchiveService(
     private val teamMembershipRepository: TeamMembershipRepository,
     private val fileService: FileService,
     private val teamImageUploadService: TeamImageUploadService,
+    private val eventPublisher: ApplicationEventPublisher
 ) {
 
     private val mentionRegex = Regex("""@\{([^}]+)\}|@([a-zA-Z0-9가-힣_]+)""")
@@ -80,6 +84,22 @@ class ArchiveService(
         )
 
         savedArchive.updateArchiveImageUrl(savedArchiveFiles.firstOrNull()?.cdnUrl)
+
+        val teamMembers = teamService.getTeamMemberUserIds(team.teamId!!)
+        val targetUserIds = teamMembers.filter { it != userId }
+        if (targetUserIds.isNotEmpty()) {
+            eventPublisher.publishEvent(
+                NotificationEvent(
+                    targetUserIds = targetUserIds,
+                    teamId = team.teamId!!,
+                    message = NotificationTemplate.archiveRegistered(
+                        teamName = team.teamName,
+                        archiveTitle = savedArchive.title,
+                        archiveId = savedArchive.archiveId
+                    )
+                )
+            )
+        }
 
         return ArchiveCreateResponse(
             archiveId = savedArchive.archiveId!!,
@@ -310,6 +330,7 @@ class ArchiveService(
         validateComment(comment)
 
         var effectiveParentId: Long? = null
+        var parentCommentWriterId: Long? = null
 
         parentCommentId?.let { requestedParentId ->
             val parentComment = archiveCommentsRepository
@@ -317,6 +338,7 @@ class ArchiveService(
                 ?: throw BusinessException(ErrorCode.ARCHIVE_COMMENT_NOT_FOUND)
 
             effectiveParentId = parentComment.parentCommentId ?: parentComment.archiveCommentId
+            parentCommentWriterId = parentComment.userId
         }
 
         val archiveComment = ArchiveComments.create(
@@ -327,13 +349,63 @@ class ArchiveService(
         )
 
         val savedComment = archiveCommentsRepository.save(archiveComment)
+        val directToPath = "/archives/$archiveId"
         saveMentions(
             comment = savedComment,
             teamId = archive.team.teamId!!,
             content = comment,
             explicitMentionedUserIds = mentionedUserIds,
+            directTo = directToPath
         )
         archive.increaseComment()
+
+        val teamName = archive.team.teamName
+
+        if (parentCommentWriterId != null) {
+            if (parentCommentWriterId != userId) {
+                eventPublisher.publishEvent(
+                    NotificationEvent(
+                        targetUserId = parentCommentWriterId!!,
+                        teamId = archive.team.teamId!!,
+                        message = NotificationTemplate.replyCreated(
+                            teamName = teamName,
+                            postTitle = archive.title,
+                            postId = archiveId,
+                            directTo = directToPath
+                        )
+                    )
+                )
+            }
+            if (archive.writerId != userId && archive.writerId != parentCommentWriterId) {
+                eventPublisher.publishEvent(
+                    NotificationEvent(
+                        targetUserId = archive.writerId,
+                        teamId = archive.team.teamId!!,
+                        message = NotificationTemplate.commentCreated(
+                            teamName = teamName,
+                            postTitle = archive.title,
+                            postId = archiveId,
+                            directTo = directToPath
+                        )
+                    )
+                )
+            }
+        } else {
+            if (archive.writerId != userId) {
+                eventPublisher.publishEvent(
+                    NotificationEvent(
+                        targetUserId = archive.writerId,
+                        teamId = archive.team.teamId!!,
+                        message = NotificationTemplate.commentCreated(
+                            teamName = teamName,
+                            postTitle = archive.title,
+                            postId = archiveId,
+                            directTo = directToPath
+                        )
+                    )
+                )
+            }
+        }
     }
 
     @Transactional
@@ -511,6 +583,7 @@ class ArchiveService(
         teamId: Long,
         content: String,
         explicitMentionedUserIds: List<Long>?,
+        directTo: String? = null
     ) {
         val activeMembers = teamMembershipRepository.findAllByTeamTeamIdAndLeftAtIsNull(teamId)
         if (activeMembers.isEmpty()) {
@@ -557,6 +630,24 @@ class ArchiveService(
 
         if (mentionsToSave.isNotEmpty()) {
             archiveCommentMentionRepository.saveAll(mentionsToSave)
+
+            val targetMentionedUserIds = alreadyMentionedUserIds.filter { it != comment.userId }
+            if (targetMentionedUserIds.isNotEmpty()) {
+                val teamName = teamService.getTeamName(teamId)
+                val mentionerName = userService.getUserProfile(comment.userId)?.name ?: "누군가"
+                eventPublisher.publishEvent(
+                    NotificationEvent(
+                        targetUserIds = targetMentionedUserIds,
+                        teamId = teamId,
+                        message = NotificationTemplate.commentMentioned(
+                            teamName = teamName,
+                            mentionerName = mentionerName,
+                            postId = comment.archive.archiveId,
+                            directTo = directTo
+                        )
+                    )
+                )
+            }
         }
     }
 
