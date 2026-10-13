@@ -16,6 +16,7 @@ import com.beat_it.auth.repository.*
 import com.beat_it.global.error.BusinessException
 import com.beat_it.global.error.ErrorCode
 import com.beat_it.global.service.FileService
+import com.beat_it.notification.service.PushTokenService
 import com.beat_it.team.repository.TeamMembershipRepository
 import jakarta.transaction.Transactional
 import org.springframework.data.repository.findByIdOrNull
@@ -33,31 +34,33 @@ class MyPageService (
     private val fileService: FileService,
     private val passwordEncoder: PasswordEncoder,
     private val refreshTokenService: RefreshTokenService,
+    private val pushTokenService: PushTokenService
 ){
     fun getMyPage(userId: Long): MyPageResponse {
+        val user = getUser(userId)
         val userProfile = getUserProfile(userId)
         val authAccount = getUserAuthAccount(userId)
 
-        val memberships = teamMembershipRepository.findAllByUserIdAndLeftAtIsNull(userId)
+        val teamResponse = user.currentTeamId?.let { teamId ->
+            teamMembershipRepository.findByTeamTeamIdAndUserIdAndLeftAtIsNull(teamId, userId)?.let { membership ->
+                val team = membership.team
+                val memberCount = teamMembershipRepository.countByTeamTeamIdAndLeftAtIsNull(teamId)
+                val leaderMembership = teamMembershipRepository.findAllByTeamTeamIdAndLeftAtIsNull(teamId)
+                    .find { it.teamRole.name == "LEADER" }
 
-        val teamResponses = memberships.map { membership ->
-            val team = membership.team
-            val teamId = team.teamId!!
-            val memberCount = teamMembershipRepository.countByTeamTeamIdAndLeftAtIsNull(teamId)
-            val leaderMembership = teamMembershipRepository.findAllByTeamTeamIdAndLeftAtIsNull(teamId)
-                .find { it.teamRole.name == "LEADER" }
-            
-            val leaderName = leaderMembership?.let { 
-                userProfilesRepository.findByUserUserId(it.userId)?.name 
-            } ?: "알 수 없음"
+                val leaderName = leaderMembership?.let {
+                    userProfilesRepository.findByUserUserId(it.userId)?.name
+                } ?: "알 수 없음"
 
-            MyPageTeamResponse(
-                type = team.teamType,
-                name = team.teamName,
-                imageUrl = team.teamImageUrl ?: "",
-                leaderName = leaderName,
-                memberCount = memberCount
-            )
+                MyPageTeamResponse(
+                    teamId = teamId,
+                    type = team.teamType,
+                    name = team.teamName,
+                    imageUrl = team.teamImageUrl ?: "",
+                    leaderName = leaderName,
+                    memberCount = memberCount
+                )
+            }
         }
 
         val socialAccounts = mutableListOf<SocialProvider>()
@@ -73,7 +76,7 @@ class MyPageService (
                 ?: userProfile.defaultProfileImage?.let { fileService.getFileUrl(it.storageKey) }
                 ?: "",
             socialAccounts = socialAccounts,
-            teams = teamResponses
+            team = teamResponse
         )
     }
 
@@ -172,6 +175,7 @@ class MyPageService (
         }
 
         user.withdraw()
+        pushTokenService.deactivateAllUserTokens(userId)
 
         return WithdrawalResponse(
             userId = userId,
@@ -195,7 +199,10 @@ class MyPageService (
             ?: throw BusinessException(ErrorCode.USER_NOT_FOUND)
     }
 
-    fun logout(userId: Long) {
+    fun logout(userId: Long, deviceId: String? = null) {
         refreshTokenService.deleteRefreshToken(userId.toString())
+        if (!deviceId.isNullOrBlank()) {
+            pushTokenService.deactivateToken(userId, deviceId)
+        }
     }
 }

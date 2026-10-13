@@ -59,5 +59,6 @@ class Teams(
         description?.let { this.description = it }
         establishedOn?.let { this.establishedOn = it }
         teamType?.let { this.teamType = it }
+        this.updateTimestamp()
     }
 }

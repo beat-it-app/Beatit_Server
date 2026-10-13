@@ -167,6 +167,11 @@ class UserService (
     }
 
     @Transactional(readOnly = true)
+    fun getUserProfileResponse(userId: Long): UserProfileResponse? {
+        return getUserProfiles(listOf(userId)).firstOrNull()
+    }
+
+    @Transactional(readOnly = true)
     @Cacheable(cacheNames = ["userProfiles"], key = "#userIds.sorted().toString()")
     //TODO: updateProfile 만들면 @CacheEvict 적용
     fun getUserProfiles(userIds: List<Long>): List<UserProfileResponse> {

@@ -58,4 +58,9 @@ interface PerformanceRepository : JpaRepository<Performances, Long> {
         AND p.performanceDateTime < :now
     """)
     fun updateExpiredPerformancesToPast(@Param("now") now: OffsetDateTime): Int
+
+    fun findTop10ByTeamIdAndPerformanceDateTimeGreaterThanEqualOrderByPerformanceDateTimeAsc(
+        teamId: Long,
+        performanceDateTime: OffsetDateTime,
+    ): List<Performances>
 }

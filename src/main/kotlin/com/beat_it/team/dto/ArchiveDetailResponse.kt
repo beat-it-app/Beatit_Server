@@ -1,5 +1,6 @@
 package com.beat_it.team.dto
 
+import com.fasterxml.jackson.annotation.JsonProperty
 import java.time.OffsetDateTime
 
 data class ArchiveDetailResponse(
@@ -13,6 +14,7 @@ data class ArchiveDetailResponse(
     val archiveImageUrls: List<String>,
     val writerName: String,
     val writerProfileImageUrl: String?,
+    @get:JsonProperty("isWriter")
     val isWriter: Boolean,
     val topArchive: Boolean,
     val rating: ArchiveRatingResponse,

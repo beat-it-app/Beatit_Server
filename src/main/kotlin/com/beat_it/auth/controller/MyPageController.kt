@@ -14,6 +14,7 @@ import jakarta.validation.Valid
 import org.springframework.http.HttpStatus
 import org.springframework.http.MediaType
 import org.springframework.http.ResponseEntity
+import org.springframework.security.core.Authentication
 import org.springframework.security.core.annotation.AuthenticationPrincipal
 import org.springframework.security.core.userdetails.UserDetails
 import org.springframework.web.bind.annotation.*
@@ -98,14 +99,16 @@ class MyPageController (
         )
     }
 
-    @Operation(summary = "로그아웃")
+    @Operation(summary = "로그아웃", description = "로그아웃을 처리하며, 현재 기기의 푸시 토큰을 자동으로 비활성화합니다.")
     @PostMapping("/logout")
     fun logout(
         @AuthenticationPrincipal userDetails: UserDetails,
+        authentication: Authentication
     ): ResponseEntity<BasicResponse<Nothing>> {
         val userId = extractUserId(userDetails)
+        val deviceId = authentication.details as? String
 
-        myPageService.logout(userId)
+        myPageService.logout(userId, deviceId)
 
         return ResponseEntity.ok(
             BasicResponse.success(HttpStatus.OK, "로그아웃이 성공적으로 처리되었습니다.")

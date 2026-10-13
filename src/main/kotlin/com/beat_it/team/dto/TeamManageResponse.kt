@@ -8,7 +8,8 @@ data class TeamManageResponse(
 )
 
 data class TeamMemberListResponse(
-    val memberListResponse: List<MemberItems>,
+    val myRole: TeamRole,
+    val members: List<MemberItems>,
     val totalCount: Int,
     val hasNext: Boolean
 )

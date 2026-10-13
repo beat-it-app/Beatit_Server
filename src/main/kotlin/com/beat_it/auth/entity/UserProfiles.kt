@@ -46,10 +46,12 @@ class UserProfiles(
 
     fun updateName(name: String) {
         this.name = name
+        this.updateTimestamp()
     }
 
     fun updateProfileImage(authFile: AuthFiles?, defaultProfileImage: DefaultProfileImage?) {
         this.authFile = authFile
         this.defaultProfileImage = defaultProfileImage
+        this.updateTimestamp()
     }
 }

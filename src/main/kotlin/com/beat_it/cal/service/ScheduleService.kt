@@ -11,8 +11,11 @@ import com.beat_it.cal.dto.ScheduleCreateResponse
 import com.beat_it.cal.dto.ScheduleDetailResponse
 import com.beat_it.cal.dto.ScheduleFileResponse
 import com.beat_it.cal.dto.ScheduleMusicResponse
+import com.beat_it.cal.dto.ScheduleParticipantProfileResponse
 import com.beat_it.cal.dto.ScheduleUpdateRequest
+import com.beat_it.cal.dto.UpcomingTeamScheduleResponse
 import com.beat_it.cal.entity.Schedule
+import com.beat_it.cal.repository.ScheduleParticipantRepository
 import com.beat_it.cal.repository.ScheduleRepository
 import com.beat_it.global.error.BusinessException
 import com.beat_it.global.error.ErrorCode
@@ -22,6 +25,9 @@ import com.beat_it.team.service.TeamService
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import org.springframework.web.multipart.MultipartFile
+import com.beat_it.notification.event.NotificationEvent
+import com.beat_it.notification.template.NotificationTemplate
+import org.springframework.context.ApplicationEventPublisher
 import java.time.LocalDate
 import java.time.LocalTime
 import java.time.OffsetDateTime
@@ -30,10 +36,12 @@ import java.time.ZoneOffset
 @Service
 class ScheduleService(
     private val scheduleRepository: ScheduleRepository,
+    private val scheduleParticipantRepository: ScheduleParticipantRepository,
     private val teamService: TeamService,
     private val userService: UserService,
     private val fileService: FileService,
-    private val locationService: LocationsService
+    private val locationService: LocationsService,
+    private val eventPublisher: ApplicationEventPublisher
 ) {
 
     @Transactional
@@ -90,6 +98,22 @@ class ScheduleService(
         }
 
         val savedSchedule = scheduleRepository.save(schedule)
+
+        val targets = request.participantUserIds.filter { it != userId }
+        if (targets.isNotEmpty()) {
+            val teamName = teamService.getTeamName(currentTeamId)
+            eventPublisher.publishEvent(
+                NotificationEvent(
+                    targetUserIds = targets,
+                    teamId = currentTeamId,
+                    message = NotificationTemplate.scheduleRegistered(
+                        teamName = teamName,
+                        scheduleTitle = savedSchedule.title,
+                        scheduleId = savedSchedule.scheduleId
+                    )
+                )
+            )
+        }
 
         return ScheduleCreateResponse(
             scheduleId = savedSchedule.scheduleId!!,
@@ -238,10 +262,39 @@ class ScheduleService(
     }
 
     @Transactional(readOnly = true)
+    fun getUpcomingTeamSchedules(userId: Long): List<UpcomingTeamScheduleResponse> {
+        userService.validateUserExists(userId)
+
+        val teamId = userService.getCurrentTeamId(userId)
+        teamService.validateTeamMember(teamId, userId)
+
+        val startAt = OffsetDateTime.now()
+        val endAt = startAt.plusDays(7)
+        val schedules = scheduleRepository.findUpcomingByTeamIdAndRange(teamId, startAt, endAt)
+
+        val locationNamesById = locationService.getLocationNamesByIds(
+            schedules.mapNotNull { it.locationId }.distinct()
+        )
+
+        return schedules.map { schedule ->
+            UpcomingTeamScheduleResponse(
+                scheduleId = schedule.scheduleId ?: throw BusinessException(ErrorCode.CALENDAR_NOT_FOUND),
+                title = schedule.title,
+                startsAt = schedule.startsAt,
+                endsAt = schedule.endsAt,
+                locationName = schedule.locationId?.let(locationNamesById::get),
+            )
+        }
+    }
+
+    @Transactional(readOnly = true)
     fun getCalendarSchedules(userId: Long, year: Int, month: Int): CalendarSchedulesResponse {
         validateYearAndMonth(year, month)
-        val startLocalDate = LocalDate.of(year, month, 1)
-        val endLocalDate = startLocalDate.withDayOfMonth(startLocalDate.lengthOfMonth())
+        val firstDayOfMonth = LocalDate.of(year, month, 1)
+        val lastDayOfMonth = firstDayOfMonth.withDayOfMonth(firstDayOfMonth.lengthOfMonth())
+
+        val startLocalDate = firstDayOfMonth.minusDays(6)
+        val endLocalDate = lastDayOfMonth.plusDays(6)
 
         val zoneOffset = ZoneOffset.ofHours(9)
         val startDateTime = OffsetDateTime.of(startLocalDate, LocalTime.MIN, zoneOffset)
@@ -272,14 +325,44 @@ class ScheduleService(
 
         val schedules = scheduleRepository.findByUserIdAndDailyRange(userId, startDateTime, endDateTime)
 
+        if (schedules.isEmpty()) {
+            return DateSchedulesResponse(items = emptyList())
+        }
+
+        val scheduleIds = schedules.mapNotNull { it.scheduleId }
+
+        val participants = scheduleParticipantRepository.findAllByScheduleScheduleIdIn(scheduleIds)
+
+        val participantUserIds = participants.map { it.userId }.distinct()
+        val userProfileMap = if (participantUserIds.isNotEmpty()) {
+            userService.getUserProfiles(participantUserIds).associateBy { it.userId }
+        } else {
+            emptyMap()
+        }
+
+        val participantsByScheduleId = participants.groupBy(
+            keySelector = { it.schedule.scheduleId!! },
+            valueTransform = { participant ->
+                val profile = userProfileMap[participant.userId]
+                ScheduleParticipantProfileResponse(
+                    userId = participant.userId,
+                    name = profile?.name ?: "알 수 없는 사용자",
+                    profileImageUrl = profile?.profileImageUrl
+                )
+            }
+        )
+
         val dateSchedules = schedules.map { schedule ->
+            val scheduleId = schedule.scheduleId ?: throw BusinessException(ErrorCode.CALENDAR_NOT_FOUND)
+
             DateSchedule(
-                scheduleId = schedule.scheduleId ?: throw BusinessException(ErrorCode.CALENDAR_NOT_FOUND),
+                scheduleId = scheduleId,
                 title = schedule.title,
                 content = schedule.content ?: "",
                 startsAt = schedule.startsAt,
                 endsAt = schedule.endsAt,
-                locationId = schedule.locationId
+                locationId = schedule.locationId,
+                participants = participantsByScheduleId[scheduleId] ?: emptyList()
             )
         }
 
@@ -362,6 +445,35 @@ class ScheduleService(
             java.time.YearMonth.of(year, month).atDay(date)
         } catch (e: java.time.DateTimeException) {
             throw BusinessException(ErrorCode.CALENDAR_NON_EXISTENT_DATE)
+        }
+    }
+
+    @Transactional(readOnly = true)
+    fun sendUpcomingScheduleReminders(
+        now: OffsetDateTime = OffsetDateTime.now(),
+        windowMinutes: Long = 1L
+    ) {
+        val startDateTime = now.plusHours(24)
+        val endDateTime = startDateTime.plusMinutes(windowMinutes)
+
+        val upcomingSchedules = scheduleRepository.findByStartsAtBetween(startDateTime, endDateTime)
+
+        upcomingSchedules.forEach { schedule ->
+            val participantIds = (schedule.participants.map { it.userId } + schedule.userId).distinct()
+            if (participantIds.isNotEmpty()) {
+                val teamName = teamService.getTeamName(schedule.teamId)
+                eventPublisher.publishEvent(
+                    NotificationEvent(
+                        targetUserIds = participantIds,
+                        teamId = schedule.teamId,
+                        message = NotificationTemplate.scheduleReminderD1(
+                            teamName = teamName,
+                            scheduleTitle = schedule.title,
+                            scheduleId = schedule.scheduleId
+                        )
+                    )
+                )
+            }
         }
     }
 }
