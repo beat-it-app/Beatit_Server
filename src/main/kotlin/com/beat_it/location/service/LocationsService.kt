@@ -76,9 +76,15 @@ class LocationsService(
     fun searchLocations(
         query: String,
         latitude: BigDecimal? = null,
-        longitude: BigDecimal? = null
+        longitude: BigDecimal? = null,
+        page: Int = 0,
+        limit: Int = 10
     ): List<LocationSearchResponse> {
         if (query.isBlank()) {
+            return emptyList()
+        }
+
+        if (page < 0 || page >= 45 || limit <= 0) {
             return emptyList()
         }
 
@@ -87,12 +93,17 @@ class LocationsService(
             return emptyList()
         }
 
+        val kakaoPage = page + 1
+        val kakaoSize = limit.coerceIn(1, 15)
+
         val response = try {
             restClient.get()
                 .uri { uriBuilder ->
                     uriBuilder
                         .path("/v2/local/search/keyword.json")
                         .queryParam("query", query)
+                        .queryParam("page", kakaoPage)
+                        .queryParam("size", kakaoSize)
                         .apply {
                             if (longitude != null) queryParam("x", longitude.toPlainString())
                             if (latitude != null) queryParam("y", latitude.toPlainString())

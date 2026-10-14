@@ -2,6 +2,7 @@ package com.beat_it.chat.service
 
 import com.beat_it.auth.service.UserService
 import com.beat_it.chat.dto.ChatMessageDetailResponse
+import com.beat_it.chat.dto.ChatMessageReadUserResponse
 import com.beat_it.chat.dto.ChatMessageRequest
 import com.beat_it.chat.dto.ChatRoomCreateRequest
 import com.beat_it.chat.dto.ChatRoomCreateResponse
@@ -19,6 +20,7 @@ import com.beat_it.chat.entity.ChatMessageType
 import com.beat_it.chat.entity.ChatRoom
 import com.beat_it.chat.entity.enum.ChatRoomType
 import com.beat_it.chat.entity.MediaCategory
+import com.beat_it.chat.event.ChatMessageReadEvent
 import com.beat_it.chat.event.ChatRoomCreatedEvent
 import com.beat_it.chat.repository.ChatFilesRepository
 import com.beat_it.chat.repository.ChatMemberRepository
@@ -28,6 +30,7 @@ import com.beat_it.chat.repository.ChatRepository
 import com.beat_it.global.error.BusinessException
 import com.beat_it.global.error.ErrorCode
 import com.beat_it.global.service.FileService
+import com.beat_it.global.util.formatBytes
 import com.beat_it.team.service.TeamService
 import com.fasterxml.jackson.databind.ObjectMapper
 import org.springframework.context.ApplicationEventPublisher
@@ -69,11 +72,9 @@ class ChatService(
 
         val roomType = if (request.participantIds.size == 1) ChatRoomType.DIRECT else ChatRoomType.GROUP
 
-        validateChatRoomNameNotBlank(request.roomName)
-
         val chatRoom = ChatRoom(
             teamId = teamId,
-            title = request.roomName!!,
+            title = request.roomName?.takeIf { it.isNotBlank() },
             type = roomType
         )
 
@@ -253,18 +254,57 @@ class ChatService(
             }
         }
 
-        val senderIds = messageSlice.content.map { it.senderId }.distinct()
+        val senderIds = messageSlice.content.map { it.senderId }.filter { it != currentUserId }.distinct()
+        val otherMembers = chatRoom.members.filter { it.userId != currentUserId && it.isParticipating }
+        val otherMemberUserIds = otherMembers.map { it.userId }
 
-        val userProfileMap = userService.getUserProfiles(senderIds)
-            .associateBy { it.userId }
+        val targetUserIds = (senderIds + otherMemberUserIds).distinct()
+        val userProfileMap = if (targetUserIds.isNotEmpty()) {
+            userService.getUserProfiles(senderIds).associateBy { it.userId }
+        } else {
+            emptyMap()
+        }
+
+        val messageIds = messageSlice.content.mapNotNull { it.chatMessageId }
+        val messageFileMap = if (messageIds.isNotEmpty()) {
+            chatMessageFilesRepository.findAllByChatMessageChatMessageIdIn(messageIds)
+                .associate { it.chatMessage.chatMessageId!! to it.chatFile.fileSizeBytes }
+        } else {
+            emptyMap()
+        }
+
+        val readUsersByMessageId = otherMembers
+            .mapNotNull { member ->
+                val lastId = member.lastChatMessageId ?: return@mapNotNull null
+                val profile = userProfileMap[member.userId] ?: return@mapNotNull null
+                lastId to ChatMessageReadUserResponse(
+                    userId = member.userId,
+                    name = profile.name,
+                    profileImageUrl = profile.profileImageUrl
+                )
+            }
+            .groupBy({ it.first }, { it.second })
 
         val messageResponses = messageSlice.content.map { message ->
-            val profileResponse = userProfileMap[message.senderId]
+            val msgId = message.chatMessageId!!
+            val profileResponse = if (message.senderId == currentUserId) {
+                null
+            } else {
+                userProfileMap[message.senderId]
+            }
+
+            val readersAtThisMessage = readUsersByMessageId[msgId] ?: emptyList()
+
+            val fileSizeBytes = messageFileMap[msgId]
+            val fileSizeDisplay = fileSizeBytes?.let { formatBytes(it) }
 
             GetChatMessageQueryResponse.of(
                 message = message,
                 profile = profileResponse,
                 currentUserId = currentUserId,
+                fileSizeBytes = fileSizeBytes,
+                fileSizeDisplay = fileSizeDisplay,
+                readByUsers = readersAtThisMessage
             )
         }.reversed()
 
@@ -288,16 +328,17 @@ class ChatService(
         val latestMessagesMap = chatMessageRepository.findTopMessagesByChatRoomChatIds(chatIds)
             .associateBy { message -> message.chatRoom.chatId }
 
-        val allMemberUserIds = chatRooms.flatMap { chatRoom ->
-            if (chatRoom.type == ChatRoomType.DIRECT) {
-                chatRoom.members.filter { member -> member.userId != currentUserId }.map { member -> member.userId }
-            } else {
-                chatRoom.members.map { member -> member.userId }
-            }
+        val allOtherMemberUserIds = chatRooms.flatMap { chatRoom ->
+            chatRoom.members
+                .filter { member -> member.userId != currentUserId }
+                .map { member -> member.userId }
         }.distinct()
 
-        val userProfileMap = userService.getUserProfiles(allMemberUserIds)
-            .associateBy { profile -> profile.userId }
+        val userProfileMap = if (allOtherMemberUserIds.isNotEmpty()) {
+            userService.getUserProfiles(allOtherMemberUserIds).associateBy { profile -> profile.userId }
+        } else {
+            emptyMap()
+        }
 
         val roomSummaries = chatRooms.map { chatRoom ->
             val chatId = chatRoom.chatId!!
@@ -315,8 +356,9 @@ class ChatService(
                 }
             }
 
+            val otherMembers = chatRoom.members.filter { it.userId != currentUserId }
             val profileImages: List<String> = if (chatRoom.type == ChatRoomType.DIRECT) {
-                val otherMember = chatRoom.members.find { member -> member.userId != currentUserId }
+                val otherMember = otherMembers.firstOrNull()
                 otherMember?.let { member ->
                     listOfNotNull(userProfileMap[member.userId]?.profileImageUrl)
                 } ?: emptyList()
@@ -347,6 +389,14 @@ class ChatService(
 
         if (member.lastChatMessageId == null || member.lastChatMessageId!! < messageId) {
             member.lastChatMessageId = messageId
+
+            val readEvent = ChatMessageReadEvent(
+                chatId = chatId,
+                userId = userId,
+                lastReadMessageId = messageId
+            )
+            val payload = objectMapper.writeValueAsString(readEvent)
+            kafkaTemplate.send("chat-topic", payload)
         }
     }
 

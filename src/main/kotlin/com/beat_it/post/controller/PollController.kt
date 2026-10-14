@@ -99,6 +99,21 @@ class PollController (
             .body(BasicResponse.success(HttpStatus.OK, "성공적으로 투표하였습니다."))
     }
 
+    @Operation(summary = "투표 취소하기")
+    @DeleteMapping("/{pollId}/votes")
+    fun cancelVote(
+        @AuthenticationPrincipal userDetails: UserDetails,
+        @PathVariable pollId: Long
+    ): ResponseEntity<BasicResponse<Nothing>> {
+        val userId = extractUserId(userDetails)
+
+        pollService.cancelVote(userId, pollId)
+
+        return ResponseEntity
+            .status(HttpStatus.OK)
+            .body(BasicResponse.success(HttpStatus.OK, "투표가 성공적으로 취소되었습니다."))
+    }
+
     @Operation(summary = "투표 삭제하기 - 작성자만 가능")
     @DeleteMapping("/{pollId}")
     fun deletePoll(

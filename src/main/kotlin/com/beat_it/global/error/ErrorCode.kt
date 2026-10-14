@@ -28,6 +28,7 @@ enum class ErrorCode(
     MISSING_PASSWORD(HttpStatus.BAD_REQUEST, "SIGNUP-008", "일반 회원가입 시 비밀번호는 필수입니다."),
     EMAIL_NOT_VERIFIED(HttpStatus.BAD_REQUEST, "SIGNUP-009", "인증되지 않은 이메일입니다."),
     EMAIL_DUPLICATED(HttpStatus.BAD_REQUEST, "SIGNUP-010", "이미 가입된 이메일입니다."),
+    INVALID_PASSWORD_FORMAT(HttpStatus.BAD_REQUEST, "SIGNUP-011", "비밀번호는 영문, 숫자, 특수문자(!@#$%^&*?_~)를 포함하여 8~20자여야 합니다."),
 
     IDENTIFIER_NOT_FOUND(HttpStatus.NOT_FOUND, "LOGIN-001", "존재하지 않는 아이디입니다."),
     INVALID_PASSWORD(HttpStatus.BAD_REQUEST, "LOGIN-002", "비밀번호가 일치하지 않습니다."),
@@ -106,6 +107,7 @@ enum class ErrorCode(
     POLL_MULTIPLE_CHOICE_NOT_ALLOWED(HttpStatus.BAD_REQUEST, "POST-009", "중복 투표가 허용되지 않는 투표입니다."),
     POLL_OPTION_REQUIRED(HttpStatus.BAD_REQUEST, "POST-010", "투표할 항목을 선택해주세요."),
     POLL_ALREADY_VOTED(HttpStatus.BAD_REQUEST, "POST-011", "이미 참여자가 있는 투표는 수정할 수 없습니다."),
+    POLL_NOT_VOTED(HttpStatus.BAD_REQUEST, "POST-012", "투표에 참여하지 않은 상태입니다."),
 
     // --- 6. 모임 조율 관련 에러 (MEETIT) ---
     MEETIT_TEAM_MISMATCH(HttpStatus.FORBIDDEN, "MEETIT-001", "현재 팀에서 접근할 수 없는 모임 조율입니다."),
@@ -148,4 +150,9 @@ enum class ErrorCode(
     PERFORMANCE_TITLE_REQUIRED(HttpStatus.BAD_REQUEST, "PERFORMANCE-009", "공연 제목은 필수입니다."),
     PERFORMANCE_DATE_REQUIRED(HttpStatus.BAD_REQUEST, "PERFORMANCE-010", "공연 일시는 필수입니다."),
     PERFORMANCE_HOST_NAME_REQUIRED(HttpStatus.BAD_REQUEST, "PERFORMANCE-011", "호스트 이름은 필수입니다."),
+
+    // --- 8. 알림 관련 에러 (NOTIFICATION) ---
+    NOTIFICATION_NOT_FOUND(HttpStatus.NOT_FOUND, "NOTIFICATION-001", "알림을 찾을 수 없습니다."),
+    NOTIFICATION_NO_PERMISSION(HttpStatus.FORBIDDEN, "NOTIFICATION-002", "해당 알림에 대한 권한이 없습니다."),
+    KAFKA_SERVER_UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE, "NOTIFICATION-003", "카프카 브로커에 연결할 수 없습니다. 카프카 서버 상태를 확인해주세요."),
 }

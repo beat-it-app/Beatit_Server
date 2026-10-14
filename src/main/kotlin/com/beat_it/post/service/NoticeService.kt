@@ -27,7 +27,11 @@ import com.beat_it.post.entity.PostComments
 import com.beat_it.post.entity.enum.NoticeSortType
 import com.beat_it.post.repository.notice.NoticeAttachmentsRepository
 import com.beat_it.post.repository.notice.NoticeReactionRepository
+import com.beat_it.notification.event.NotificationEvent
+import com.beat_it.notification.template.NotificationTemplate
 import com.beat_it.post.repository.notice.NoticeRepository
+import com.beat_it.team.service.TeamService
+import org.springframework.context.ApplicationEventPublisher
 import org.springframework.data.domain.PageRequest
 
 @Service
@@ -38,7 +42,9 @@ class NoticeService(
     private val noticeReactionRepository: NoticeReactionRepository,
     private val commentService: CommentService,
     private val postFilesRepository: PostFilesRepository,
-    private val userService: UserService
+    private val userService: UserService,
+    private val teamService: TeamService,
+    private val eventPublisher: ApplicationEventPublisher
 ) {
 
     @Transactional(readOnly = true)
@@ -122,6 +128,25 @@ class NoticeService(
 
         val savedNotice = noticeRepository.save(notice)
         saveNoticeAttachments(savedNotice, uploadedPostFiles, userId)
+
+        val teamMembers = teamService.getTeamMemberUserIds(teamId)
+        val targetUserIds = teamMembers.filter { it != userId }
+        if (targetUserIds.isNotEmpty()) {
+            val teamName = teamService.getTeamName(teamId)
+            val authorName = userService.getUserProfile(userId)?.name ?: "공지 작성자"
+            eventPublisher.publishEvent(
+                NotificationEvent(
+                    targetUserIds = targetUserIds,
+                    teamId = teamId,
+                    message = NotificationTemplate.noticeRegistered(
+                        teamName = teamName,
+                        noticeTitle = savedNotice.title,
+                        authorName = authorName,
+                        noticeId = savedNotice.noticeId
+                    )
+                )
+            )
+        }
     }
 
     @Transactional(readOnly = true)
@@ -346,7 +371,15 @@ class NoticeService(
         val teamId = userService.getCurrentTeamId(userId)
         validateTeam(notice, teamId)
 
-        commentService.createComment(userId, teamId, PostType.NOTICE, noticeId, dto)
+        commentService.createComment(
+            userId = userId,
+            teamId = teamId,
+            postType = PostType.NOTICE,
+            postId = noticeId,
+            dto = dto,
+            postTitle = notice.title,
+            postWriterId = notice.userId
+        )
 
         notice.increaseComment()
         noticeRepository.save(notice)

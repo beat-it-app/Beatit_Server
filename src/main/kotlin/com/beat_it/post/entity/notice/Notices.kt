@@ -41,6 +41,7 @@ class Notices(
         this.title = title
         this.content = content
         this.thumbnailImageUrl = thumbnailImageUrl
+        this.updateTimestamp()
     }
 
     fun increaseLike() {

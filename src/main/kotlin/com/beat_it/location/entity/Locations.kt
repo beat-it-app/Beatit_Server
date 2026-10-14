@@ -58,5 +58,6 @@ class Locations(
         phone?.let { this.phone = it }
         kakaoPlaceId?.let { this.kakaoPlaceId = it }
         jibunAddress?.let { this.jibunAddress = it }
+        this.updateTimestamp()
     }
 }
