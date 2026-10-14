@@ -21,7 +21,8 @@ class NotificationService(
     private val teamService: TeamService,
     private val userService: UserService,
     private val pushNotificationService: PushNotificationService,
-    private val notificationProducer: NotificationProducer
+    private val notificationProducer: NotificationProducer,
+    private val notificationSettingService: NotificationSettingService
 ) {
 
     @Transactional(readOnly = true)
@@ -111,7 +112,10 @@ class NotificationService(
 
     @Transactional
     fun sendNotification(userId: Long, teamId: Long, message: NotificationMessage
-    ): Notifications {
+    ): Notifications? {
+        val allowed = notificationSettingService.filterEnabledUserIds(listOf(userId), message)
+        if (allowed.isEmpty()) return null
+
         val notification = Notifications(
             userId = userId,
             teamId = teamId,
@@ -139,7 +143,10 @@ class NotificationService(
         val distinctUserIds = userIds.distinct()
         if (distinctUserIds.isEmpty()) return emptyList()
 
-        val notifications = distinctUserIds.map { targetUserId ->
+        val allowedUserIds = notificationSettingService.filterEnabledUserIds(distinctUserIds, message)
+        if (allowedUserIds.isEmpty()) return emptyList()
+
+        val notifications = allowedUserIds.map { targetUserId ->
             Notifications(
                 userId = targetUserId,
                 teamId = teamId,
