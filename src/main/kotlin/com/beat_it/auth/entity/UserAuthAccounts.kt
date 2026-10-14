@@ -32,6 +32,9 @@ class UserAuthAccounts(
 
     @Column(name = "google_id")
     var googleId: String? = null,
+
+    @Column(name = "apple_id")
+    var appleId: String? = null,
 ) {
     fun updatePassword(encodedPassword: String?) {
         this.password = encodedPassword
@@ -42,6 +45,7 @@ class UserAuthAccounts(
             kakaoId != null -> SocialProvider.KAKAO
             naverId != null -> SocialProvider.NAVER
             googleId != null -> SocialProvider.GOOGLE
+            appleId != null -> SocialProvider.APPLE
             else -> null
         }
 
@@ -71,9 +75,8 @@ class UserAuthAccounts(
                     email = email,
                     kakaoId = if (provider == SocialProvider.KAKAO) socialId else null,
                     naverId = if (provider == SocialProvider.NAVER) socialId else null,
-                    googleId = if (provider == SocialProvider.GOOGLE) socialId else null
-
-                    // TODO : 셋 중 하나는 꼭 할당되도록 하기.
+                    googleId = if (provider == SocialProvider.GOOGLE) socialId else null,
+                    appleId = if (provider == SocialProvider.APPLE) socialId else null
                 )
             }
         }

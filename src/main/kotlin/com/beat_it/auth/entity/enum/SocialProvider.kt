@@ -1,5 +1,5 @@
 package com.beat_it.auth.entity.enum
 
 enum class SocialProvider {
-    KAKAO, NAVER, GOOGLE
+    KAKAO, NAVER, GOOGLE, APPLE
 }

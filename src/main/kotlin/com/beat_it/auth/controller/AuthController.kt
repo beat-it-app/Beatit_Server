@@ -8,6 +8,7 @@ import com.beat_it.auth.dto.GoogleLoginRequest
 import com.beat_it.auth.dto.FindIdentifierResponse
 import com.beat_it.auth.dto.KakaoLoginRequest
 import com.beat_it.auth.dto.NaverLoginRequest
+import com.beat_it.auth.dto.AppleLoginRequest
 import com.beat_it.auth.dto.ResetPasswordRequest
 import com.beat_it.auth.dto.ResetPasswordResponse
 import com.beat_it.auth.service.AuthService
@@ -93,6 +94,18 @@ class AuthController (
             .header("Authorization", "Bearer $accessToken")
             .header("Refresh-Token", refreshToken)
             .body(BasicResponse.success(data, HttpStatus.OK, "네이버 로그인이 성공적으로 처리되었습니다."))
+    }
+
+    @Operation(summary = "애플 로그인")
+    @PostMapping("/apple")
+    fun appleLogin(@RequestBody appleLoginRequest: AppleLoginRequest): ResponseEntity<BasicResponse<LoginResponse>> {
+        val (accessToken, refreshToken, data) = authService.appleLogin(appleLoginRequest)
+
+        return ResponseEntity
+            .status(HttpStatus.OK)
+            .header("Authorization", "Bearer $accessToken")
+            .header("Refresh-Token", refreshToken)
+            .body(BasicResponse.success(data, HttpStatus.OK, "애플 로그인이 성공적으로 처리되었습니다."))
     }
 
     @Operation(summary = "이메일 인증번호 발송")

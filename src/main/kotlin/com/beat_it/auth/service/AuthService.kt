@@ -8,6 +8,7 @@ import com.beat_it.auth.dto.GoogleLoginRequest
 import com.beat_it.auth.dto.FindIdentifierResponse
 import com.beat_it.auth.dto.KakaoLoginRequest
 import com.beat_it.auth.dto.NaverLoginRequest
+import com.beat_it.auth.dto.AppleLoginRequest
 import com.beat_it.auth.dto.ResetPasswordRequest
 import com.beat_it.auth.dto.ResetPasswordResponse
 import com.beat_it.auth.entity.UserAuthAccounts
@@ -43,6 +44,7 @@ class AuthService (
     private val googleAuthService: GoogleAuthService,
     private val kakaoAuthService: KakaoAuthService,
     private val naverAuthService: NaverAuthService,
+    private val appleAuthService: AppleAuthService,
     private val refreshTokenService: RefreshTokenService,
     private val emailService: EmailService,
     private val redisTemplate: StringRedisTemplate,
@@ -356,6 +358,71 @@ class AuthService (
                 role = user.role,
                 isCreatedProfile = isCreatedProfile,
                 socialProvider = SocialProvider.NAVER
+            )
+        )
+    }
+
+    @Transactional
+    fun appleLogin(dto: AppleLoginRequest): Triple<String, String, LoginResponse> {
+        val applePayload = appleAuthService.verifyToken(dto.identityToken)
+
+        var userAuthAccount = userAuthAccountRepository.findByAppleId(applePayload.appleId)
+
+        if (userAuthAccount == null) {
+            var user = Users.createNewUser(
+                role = Role.USER,
+                accountStatus = AccountStatus.ACTIVE
+            )
+            user = userRepository.save(user)
+
+            val userSetting = UserSettings.createNewUser(
+                user,
+                allowAutoLogin = false
+            )
+            userSettingsRepository.save(userSetting)
+
+            val resolvedEmail = dto.email ?: applePayload.email ?: "${applePayload.appleId}@apple.user"
+
+            userAuthAccount = UserAuthAccounts.createSocialUser(
+                user = user,
+                email = resolvedEmail,
+                socialId = applePayload.appleId,
+                provider = SocialProvider.APPLE
+            )
+            userAuthAccountRepository.save(userAuthAccount)
+        }
+
+        val user = userAuthAccount.user
+        val isCreatedProfile = userProfilesRepository.existsByUser_UserId(user.userId)
+
+        val accessToken = jwtTokenProvider.createAccessToken(
+            userId = user.userId.toString(),
+            role = user.role,
+            deviceId = dto.deviceId
+        )
+
+        val refreshToken = jwtTokenProvider.createRefreshToken(
+            userId = user.userId.toString(),
+            deviceId = dto.deviceId
+        )
+        refreshTokenService.saveRefreshToken(
+            userId = user.userId.toString(),
+            refreshToken = refreshToken,
+            expirationMs = jwtTokenProvider.refreshTokenValidity
+        )
+
+        user.userId?.let { uid ->
+            registerPushTokenIfPresent(uid, dto.deviceId, dto.platformType, dto.pushToken, dto.appVersion)
+        }
+
+        return Triple(
+            accessToken,
+            refreshToken,
+            LoginResponse(
+                userId = user.userId,
+                role = user.role,
+                isCreatedProfile = isCreatedProfile,
+                socialProvider = SocialProvider.APPLE
             )
         )
     }
