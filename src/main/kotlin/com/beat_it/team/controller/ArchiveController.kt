@@ -6,6 +6,8 @@ import com.beat_it.global.response.BasicResponse
 import com.beat_it.team.dto.*
 import com.beat_it.team.entity.enum.ArchiveSortType
 import com.beat_it.team.service.ArchiveService
+import com.fasterxml.jackson.core.JsonProcessingException
+import com.fasterxml.jackson.databind.ObjectMapper
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.Parameter
 import io.swagger.v3.oas.annotations.tags.Tag
@@ -22,6 +24,7 @@ import org.springframework.web.multipart.MultipartFile
 @RequestMapping("/teams/archives")
 class ArchiveController(
     private val archiveService: ArchiveService,
+    private val objectMapper: ObjectMapper,
 ) {
     @Operation(summary = "연습실 생성하기")
     @PostMapping(consumes = [MediaType.MULTIPART_FORM_DATA_VALUE])
@@ -64,8 +67,8 @@ class ArchiveController(
         @Parameter(description = "장소 ID")
         @RequestParam(required = false) locationId: Long?,
         @RequestParam(required = false) description: String?,
-        @Parameter(description = "보존할 기존 이미지 URL의 JSON 배열. 미전달 시 기존 이미지 수정 방식 유지, [] 전달 시 전체 삭제. JSON part의 Content-Type은 application/json")
-        @RequestPart(value = "retainArchiveImageUrls", required = false) retainArchiveImageUrls: List<String>?,
+        @Parameter(description = "보존할 기존 이미지 URL을 JSON 배열 문자열로 입력. 예: [\"URL1\",\"URL2\"]. 미전달 시 기존 이미지 수정 방식 유지, [] 전달 시 전체 삭제. multipart 텍스트 필드로 전송")
+        @RequestParam(value = "retainArchiveImageUrls", required = false) retainArchiveImageUrlsJson: String?,
         @RequestPart(value = "archiveImages", required = false) archiveImages: List<MultipartFile>?,
     ): ResponseEntity<BasicResponse<ArchiveUpdateResponse>> {
         val userId = extractUserId(userDetails)
@@ -74,7 +77,7 @@ class ArchiveController(
             title = title,
             locationId = locationId,
             description = description,
-            retainArchiveImageUrls = retainArchiveImageUrls,
+            retainArchiveImageUrls = parseRetainArchiveImageUrls(retainArchiveImageUrlsJson),
         )
 
         val responseData = archiveService.updateArchive(
@@ -195,6 +198,20 @@ class ArchiveController(
         return ResponseEntity
             .status(HttpStatus.OK)
             .body(BasicResponse.success(responseData, HttpStatus.OK, "연습실 목록 조회에 성공했습니다."))
+    }
+
+    private fun parseRetainArchiveImageUrls(value: String?): List<String>? {
+        if (value.isNullOrBlank()) return null
+
+        val jsonNode = try {
+            objectMapper.readTree(value)
+        } catch (_: JsonProcessingException) {
+            throw BusinessException(ErrorCode.INVALID_INPUT_VALUE)
+        }
+        if (jsonNode == null || !jsonNode.isArray || jsonNode.any { !it.isTextual }) {
+            throw BusinessException(ErrorCode.INVALID_INPUT_VALUE)
+        }
+        return jsonNode.map { it.asText() }
     }
 
     private fun extractUserId(userDetails: UserDetails): Long {
