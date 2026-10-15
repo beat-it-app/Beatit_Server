@@ -10,6 +10,8 @@ import com.beat_it.auth.dto.KakaoLoginRequest
 import com.beat_it.auth.dto.NaverLoginRequest
 import com.beat_it.auth.dto.ResetPasswordRequest
 import com.beat_it.auth.dto.ResetPasswordResponse
+import com.beat_it.auth.dto.WithdrawalRequest
+import com.beat_it.auth.dto.WithdrawalResponse
 import com.beat_it.auth.entity.UserAuthAccounts
 import com.beat_it.auth.entity.UserSettings
 import com.beat_it.auth.entity.Users
@@ -579,5 +581,35 @@ class AuthService (
         redisTemplate.delete(verifiedKey)
 
         return ResetPasswordResponse(request.newPassword)
+    }
+
+    @Transactional
+    fun withdraw(userId: Long, request: WithdrawalRequest): WithdrawalResponse {
+        val user = userRepository.findById(userId)
+            .orElseThrow { BusinessException(ErrorCode.USER_NOT_FOUND) }
+        val authAccount = userAuthAccountRepository.findByUserUserId(userId)
+            ?: throw BusinessException(ErrorCode.USER_NOT_FOUND)
+
+        if (authAccount.identifier != null) {
+            if (request.password.isNullOrBlank() || !passwordEncoder.matches(request.password, authAccount.password)) {
+                throw BusinessException(ErrorCode.INVALID_PASSWORD)
+            }
+        }
+
+        user.withdraw()
+        pushTokenService.deactivateAllUserTokens(userId)
+
+        return WithdrawalResponse(
+            userId = userId,
+            requestedAt = user.withdrawnAt!!,
+            scheduledDeletionDate = user.withdrawnAt!!.plusDays(7)
+        )
+    }
+
+    fun logout(userId: Long, deviceId: String? = null) {
+        refreshTokenService.deleteRefreshToken(userId.toString())
+        if (!deviceId.isNullOrBlank()) {
+            pushTokenService.deactivateToken(userId, deviceId)
+        }
     }
 }

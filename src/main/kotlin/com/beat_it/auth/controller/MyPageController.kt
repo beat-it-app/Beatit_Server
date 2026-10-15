@@ -2,8 +2,6 @@ package com.beat_it.auth.controller
 
 import com.beat_it.auth.dto.MyPageResponse
 import com.beat_it.auth.dto.UpdateNameRequest
-import com.beat_it.auth.dto.WithdrawalRequest
-import com.beat_it.auth.dto.WithdrawalResponse
 import com.beat_it.auth.service.MyPageService
 import com.beat_it.global.error.BusinessException
 import com.beat_it.global.error.ErrorCode
@@ -14,7 +12,6 @@ import jakarta.validation.Valid
 import org.springframework.http.HttpStatus
 import org.springframework.http.MediaType
 import org.springframework.http.ResponseEntity
-import org.springframework.security.core.Authentication
 import org.springframework.security.core.annotation.AuthenticationPrincipal
 import org.springframework.security.core.userdetails.UserDetails
 import org.springframework.web.bind.annotation.*
@@ -81,37 +78,6 @@ class MyPageController (
 
         return ResponseEntity.ok(
             BasicResponse.success(HttpStatus.OK, "프로필 이미지가 삭제되었습니다.")
-        )
-    }
-
-    @Operation(summary = "회원 탈퇴")
-    @PatchMapping("/withdraw")
-    fun withdraw(
-        @AuthenticationPrincipal userDetails: UserDetails,
-        @Valid @RequestBody request: WithdrawalRequest
-    ): ResponseEntity<BasicResponse<WithdrawalResponse>> {
-        val userId = extractUserId(userDetails)
-
-        val data = myPageService.withdraw(userId, request)
-
-        return ResponseEntity.ok(
-            BasicResponse.success(data, HttpStatus.OK, "회원 탈퇴 요청이 정상적으로 접수되었습니다.")
-        )
-    }
-
-    @Operation(summary = "로그아웃", description = "로그아웃을 처리하며, 현재 기기의 푸시 토큰을 자동으로 비활성화합니다.")
-    @PostMapping("/logout")
-    fun logout(
-        @AuthenticationPrincipal userDetails: UserDetails,
-        authentication: Authentication
-    ): ResponseEntity<BasicResponse<Nothing>> {
-        val userId = extractUserId(userDetails)
-        val deviceId = authentication.details as? String
-
-        myPageService.logout(userId, deviceId)
-
-        return ResponseEntity.ok(
-            BasicResponse.success(HttpStatus.OK, "로그아웃이 성공적으로 처리되었습니다.")
         )
     }
 
