@@ -2,10 +2,12 @@ package com.beat_it.auth.service
 
 import com.beat_it.auth.dto.MyPageResponse
 import com.beat_it.auth.dto.MyPageTeamResponse
+import com.beat_it.auth.dto.ScreenModeDto
 import com.beat_it.auth.dto.UpdateNameRequest
 import com.beat_it.auth.entity.AuthFiles
 import com.beat_it.auth.entity.UserAuthAccounts
 import com.beat_it.auth.entity.UserProfiles
+import com.beat_it.auth.entity.UserSettings
 import com.beat_it.auth.entity.Users
 import com.beat_it.auth.entity.enum.DefaultProfileImage
 import com.beat_it.auth.entity.enum.MediaCategory
@@ -27,6 +29,7 @@ class MyPageService (
     private val userAuthAccountRepository: UserAuthAccountRepository,
     private val teamMembershipRepository: TeamMembershipRepository,
     private val authFilesRepository: AuthFilesRepository,
+    private val userSettingsRepository: UserSettingsRepository,
     private val fileService: FileService
 ){
     fun getMyPage(userId: Long): MyPageResponse {
@@ -156,6 +159,18 @@ class MyPageService (
         userProfile.updateProfileImage(null, DefaultProfileImage.getRandom())
     }
 
+    fun getScreenMode(userId: Long): ScreenModeDto {
+        val userSettings = getUserSettings(userId)
+        return ScreenModeDto(screenMode = userSettings.screenMode)
+    }
+
+    @Transactional
+    fun updateScreenMode(userId: Long, request: ScreenModeDto): ScreenModeDto {
+        val userSettings = getUserSettings(userId)
+        userSettings.updateScreenMode(request.screenMode)
+        return ScreenModeDto(screenMode = userSettings.screenMode)
+    }
+
     private fun getUser(userId: Long): Users{
         return userRepository.findByIdOrNull(userId)
             ?: throw BusinessException(ErrorCode.USER_NOT_FOUND)
@@ -169,5 +184,18 @@ class MyPageService (
     private fun getUserAuthAccount(userId: Long): UserAuthAccounts{
         return userAuthAccountRepository.findByUserUserId(userId)
             ?: throw BusinessException(ErrorCode.USER_NOT_FOUND)
+    }
+
+    private fun getUserSettings(userId: Long): UserSettings {
+        return userSettingsRepository.findByUsers_UserId(userId)
+            ?: run {
+                val user = getUser(userId)
+                userSettingsRepository.save(
+                    UserSettings.createNewUser(
+                        user = user,
+                        allowAutoLogin = false
+                    )
+                )
+            }
     }
 }

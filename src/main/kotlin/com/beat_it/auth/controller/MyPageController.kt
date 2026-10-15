@@ -1,6 +1,7 @@
 package com.beat_it.auth.controller
 
 import com.beat_it.auth.dto.MyPageResponse
+import com.beat_it.auth.dto.ScreenModeDto
 import com.beat_it.auth.dto.UpdateNameRequest
 import com.beat_it.auth.service.MyPageService
 import com.beat_it.global.error.BusinessException
@@ -84,5 +85,34 @@ class MyPageController (
     private fun extractUserId(userDetails: UserDetails): Long {
         return userDetails.username.toLongOrNull()
             ?: throw BusinessException(ErrorCode.UNAUTHORIZED)
+    }
+
+    @Operation(summary = "화면 모드 조회")
+    @GetMapping("/screen-mode")
+    fun getScreenMode(
+        @AuthenticationPrincipal userDetails: UserDetails
+    ): ResponseEntity<BasicResponse<ScreenModeDto>> {
+        val userId = extractUserId(userDetails)
+
+        val data = myPageService.getScreenMode(userId)
+
+        return ResponseEntity
+            .status(HttpStatus.OK)
+            .body(BasicResponse.success(data, HttpStatus.OK, "화면 모드 불러오기에 성공했습니다."))
+    }
+
+    @Operation(summary = "화면 모드 변경")
+    @PatchMapping("/screen-mode")
+    fun updateScreenMode(
+        @AuthenticationPrincipal userDetails: UserDetails,
+        @Valid @RequestBody request: ScreenModeDto
+    ): ResponseEntity<BasicResponse<ScreenModeDto>> {
+        val userId = extractUserId(userDetails)
+
+        val data = myPageService.updateScreenMode(userId, request)
+
+        return ResponseEntity
+            .status(HttpStatus.OK)
+            .body(BasicResponse.success(data, HttpStatus.OK, "화면 모드 변경에 성공했습니다."))
     }
 }
