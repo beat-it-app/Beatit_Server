@@ -25,13 +25,17 @@ import com.beat_it.auth.repository.UserSettingsRepository
 import com.beat_it.global.error.BusinessException
 import com.beat_it.global.error.ErrorCode
 import com.beat_it.global.security.jwt.JwtTokenProvider
-import jakarta.transaction.Transactional
+import org.springframework.transaction.annotation.Transactional
 import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.stereotype.Service
 import org.springframework.data.redis.core.StringRedisTemplate
+import com.beat_it.auth.dto.UserWithdrawalInfoResponse
+import com.beat_it.cal.service.ScheduleService
 import com.beat_it.notification.dto.PushTokenRegisterRequest
 import com.beat_it.notification.entity.enum.PlatformType
 import com.beat_it.notification.service.PushTokenService
+import com.beat_it.team.service.TeamCloudService
+import com.beat_it.team.service.TeamService
 import org.slf4j.LoggerFactory
 
 @Service
@@ -48,7 +52,10 @@ class AuthService (
     private val refreshTokenService: RefreshTokenService,
     private val emailService: EmailService,
     private val redisTemplate: StringRedisTemplate,
-    private val pushTokenService: PushTokenService
+    private val pushTokenService: PushTokenService,
+    private val teamService: TeamService,
+    private val teamCloudService: TeamCloudService,
+    private val scheduleService: ScheduleService
 ){
     private val log = LoggerFactory.getLogger(AuthService::class.java)
 
@@ -611,5 +618,24 @@ class AuthService (
         if (!deviceId.isNullOrBlank()) {
             pushTokenService.deactivateToken(userId, deviceId)
         }
+    }
+
+    @Transactional(readOnly = true)
+    fun getWithdrawalInfo(userId: Long): UserWithdrawalInfoResponse {
+        userRepository.findById(userId)
+            .orElseThrow { BusinessException(ErrorCode.USER_NOT_FOUND) }
+
+        val teamCount = teamService.countActiveTeamsByUserId(userId)
+        val fileCount = teamCloudService.countUploadedFilesByUserId(userId) +
+                scheduleService.countScheduleFilesByUserId(userId)
+        val sharedMusicCount = teamCloudService.countScoresAndMusicsByUserId(userId)
+        val scheduleCount = scheduleService.countSchedulesByUserId(userId)
+
+        return UserWithdrawalInfoResponse(
+            teamCount = teamCount,
+            fileCount = fileCount,
+            sharedMusicCount = sharedMusicCount,
+            scheduleCount = scheduleCount
+        )
     }
 }

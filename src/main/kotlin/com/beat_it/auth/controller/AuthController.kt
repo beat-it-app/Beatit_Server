@@ -12,6 +12,7 @@ import com.beat_it.auth.dto.ResetPasswordRequest
 import com.beat_it.auth.dto.ResetPasswordResponse
 import com.beat_it.auth.dto.WithdrawalRequest
 import com.beat_it.auth.dto.WithdrawalResponse
+import com.beat_it.auth.dto.UserWithdrawalInfoResponse
 import com.beat_it.auth.service.AuthService
 import com.beat_it.global.error.BusinessException
 import com.beat_it.global.error.ErrorCode
@@ -212,6 +213,21 @@ class AuthController (
         return ResponseEntity
             .status(HttpStatus.OK)
             .body(BasicResponse.success(response, HttpStatus.OK, "비밀번호 재설정이 성공적으로 처리되었습니다."))
+    }
+
+    @Operation(summary = "회원 탈퇴 안내 페이지 정보 조회")
+    @SecurityRequirement(name = "JWT AUTH")
+    @GetMapping("/withdrawl-info")
+    fun getWithdrawalInfo(
+        @AuthenticationPrincipal userDetails: UserDetails
+    ): ResponseEntity<BasicResponse<UserWithdrawalInfoResponse>> {
+        val userId = extractUserId(userDetails)
+
+        val data = authService.getWithdrawalInfo(userId)
+
+        return ResponseEntity.ok(
+            BasicResponse.success(data, HttpStatus.OK, "회원 탈퇴 안내 정보 조회에 성공했습니다.")
+        )
     }
 
     @Operation(summary = "회원 탈퇴")

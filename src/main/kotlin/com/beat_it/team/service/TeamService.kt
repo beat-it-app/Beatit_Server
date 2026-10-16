@@ -10,12 +10,14 @@ import com.beat_it.team.entity.TeamLinks
 import com.beat_it.team.entity.TeamMemberships
 import com.beat_it.team.entity.Teams
 import com.beat_it.team.entity.enum.TeamRole
+import com.beat_it.cal.service.ScheduleService
 import com.beat_it.team.repository.TeamLinksRepository
 import com.beat_it.team.repository.TeamMembershipRepository
 import com.beat_it.team.repository.TeamRepository
 import com.beat_it.notification.event.NotificationEvent
 import com.beat_it.notification.template.NotificationTemplate
 import org.springframework.context.ApplicationEventPublisher
+import org.springframework.context.annotation.Lazy
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import org.springframework.web.multipart.MultipartFile
@@ -29,7 +31,9 @@ class TeamService(
     private val teamMembershipRepository: TeamMembershipRepository,
     private val fileService: FileService,
     private val teamImageUploadService: TeamImageUploadService,
-    private val eventPublisher: ApplicationEventPublisher
+    private val eventPublisher: ApplicationEventPublisher,
+    private val teamCloudService: TeamCloudService,
+    @Lazy private val scheduleService: ScheduleService
 ) {
 
     @Transactional
@@ -152,19 +156,16 @@ class TeamService(
     }
 
     @Transactional
-    fun deleteTeam(
-        userId: Long,
-        teamPublicId: UUID
-    ) {
-        userService.validateUserExists(userId)
-        val team = findTeamForCommandOrThrow(teamPublicId)
+    fun deleteTeam(userId: Long) {
+        val teamId = userService.getCurrentTeamId(userId)
+        val team = findTeamForCommandOrThrow(teamId)
 
-        validateTeamDeletePermission(team.teamId!!, userId)
+        validateTeamDeletePermission(teamId, userId)
 
-        userService.clearCurrentTeamIdByTeamId(team.teamId!!)
+        userService.clearCurrentTeamIdByTeamId(teamId)
 
         val activeMemberships = teamMembershipRepository
-            .findAllByTeamTeamIdAndLeftAtIsNull(team.teamId!!)
+            .findAllByTeamTeamIdAndLeftAtIsNull(teamId)
 
         activeMemberships.forEach { it.leaveTeam() }
 
@@ -441,10 +442,9 @@ class TeamService(
     }
 
     @Transactional
-    fun teamWithdraw(userId: Long, teamPublicId: UUID): TeamWithdrawalResponse {
-        userService.validateUserExists(userId)
-        val team = findTeamForCommandOrThrow(teamPublicId)
-        val teamId = team.teamId!!
+    fun teamWithdraw(userId: Long): TeamWithdrawalResponse {
+        val teamId = userService.getCurrentTeamId(userId)
+        val team = findTeamForCommandOrThrow(teamId)
 
         val membership = teamMembershipRepository.findByTeamTeamIdAndUserIdAndLeftAtIsNull(teamId, userId)
             ?: throw BusinessException(ErrorCode.NOT_TEAM_MEMBER)
@@ -471,10 +471,7 @@ class TeamService(
             )
         }
 
-        val currentTeamId = userService.getCurrentTeamIdOrNull(userId)
-        if (currentTeamId == teamId) {
-            userService.updateCurrentTeamId(userId, null)
-        }
+        userService.updateCurrentTeamId(userId, null)
 
         return TeamWithdrawalResponse(
             teamPublicId = team.publicId,
@@ -482,6 +479,47 @@ class TeamService(
             requestedAt = membership.leftAt!!,
             scheduledDeletionDate = membership.leftAt!!.plusDays(7)
         )
+    }
+
+    @Transactional(readOnly = true)
+    fun getTeamWithdrawalInfo(userId: Long): TeamExitInfoResponse {
+        val teamId = userService.getCurrentTeamId(userId)
+
+        findActiveMembershipOrThrow(teamId, userId)
+
+        val fileCount = teamCloudService.countUploadedFilesByTeamIdAndUserId(teamId, userId) +
+                scheduleService.countScheduleFilesByTeamIdAndUserId(teamId, userId)
+        val sharedMusicCount = teamCloudService.countScoresAndMusicsByTeamIdAndUserId(teamId, userId)
+        val scheduleCount = scheduleService.countSchedulesByTeamIdAndUserId(teamId, userId)
+
+        return TeamExitInfoResponse(
+            fileCount = fileCount,
+            sharedMusicCount = sharedMusicCount,
+            scheduleCount = scheduleCount
+        )
+    }
+
+    @Transactional(readOnly = true)
+    fun getTeamDeleteInfo(userId: Long): TeamExitInfoResponse {
+        val teamId = userService.getCurrentTeamId(userId)
+
+        validateTeamDeletePermission(teamId, userId)
+
+        val fileCount = teamCloudService.countUploadedFilesByTeamId(teamId) +
+                scheduleService.countScheduleFilesByTeamId(teamId)
+        val sharedMusicCount = teamCloudService.countScoresAndMusicsByTeamId(teamId)
+        val scheduleCount = scheduleService.countSchedulesByTeamId(teamId)
+
+        return TeamExitInfoResponse(
+            fileCount = fileCount,
+            sharedMusicCount = sharedMusicCount,
+            scheduleCount = scheduleCount
+        )
+    }
+
+    @Transactional(readOnly = true)
+    fun countActiveTeamsByUserId(userId: Long): Long {
+        return teamMembershipRepository.countByUserIdAndLeftAtIsNull(userId)
     }
 
     private fun findInviteCodeOrThrow(inviteCode: String): Teams {

@@ -414,4 +414,34 @@ class TeamCloudService(
             )
         }
     }
+
+    @Transactional(readOnly = true)
+    fun countUploadedFilesByUserId(userId: Long): Long {
+        return teamCloudItemRepository.countUploadedFilesByUserId(userId)
+    }
+
+    @Transactional(readOnly = true)
+    fun countUploadedFilesByTeamIdAndUserId(teamId: Long, userId: Long): Long {
+        return teamCloudItemRepository.countUploadedFilesByTeamIdAndUserId(teamId, userId)
+    }
+
+    @Transactional(readOnly = true)
+    fun countUploadedFilesByTeamId(teamId: Long): Long {
+        return teamCloudItemRepository.countUploadedFilesByTeamId(teamId)
+    }
+
+    @Transactional(readOnly = true)
+    fun countScoresAndMusicsByUserId(userId: Long): Long {
+        return teamCloudItemRepository.countScoresAndMusicsByUserId(userId)
+    }
+
+    @Transactional(readOnly = true)
+    fun countScoresAndMusicsByTeamIdAndUserId(teamId: Long, userId: Long): Long {
+        return teamCloudItemRepository.countScoresAndMusicsByTeamIdAndUserId(teamId, userId)
+    }
+
+    @Transactional(readOnly = true)
+    fun countScoresAndMusicsByTeamId(teamId: Long): Long {
+        return teamCloudItemRepository.countScoresAndMusicsByTeamId(teamId)
+    }
 }
