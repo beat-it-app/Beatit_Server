@@ -40,5 +40,7 @@ interface TeamMembershipRepository : JpaRepository<TeamMemberships, Long> {
 
     fun findAllByUserId(userId: Long): List<TeamMemberships>
 
+    fun countByUserIdAndLeftAtIsNull(userId: Long): Long
+
     fun findAllByLeftAtBefore(leftAt: java.time.OffsetDateTime): List<TeamMemberships>
 }

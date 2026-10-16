@@ -223,10 +223,19 @@ class ArchiveService(
 
         val archive = findAccessibleArchiveOrThrow(userId, archiveId)
         validateArchiveUpdatePermission(userId, archive)
+        val existingFiles = archivesFilesRepository.findAllByArchiveArchiveIdOrderByArchiveFileIdAsc(archiveId)
+        val retainList = request.retainArchiveImageUrls
+        val retainUrls = retainList?.toSet()
+        if (retainList != null &&
+            (retainList.distinct().size != retainList.size ||
+                !existingFiles.map { it.cdnUrl }.toSet().containsAll(retainList))) {
+            throw BusinessException(ErrorCode.INVALID_INPUT_VALUE)
+        }
         validateArchiveChanged(
             archive = archive,
             request = request,
             archiveImages = archiveImages,
+            existingFiles = existingFiles,
         )
 
         val location = request.locationId?.let { locationId ->
@@ -244,6 +253,8 @@ class ArchiveService(
             archive = archive,
             userId = userId,
             archiveImages = archiveImages,
+            existingFiles = existingFiles,
+            retainUrls = retainUrls,
         )
 
         val archiveImageUrls = archivesFilesRepository
@@ -478,26 +489,28 @@ class ArchiveService(
         archive: Archives,
         userId: Long,
         archiveImages: List<MultipartFile>?,
+        existingFiles: List<ArchivesFiles>,
+        retainUrls: Set<String>?,
     ) {
-        val validImages = archiveImages
-            .orEmpty()
-            .filterNot { archiveImage -> archiveImage.isEmpty }
+        val validImages = archiveImages.orEmpty().filterNot { it.isEmpty }
+        if (validImages.isEmpty() && retainUrls == null) return
 
-        if (validImages.isEmpty()) {
-            return
-        }
+        val urlsToRetain = retainUrls ?: emptySet()
+        val retainedFiles = existingFiles.filter { it.cdnUrl in urlsToRetain }
+        val filesToRemove = existingFiles.filterNot { it.cdnUrl in urlsToRetain }
 
-        val oldKeys = archivesFilesRepository.findAllByArchiveArchiveId(archive.archiveId!!).map { it.storageKey }
-        archivesFilesRepository.deleteAllByArchiveArchiveId(archive.archiveId!!)
-
-        val savedArchiveFiles = saveArchiveImages(
+        val addedFiles = saveArchiveImages(
             archive = archive,
             userId = userId,
             archiveImages = validImages,
         )
 
-        archive.updateArchiveImageUrl(savedArchiveFiles.firstOrNull()?.cdnUrl)
-        deleteFilesAfterCommit(oldKeys)
+        if (filesToRemove.isNotEmpty()) {
+            archivesFilesRepository.deleteAll(filesToRemove)
+        }
+
+        archive.updateArchiveImageUrl((retainedFiles + addedFiles).firstOrNull()?.cdnUrl)
+        deleteFilesAfterCommit(filesToRemove.map { it.storageKey })
     }
 
     private fun deleteFilesAfterCommit(keys: List<String>) {
@@ -777,10 +790,12 @@ class ArchiveService(
         archive: Archives,
         request: ArchiveUpdateRequest,
         archiveImages: List<MultipartFile>?,
+        existingFiles: List<ArchivesFiles>,
     ) {
-        val isImageChanged = archiveImages
-            .orEmpty()
-            .any { archiveImage -> !archiveImage.isEmpty }
+        val hasNewImages = archiveImages.orEmpty().any { !it.isEmpty }
+        val retainedUrls = request.retainArchiveImageUrls?.toSet()
+        val isImageChanged = hasNewImages ||
+            (retainedUrls != null && retainedUrls != existingFiles.map { it.cdnUrl }.toSet())
 
         val isAnyFieldChanged =
             (request.title != null && request.title != archive.title) ||

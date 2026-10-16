@@ -58,4 +58,24 @@ interface ScheduleRepository : JpaRepository<Schedule, Long> {
         @Param("startDateTime") startDateTime: OffsetDateTime,
         @Param("endDateTime") endDateTime: OffsetDateTime
     ): List<Schedule>
+
+    @Query("""
+        SELECT COUNT(DISTINCT s.scheduleId) FROM Schedule s
+        LEFT JOIN s.participants p
+        WHERE s.userId = :userId OR p.userId = :userId
+    """)
+    fun countSchedulesByUserId(@Param("userId") userId: Long): Long
+
+    @Query("""
+        SELECT COUNT(DISTINCT s.scheduleId) FROM Schedule s
+        LEFT JOIN s.participants p
+        WHERE s.teamId = :teamId AND (s.userId = :userId OR p.userId = :userId)
+    """)
+    fun countSchedulesByTeamIdAndUserId(@Param("teamId") teamId: Long, @Param("userId") userId: Long): Long
+
+    @Query("""
+        SELECT COUNT(s) FROM Schedule s
+        WHERE s.teamId = :teamId
+    """)
+    fun countSchedulesByTeamId(@Param("teamId") teamId: Long): Long
 }

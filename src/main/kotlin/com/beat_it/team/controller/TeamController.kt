@@ -79,20 +79,6 @@ class TeamController(
         return ResponseEntity.ok(BasicResponse.success(response, HttpStatus.OK, "팀 상세 내용이 성공적으로 수정되었습니다."))
     }
 
-    @Operation(summary = "팀 삭제하기")
-    @DeleteMapping("/{teamPublicId}")
-    fun deleteTeam(
-        @AuthenticationPrincipal userDetails: UserDetails,
-        @PathVariable teamPublicId: UUID
-    ): ResponseEntity<BasicResponse<Nothing>> {
-        val userId = extractUserId(userDetails)
-        teamService.deleteTeam(userId, teamPublicId)
-
-        return ResponseEntity
-            .status(HttpStatus.OK)
-            .body(BasicResponse.success(HttpStatus.OK, "팀이 성공적으로 삭제되었습니다."))
-    }
-
     @Operation(summary = "팀 페이지 불러오기")
     @GetMapping
     fun getTeamDetail(
@@ -271,19 +257,57 @@ class TeamController(
             .body(BasicResponse.success(responseData, HttpStatus.OK, "멤버 권한이 성공적으로 변경되었습니다."))
     }
 
+    @Operation(summary = "팀 탈퇴 안내 페이지 정보 조회")
+    @GetMapping("/withdrawl-info")
+    fun getTeamWithdrawalInfo(
+        @AuthenticationPrincipal userDetails: UserDetails
+    ): ResponseEntity<BasicResponse<TeamExitInfoResponse>> {
+        val userId = extractUserId(userDetails)
+        val responseData = teamService.getTeamWithdrawalInfo(userId)
+
+        return ResponseEntity.ok(
+            BasicResponse.success(responseData, HttpStatus.OK, "팀 탈퇴 안내 정보 조회에 성공했습니다.")
+        )
+    }
+
     @Operation(summary = "팀 탈퇴하기")
-    @PostMapping("/withdraw/{teamPublicId}")
+    @PostMapping("/withdraw")
     fun withdrawTeam(
-        @AuthenticationPrincipal userDetails: UserDetails,
-        @PathVariable teamPublicId: UUID
+        @AuthenticationPrincipal userDetails: UserDetails
     ): ResponseEntity<BasicResponse<com.beat_it.team.dto.TeamWithdrawalResponse>> {
         val userId = extractUserId(userDetails)
 
-        val responseData = teamService.teamWithdraw(userId, teamPublicId)
+        val responseData = teamService.teamWithdraw(userId)
 
         return ResponseEntity.ok(
             BasicResponse.success(responseData, HttpStatus.OK, "팀 탈퇴 요청이 정상적으로 접수되었습니다. 7일의 유예기간 후 완전히 탈퇴 처리됩니다.")
         )
+    }
+
+    @Operation(summary = "팀 삭제 안내 페이지 정보 조회")
+    @GetMapping("/deletion-info")
+    fun getTeamDeleteInfo(
+        @AuthenticationPrincipal userDetails: UserDetails
+    ): ResponseEntity<BasicResponse<TeamExitInfoResponse>> {
+        val userId = extractUserId(userDetails)
+        val responseData = teamService.getTeamDeleteInfo(userId)
+
+        return ResponseEntity.ok(
+            BasicResponse.success(responseData, HttpStatus.OK, "팀 삭제 안내 정보 조회에 성공했습니다.")
+        )
+    }
+
+    @Operation(summary = "팀 삭제하기")
+    @DeleteMapping("/delete")
+    fun deleteTeam(
+        @AuthenticationPrincipal userDetails: UserDetails
+    ): ResponseEntity<BasicResponse<Nothing>> {
+        val userId = extractUserId(userDetails)
+        teamService.deleteTeam(userId)
+
+        return ResponseEntity
+            .status(HttpStatus.OK)
+            .body(BasicResponse.success(HttpStatus.OK, "팀이 성공적으로 삭제되었습니다."))
     }
 
     private fun extractUserId(userDetails: UserDetails): Long {
