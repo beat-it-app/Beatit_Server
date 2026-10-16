@@ -495,8 +495,6 @@ class ArchiveService(
         val validImages = archiveImages.orEmpty().filterNot { it.isEmpty }
         if (validImages.isEmpty() && retainUrls == null) return
 
-        // 기존 요청과 호환: 보존 목록을 보내지 않고 새 이미지만 업로드하면 전체 교체.
-        // 보존 목록을 보내면 지정한 기존 이미지만 남기고 새 이미지를 뒤에 추가.
         val urlsToRetain = retainUrls ?: emptySet()
         val retainedFiles = existingFiles.filter { it.cdnUrl in urlsToRetain }
         val filesToRemove = existingFiles.filterNot { it.cdnUrl in urlsToRetain }
