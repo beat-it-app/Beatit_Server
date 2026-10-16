@@ -24,4 +24,51 @@ interface TeamCloudItemRepository : JpaRepository<TeamCloudItem, Long> {
         GROUP BY tf.mediaCategory
     """)
     fun findStorageUsageByCategory(@Param("teamId") teamId: Long): List<CategoryStorageUsageProjection>
+
+    @Query("""
+        SELECT COUNT(tci) FROM TeamCloudItem tci
+        WHERE tci.uploaderId = :userId
+          AND tci.teamFile IS NOT NULL
+    """)
+    fun countUploadedFilesByUserId(@Param("userId") userId: Long): Long
+
+    @Query("""
+        SELECT COUNT(tci) FROM TeamCloudItem tci
+        WHERE tci.team.teamId = :teamId
+          AND tci.uploaderId = :userId
+          AND tci.teamFile IS NOT NULL
+    """)
+    fun countUploadedFilesByTeamIdAndUserId(@Param("teamId") teamId: Long, @Param("userId") userId: Long): Long
+
+    @Query("""
+        SELECT COUNT(tci) FROM TeamCloudItem tci
+        WHERE tci.team.teamId = :teamId
+          AND tci.teamFile IS NOT NULL
+    """)
+    fun countUploadedFilesByTeamId(@Param("teamId") teamId: Long): Long
+
+    @Query("""
+        SELECT COUNT(tci) FROM TeamCloudItem tci
+        JOIN tci.teamFile tf
+        WHERE tci.uploaderId = :userId
+          AND tf.mediaCategory IN (com.beat_it.team.entity.enum.MediaCategory.DOCUMENT, com.beat_it.team.entity.enum.MediaCategory.AUDIO)
+    """)
+    fun countScoresAndMusicsByUserId(@Param("userId") userId: Long): Long
+
+    @Query("""
+        SELECT COUNT(tci) FROM TeamCloudItem tci
+        JOIN tci.teamFile tf
+        WHERE tci.team.teamId = :teamId
+          AND tci.uploaderId = :userId
+          AND tf.mediaCategory IN (com.beat_it.team.entity.enum.MediaCategory.DOCUMENT, com.beat_it.team.entity.enum.MediaCategory.AUDIO)
+    """)
+    fun countScoresAndMusicsByTeamIdAndUserId(@Param("teamId") teamId: Long, @Param("userId") userId: Long): Long
+
+    @Query("""
+        SELECT COUNT(tci) FROM TeamCloudItem tci
+        JOIN tci.teamFile tf
+        WHERE tci.team.teamId = :teamId
+          AND tf.mediaCategory IN (com.beat_it.team.entity.enum.MediaCategory.DOCUMENT, com.beat_it.team.entity.enum.MediaCategory.AUDIO)
+    """)
+    fun countScoresAndMusicsByTeamId(@Param("teamId") teamId: Long): Long
 }

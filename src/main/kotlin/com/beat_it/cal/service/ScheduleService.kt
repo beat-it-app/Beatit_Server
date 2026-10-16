@@ -15,6 +15,7 @@ import com.beat_it.cal.dto.ScheduleParticipantProfileResponse
 import com.beat_it.cal.dto.ScheduleUpdateRequest
 import com.beat_it.cal.dto.UpcomingTeamScheduleResponse
 import com.beat_it.cal.entity.Schedule
+import com.beat_it.cal.repository.ScheduleFileRepository
 import com.beat_it.cal.repository.ScheduleParticipantRepository
 import com.beat_it.cal.repository.ScheduleRepository
 import com.beat_it.global.error.BusinessException
@@ -37,6 +38,7 @@ import java.time.ZoneOffset
 class ScheduleService(
     private val scheduleRepository: ScheduleRepository,
     private val scheduleParticipantRepository: ScheduleParticipantRepository,
+    private val scheduleFileRepository: ScheduleFileRepository,
     private val teamService: TeamService,
     private val userService: UserService,
     private val fileService: FileService,
@@ -475,5 +477,35 @@ class ScheduleService(
                 )
             }
         }
+    }
+
+    @Transactional(readOnly = true)
+    fun countSchedulesByUserId(userId: Long): Long {
+        return scheduleRepository.countSchedulesByUserId(userId)
+    }
+
+    @Transactional(readOnly = true)
+    fun countSchedulesByTeamIdAndUserId(teamId: Long, userId: Long): Long {
+        return scheduleRepository.countSchedulesByTeamIdAndUserId(teamId, userId)
+    }
+
+    @Transactional(readOnly = true)
+    fun countSchedulesByTeamId(teamId: Long): Long {
+        return scheduleRepository.countSchedulesByTeamId(teamId)
+    }
+
+    @Transactional(readOnly = true)
+    fun countScheduleFilesByUserId(userId: Long): Long {
+        return scheduleFileRepository.countByUserId(userId)
+    }
+
+    @Transactional(readOnly = true)
+    fun countScheduleFilesByTeamIdAndUserId(teamId: Long, userId: Long): Long {
+        return scheduleFileRepository.countByTeamIdAndUserId(teamId, userId)
+    }
+
+    @Transactional(readOnly = true)
+    fun countScheduleFilesByTeamId(teamId: Long): Long {
+        return scheduleFileRepository.countByTeamId(teamId)
     }
 }

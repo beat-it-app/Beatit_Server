@@ -10,15 +10,23 @@ import com.beat_it.auth.dto.KakaoLoginRequest
 import com.beat_it.auth.dto.NaverLoginRequest
 import com.beat_it.auth.dto.ResetPasswordRequest
 import com.beat_it.auth.dto.ResetPasswordResponse
+import com.beat_it.auth.dto.WithdrawalRequest
+import com.beat_it.auth.dto.WithdrawalResponse
+import com.beat_it.auth.dto.UserWithdrawalInfoResponse
 import com.beat_it.auth.service.AuthService
 import com.beat_it.global.error.BusinessException
 import com.beat_it.global.error.ErrorCode
 import com.beat_it.global.response.BasicResponse
 import io.swagger.v3.oas.annotations.Operation
+import io.swagger.v3.oas.annotations.security.SecurityRequirement
 import io.swagger.v3.oas.annotations.security.SecurityRequirements
 import io.swagger.v3.oas.annotations.tags.Tag
+import jakarta.validation.Valid
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
+import org.springframework.security.core.Authentication
+import org.springframework.security.core.annotation.AuthenticationPrincipal
+import org.springframework.security.core.userdetails.UserDetails
 import org.springframework.web.bind.annotation.*
 import jakarta.servlet.http.HttpServletRequest
 
@@ -205,5 +213,58 @@ class AuthController (
         return ResponseEntity
             .status(HttpStatus.OK)
             .body(BasicResponse.success(response, HttpStatus.OK, "비밀번호 재설정이 성공적으로 처리되었습니다."))
+    }
+
+    @Operation(summary = "회원 탈퇴 안내 페이지 정보 조회")
+    @SecurityRequirement(name = "JWT AUTH")
+    @GetMapping("/withdrawl-info")
+    fun getWithdrawalInfo(
+        @AuthenticationPrincipal userDetails: UserDetails
+    ): ResponseEntity<BasicResponse<UserWithdrawalInfoResponse>> {
+        val userId = extractUserId(userDetails)
+
+        val data = authService.getWithdrawalInfo(userId)
+
+        return ResponseEntity.ok(
+            BasicResponse.success(data, HttpStatus.OK, "회원 탈퇴 안내 정보 조회에 성공했습니다.")
+        )
+    }
+
+    @Operation(summary = "회원 탈퇴")
+    @SecurityRequirement(name = "JWT AUTH")
+    @PatchMapping("/withdraw")
+    fun withdraw(
+        @AuthenticationPrincipal userDetails: UserDetails,
+        @Valid @RequestBody request: WithdrawalRequest
+    ): ResponseEntity<BasicResponse<WithdrawalResponse>> {
+        val userId = extractUserId(userDetails)
+
+        val data = authService.withdraw(userId, request)
+
+        return ResponseEntity.ok(
+            BasicResponse.success(data, HttpStatus.OK, "회원 탈퇴 요청이 정상적으로 접수되었습니다.")
+        )
+    }
+
+    @Operation(summary = "로그아웃", description = "로그아웃을 처리하며, 현재 기기의 푸시 토큰을 자동으로 비활성화합니다.")
+    @SecurityRequirement(name = "JWT AUTH")
+    @PostMapping("/logout")
+    fun logout(
+        @AuthenticationPrincipal userDetails: UserDetails,
+        authentication: Authentication
+    ): ResponseEntity<BasicResponse<Nothing>> {
+        val userId = extractUserId(userDetails)
+        val deviceId = authentication.details as? String
+
+        authService.logout(userId, deviceId)
+
+        return ResponseEntity.ok(
+            BasicResponse.success(HttpStatus.OK, "로그아웃이 성공적으로 처리되었습니다.")
+        )
+    }
+
+    private fun extractUserId(userDetails: UserDetails): Long {
+        return userDetails.username.toLongOrNull()
+            ?: throw BusinessException(ErrorCode.UNAUTHORIZED)
     }
 }

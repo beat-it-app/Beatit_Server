@@ -1,5 +1,6 @@
 package com.beat_it.auth.entity
 
+import com.beat_it.auth.entity.enum.ScreenMode
 import com.beat_it.global.entity.BaseUpdatedTimeEntity
 import jakarta.persistence.*
 
@@ -18,7 +19,11 @@ class UserSettings (
     var lastTeamId: Long? = null,
 
     @Column(nullable = false)
-    var allowAutoLogin: Boolean
+    var allowAutoLogin: Boolean,
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    var screenMode: ScreenMode = ScreenMode.SYSTEM
 
 ) : BaseUpdatedTimeEntity() {
     companion object {
@@ -31,5 +36,10 @@ class UserSettings (
                 allowAutoLogin = allowAutoLogin
             )
         }
+    }
+
+    fun updateScreenMode(screenMode: ScreenMode) {
+        this.screenMode = screenMode
+        this.updateTimestamp()
     }
 }
