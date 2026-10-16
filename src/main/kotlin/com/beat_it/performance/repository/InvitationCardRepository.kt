@@ -9,5 +9,4 @@ import java.util.Optional
 @Repository
 interface InvitationCardRepository : JpaRepository<InvitationCard, Long> {
     fun findByPerformance(performance: Performances): Optional<InvitationCard>
-    fun deleteByPerformance(performance: Performances)
 }
