@@ -14,8 +14,10 @@ import com.beat_it.team.repository.TeamLinksRepository
 import com.beat_it.team.repository.TeamMembershipRepository
 import com.beat_it.team.repository.TeamRepository
 import com.beat_it.notification.event.NotificationEvent
+import com.beat_it.notification.service.NotificationService
 import com.beat_it.notification.template.NotificationTemplate
 import org.springframework.context.ApplicationEventPublisher
+import org.springframework.context.annotation.Lazy
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import org.springframework.web.multipart.MultipartFile
@@ -29,7 +31,8 @@ class TeamService(
     private val teamMembershipRepository: TeamMembershipRepository,
     private val fileService: FileService,
     private val teamImageUploadService: TeamImageUploadService,
-    private val eventPublisher: ApplicationEventPublisher
+    private val eventPublisher: ApplicationEventPublisher,
+    @Lazy private val notificationService: NotificationService
 ) {
 
     @Transactional
@@ -203,6 +206,8 @@ class TeamService(
             )
         }
 
+        val unreadNotificationCount = notificationService.getUnreadStatus(userId).unreadCount
+
         return TeamDetailResponse(
             teamId = team.teamId,
             teamPublicId = team.publicId,
@@ -218,6 +223,7 @@ class TeamService(
             updatedAt = team.updatedAt,
             links = links,
             members = members,
+            unreadNotificationCount = unreadNotificationCount,
         )
     }
 

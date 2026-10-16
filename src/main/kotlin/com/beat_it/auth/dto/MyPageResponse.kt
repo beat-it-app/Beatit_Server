@@ -9,7 +9,8 @@ data class MyPageResponse (
     val email: String,
     val profileImageUrl: String,
     val socialAccounts: List<SocialProvider>,
-    val team: MyPageTeamResponse?
+    val team: MyPageTeamResponse?,
+    val unreadNotificationCount: Long,
 )
 
 data class MyPageTeamResponse(

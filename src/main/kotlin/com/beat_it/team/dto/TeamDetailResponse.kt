@@ -22,6 +22,7 @@ data class TeamDetailResponse(
     val updatedAt: OffsetDateTime?,
     val links: List<LinksResponse>,
     val members: List<TeamDetailMemberResponse>,
+    val unreadNotificationCount: Long,
 )
 
 data class LinksResponse(

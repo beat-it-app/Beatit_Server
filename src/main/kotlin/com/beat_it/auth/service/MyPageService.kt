@@ -16,6 +16,7 @@ import com.beat_it.auth.repository.*
 import com.beat_it.global.error.BusinessException
 import com.beat_it.global.error.ErrorCode
 import com.beat_it.global.service.FileService
+import com.beat_it.notification.service.NotificationService
 import com.beat_it.notification.service.PushTokenService
 import com.beat_it.team.repository.TeamMembershipRepository
 import jakarta.transaction.Transactional
@@ -34,7 +35,8 @@ class MyPageService (
     private val fileService: FileService,
     private val passwordEncoder: PasswordEncoder,
     private val refreshTokenService: RefreshTokenService,
-    private val pushTokenService: PushTokenService
+    private val pushTokenService: PushTokenService,
+    private val notificationService: NotificationService
 ){
     fun getMyPage(userId: Long): MyPageResponse {
         val user = getUser(userId)
@@ -58,7 +60,7 @@ class MyPageService (
                     name = team.teamName,
                     imageUrl = team.teamImageUrl ?: "",
                     leaderName = leaderName,
-                    memberCount = memberCount
+                    memberCount = memberCount,
                 )
             }
         }
@@ -68,6 +70,10 @@ class MyPageService (
         if (authAccount.naverId != null) socialAccounts.add(SocialProvider.NAVER)
         if (authAccount.googleId != null) socialAccounts.add(SocialProvider.GOOGLE)
 
+        val unreadNotificationCount = user.currentTeamId?.let {
+            notificationService.getUnreadStatus(userId).unreadCount
+        } ?: 0L
+
         return MyPageResponse(
             userId = userId,
             userName = userProfile.name,
@@ -76,7 +82,8 @@ class MyPageService (
                 ?: userProfile.defaultProfileImage?.let { fileService.getFileUrl(it.storageKey) }
                 ?: "",
             socialAccounts = socialAccounts,
-            team = teamResponse
+            team = teamResponse,
+            unreadNotificationCount = unreadNotificationCount
         )
     }
 
