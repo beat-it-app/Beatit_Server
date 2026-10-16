@@ -18,6 +18,8 @@ import com.beat_it.auth.entity.Users
 import com.beat_it.auth.entity.enum.AccountStatus
 import com.beat_it.auth.entity.enum.Role
 import com.beat_it.auth.entity.enum.SocialProvider
+import com.beat_it.auth.entity.UserWithdrawalReason
+import com.beat_it.auth.repository.UserWithdrawalReasonRepository
 import com.beat_it.auth.repository.UserAuthAccountRepository
 import com.beat_it.auth.repository.UserProfilesRepository
 import com.beat_it.auth.repository.UserRepository
@@ -43,6 +45,7 @@ class AuthService (
     private val userRepository: UserRepository,
     private val userAuthAccountRepository: UserAuthAccountRepository,
     private val userSettingsRepository: UserSettingsRepository,
+    private val userWithdrawalReasonRepository: UserWithdrawalReasonRepository,
     private val passwordEncoder: PasswordEncoder,
     private val jwtTokenProvider: JwtTokenProvider,
     private val userProfilesRepository: UserProfilesRepository,
@@ -605,6 +608,14 @@ class AuthService (
 
         user.withdraw()
         pushTokenService.deactivateAllUserTokens(userId)
+
+        userWithdrawalReasonRepository.save(
+            UserWithdrawalReason.of(
+                userId = userId,
+                withdrawalReason = request.withdrawalReason,
+                detailReason = request.detailReason
+            )
+        )
 
         return WithdrawalResponse(
             userId = userId,
