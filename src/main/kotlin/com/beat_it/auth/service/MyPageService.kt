@@ -32,8 +32,6 @@ class MyPageService (
     private val teamMembershipRepository: TeamMembershipRepository,
     private val authFilesRepository: AuthFilesRepository,
     private val fileService: FileService,
-    private val refreshTokenService: RefreshTokenService,
-    private val pushTokenService: PushTokenService,
     private val notificationService: NotificationService,
     private val userSettingsRepository: UserSettingsRepository,
 ){

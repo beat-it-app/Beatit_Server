@@ -32,7 +32,7 @@ class TeamService(
     private val teamMembershipRepository: TeamMembershipRepository,
     private val fileService: FileService,
     private val teamImageUploadService: TeamImageUploadService,
-    @Lazy private val notificationService: NotificationService
+    @Lazy private val notificationService: NotificationService,
     private val eventPublisher: ApplicationEventPublisher,
     private val teamCloudService: TeamCloudService,
     @Lazy private val scheduleService: ScheduleService
