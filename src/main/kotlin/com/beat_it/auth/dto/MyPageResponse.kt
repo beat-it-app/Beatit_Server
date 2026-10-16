@@ -2,6 +2,7 @@ package com.beat_it.auth.dto
 
 import com.beat_it.auth.entity.enum.SocialProvider
 import com.beat_it.team.entity.enum.TeamType
+import java.time.LocalDate
 
 data class MyPageResponse (
     val userId: Long,
@@ -9,7 +10,8 @@ data class MyPageResponse (
     val email: String,
     val profileImageUrl: String,
     val socialAccounts: List<SocialProvider>,
-    val team: MyPageTeamResponse?
+    val team: MyPageTeamResponse?,
+    val unreadNotificationCount: Long,
 )
 
 data class MyPageTeamResponse(
@@ -19,4 +21,5 @@ data class MyPageTeamResponse(
     val imageUrl: String,
     val leaderName: String,
     val memberCount: Int,
+    val establishedOn: LocalDate? = null,
 )
