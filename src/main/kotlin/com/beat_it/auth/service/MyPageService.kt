@@ -61,6 +61,7 @@ class MyPageService (
                     imageUrl = team.teamImageUrl ?: "",
                     leaderName = leaderName,
                     memberCount = memberCount,
+                    establishedOn = team.establishedOn
                 )
             }
         }
