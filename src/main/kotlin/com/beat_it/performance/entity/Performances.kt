@@ -43,23 +43,23 @@ class Performances(
     @Column(name = "description", columnDefinition = "TEXT", length = 200, nullable = true)
     var description: String? = null,
 
-    @Column(name = "detail_info", columnDefinition = "TEXT", length = 1000, nullable = true)
-    var detailInfo: String? = null,
-
     @Column(name = "booking_deadline", nullable = true)
     var bookingDeadline: OffsetDateTime? = null,
 
-    @Column(name = "booking_link", length = 500, nullable = true)
+    @Column(name = "booking_link", length = 500)
     var bookingLink: String? = null,
 
-    @Column(name = "host_name", length = 100, nullable = false)
+    @Column(name = "host_name", length = 20)
     var hostName: String,
 
-    @Column(name = "host_contact", length = 255, nullable = true)
+    @Column(name = "host_contact", length = 255)
     var hostContact: String? = null,
 
-    @Column(name = "host_link", length = 500, nullable = true)
+    @Column(name = "host_link", length = 500)
     var hostLink: String? = null,
+
+    @Column(name = "detail_info", columnDefinition = "TEXT", length = 1000)
+    var detailInfo: String? = null,
 
     @Enumerated(EnumType.STRING)
     @Column(name = "performance_status", nullable = false)
@@ -74,6 +74,9 @@ class Performances(
     @OneToMany(mappedBy = "performance", cascade = [CascadeType.ALL], orphanRemoval = true)
     val prices: MutableList<PerformancePrices> = mutableListOf()
 
+    @OneToOne(mappedBy = "performance", cascade = [CascadeType.ALL], orphanRemoval = true)
+    var invitationCard: InvitationCard? = null
+
     fun updatePerformance(
         title: String?,
         performanceDateTime: OffsetDateTime?,
@@ -86,11 +89,13 @@ class Performances(
         bookingLink: String?,
         hostName: String?,
         hostContact: String?,
-        hostLink: String?,
-        performanceStatus: PerformanceStatus?
+        hostLink: String?
     ) {
         title?.let { this.title = it }
-        performanceDateTime?.let { this.performanceDateTime = it }
+        performanceDateTime?.let {
+            this.performanceDateTime = it
+            this.performanceStatus = if (it.isAfter(OffsetDateTime.now())) PerformanceStatus.UPCOMING else PerformanceStatus.PAST
+        }
         location?.let { this.location = it }
         placeName?.let { this.placeName = it }
         posterFileId?.let { this.posterFileId = it }
@@ -99,9 +104,8 @@ class Performances(
         bookingDeadline?.let { this.bookingDeadline = it }
         bookingLink?.let { this.bookingLink = it }
         hostName?.let { this.hostName = it }
-        hostContact?.let { this.hostContact = it }
-        hostLink?.let { this.hostLink = it }
-        performanceStatus?.let { this.performanceStatus = it }
+        this.hostContact = hostContact
+        this.hostLink = hostLink
         this.updateTimestamp()
     }
 

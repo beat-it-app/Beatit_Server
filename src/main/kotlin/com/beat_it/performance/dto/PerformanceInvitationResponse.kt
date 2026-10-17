@@ -1,34 +1,34 @@
 package com.beat_it.performance.dto
 
+import com.beat_it.performance.entity.InvitationCard
 import com.beat_it.performance.entity.Performances
 import io.swagger.v3.oas.annotations.media.Schema
 import java.time.OffsetDateTime
 
 @Schema(description = "모바일 초대장 조회 응답 DTO")
 data class PerformanceInvitationResponse(
-    @Schema(description = "팀 이름", example = "빗잇 밴드")
-    val teamName: String?,
-
-    @Schema(description = "공연 제목")
     val title: String,
-
-    @Schema(description = "공연 일시")
+    val performanceTeam: String? = null,
     val performanceDateTime: OffsetDateTime,
-
-    @Schema(description = "공연 장소명")
     val placeName: String?,
 
-    @Schema(description = "공연 상세 설명")
-    val description: String?
+    val invitationDescription: String? = null,
+
+    val setlist: List<SetlistTeamDto>? = null
 ) {
     companion object {
-        fun from(performance: Performances, teamName: String? = null): PerformanceInvitationResponse {
+        fun from(
+            performance: Performances,
+            invitationCard: InvitationCard? = null,
+            setlist: List<SetlistTeamDto>? = null
+        ): PerformanceInvitationResponse {
             return PerformanceInvitationResponse(
-                teamName = teamName,
                 title = performance.title,
+                performanceTeam = invitationCard?.performanceTeam,
                 performanceDateTime = performance.performanceDateTime,
                 placeName = performance.placeName,
-                description = performance.description
+                invitationDescription = invitationCard?.description,
+                setlist = setlist
             )
         }
     }
