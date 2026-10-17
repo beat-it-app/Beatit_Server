@@ -3,6 +3,7 @@ package com.beat_it.notification.dto
 import com.beat_it.notification.entity.Notifications
 import com.beat_it.notification.template.NotificationCategory
 import com.beat_it.notification.template.NotificationType
+import com.fasterxml.jackson.annotation.JsonProperty
 import java.time.OffsetDateTime
 
 data class NotificationItemResponse(
@@ -13,6 +14,7 @@ data class NotificationItemResponse(
     val content: String,
     val directTo: String?,
     val targetId: Long?,
+    @get:JsonProperty("isRead")
     val isRead: Boolean,
     val createdAt: OffsetDateTime
 ) {
@@ -42,6 +44,7 @@ data class NotificationPageResponse(
     val size: Int,
     val totalElements: Long,
     val totalPages: Int,
+    @get:JsonProperty("isLast")
     val isLast: Boolean,
     val notifications: List<NotificationItemResponse>
 )
@@ -58,5 +61,6 @@ data class NotificationClickResponse(
     val targetTeamName: String,
     val directTo: String?,
     val targetId: Long?,
+    @get:JsonProperty("isRead")
     val isRead: Boolean
 )

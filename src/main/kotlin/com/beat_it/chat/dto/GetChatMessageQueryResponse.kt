@@ -2,6 +2,7 @@ package com.beat_it.chat.dto
 
 import com.beat_it.auth.dto.UserProfileResponse
 import com.beat_it.chat.entity.ChatMessage
+import com.fasterxml.jackson.annotation.JsonProperty
 import java.time.OffsetDateTime
 
 data class GetChatMessageQueryResponse(
@@ -14,6 +15,7 @@ data class GetChatMessageQueryResponse(
     val fileSizeBytes: Long? = null,
     val fileSizeDisplay: String? = null,
     val createdAt: OffsetDateTime,
+    @get:JsonProperty("isMine")
     val isMine: Boolean,
     val readByUsers: List<ChatMessageReadUserResponse> = emptyList()
 ) {

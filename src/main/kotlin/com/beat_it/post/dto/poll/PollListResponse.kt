@@ -1,5 +1,6 @@
 package com.beat_it.post.dto.poll
 
+import com.fasterxml.jackson.annotation.JsonProperty
 import java.time.OffsetDateTime
 
 data class PollListResponse(
@@ -14,5 +15,6 @@ data class PollItems(
     val title: String,
     val closeAt: OffsetDateTime?,
     val pollCount: Int,
+    @get:JsonProperty("isVoted")
     val isVoted: Boolean,
 )
