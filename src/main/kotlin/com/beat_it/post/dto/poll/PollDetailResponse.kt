@@ -2,6 +2,7 @@ package com.beat_it.post.dto.poll
 
 import com.beat_it.post.dto.CommentResponse
 import com.beat_it.post.entity.enum.PollType
+import com.fasterxml.jackson.annotation.JsonProperty
 import com.fasterxml.jackson.annotation.JsonSubTypes
 import com.fasterxml.jackson.annotation.JsonTypeInfo
 import java.math.BigDecimal
@@ -13,6 +14,7 @@ data class PollDetailResponse(
     val content: String?,
     val pollType: PollType,
     val allowMultipleChoice: Boolean,
+    @get:JsonProperty("isAnonymous")
     val isAnonymous: Boolean,
     val closeAt: OffsetDateTime?,
     val remindBeforeClose: String?,
@@ -21,6 +23,7 @@ data class PollDetailResponse(
     val createdAt: OffsetDateTime,
     val updatedAt: OffsetDateTime,
     val pollItems: List<PollItemResponse>,
+    @get:JsonProperty("isWriter")
     val isWriter: Boolean,
     val commentCount: Int,
     val commentList: List<CommentResponse>
@@ -40,6 +43,7 @@ data class PollDetailResponse(
 interface PollItemResponse {
     val itemId: Long
     val voteCount: Int
+    @get:JsonProperty("isVoted")
     val isVoted: Boolean
     val voters: List<PollVoterResponse>?
 }
@@ -54,6 +58,7 @@ data class PollVoterResponse(
 data class TextItemResponse(
     override val itemId: Long,
     override val voteCount: Int,
+    @get:JsonProperty("isVoted")
     override val isVoted: Boolean,
     override val voters: List<PollVoterResponse>? = null,
     val content: String
@@ -62,6 +67,7 @@ data class TextItemResponse(
 data class MusicItemResponse(
     override val itemId: Long,
     override val voteCount: Int,
+    @get:JsonProperty("isVoted")
     override val isVoted: Boolean,
     override val voters: List<PollVoterResponse>? = null,
     val title: String,
@@ -72,6 +78,7 @@ data class MusicItemResponse(
 data class LocationItemResponse(
     override val itemId: Long,
     override val voteCount: Int,
+    @get:JsonProperty("isVoted")
     override val isVoted: Boolean,
     override val voters: List<PollVoterResponse>? = null,
     val location: String,
