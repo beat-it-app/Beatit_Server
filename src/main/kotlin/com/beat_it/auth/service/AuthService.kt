@@ -597,14 +597,6 @@ class AuthService (
     fun withdraw(userId: Long, request: WithdrawalRequest): WithdrawalResponse {
         val user = userRepository.findById(userId)
             .orElseThrow { BusinessException(ErrorCode.USER_NOT_FOUND) }
-        val authAccount = userAuthAccountRepository.findByUserUserId(userId)
-            ?: throw BusinessException(ErrorCode.USER_NOT_FOUND)
-
-        if (authAccount.identifier != null) {
-            if (request.password.isNullOrBlank() || !passwordEncoder.matches(request.password, authAccount.password)) {
-                throw BusinessException(ErrorCode.INVALID_PASSWORD)
-            }
-        }
 
         user.withdraw()
         pushTokenService.deactivateAllUserTokens(userId)
