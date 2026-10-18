@@ -9,6 +9,8 @@ import com.beat_it.post.dto.notice.NoticeDetailResponse
 import com.beat_it.post.dto.notice.NoticeListResponse
 import com.beat_it.post.entity.enum.NoticeSortType
 import com.beat_it.post.service.NoticeService
+import com.fasterxml.jackson.core.JsonProcessingException
+import com.fasterxml.jackson.databind.ObjectMapper
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.Parameter
 import io.swagger.v3.oas.annotations.tags.Tag
@@ -24,7 +26,8 @@ import org.springframework.web.multipart.MultipartFile
 @RestController
 @RequestMapping("/posts/notices")
 class NoticeController (
-    private val noticeService: NoticeService
+    private val noticeService: NoticeService,
+    private val objectMapper: ObjectMapper,
 ){
     @Operation(summary = "공지사항 목록 불러오기")
     @GetMapping
@@ -92,12 +95,20 @@ class NoticeController (
         @RequestParam title: String,
         @Parameter(description = "공지 본문", example = "수정된 내용입니다.")
         @RequestParam content: String,
+        @Parameter(description = "보존할 기존 이미지 URL을 JSON 배열 문자열로 입력. 예: [\"URL1\",\"URL2\"]. 미전달 시 기존 이미지 수정 방식 유지, [] 전달 시 전체 삭제. multipart 텍스트 필드로 전송")
+        @RequestParam(value = "retainNoticeImageUrls", required = false) retainNoticeImageUrlsJson: String?,
+        @RequestParam(value = "retainImageUrls", required = false) retainImageUrlsJson: String?,
         @RequestPart(value = "images", required = false) images: List<MultipartFile>?
     ): ResponseEntity<BasicResponse<Nothing>> {
         val userId = userDetails.username.toLongOrNull()
             ?: throw BusinessException(ErrorCode.UNAUTHORIZED)
 
-        val dto = NoticeRequest(title = title, content = content)
+        val rawRetainJson = retainNoticeImageUrlsJson ?: retainImageUrlsJson
+        val dto = NoticeRequest(
+            title = title,
+            content = content,
+            retainNoticeImageUrls = parseRetainNoticeImageUrls(rawRetainJson)
+        )
         noticeService.editNotice(userId, noticeId, dto, images)
 
         return ResponseEntity
@@ -187,5 +198,19 @@ class NoticeController (
         return ResponseEntity
             .status(HttpStatus.OK)
             .body(BasicResponse.success(HttpStatus.OK, "댓글이 성공적으로 삭제되었습니다."))
+    }
+
+    private fun parseRetainNoticeImageUrls(value: String?): List<String>? {
+        if (value.isNullOrBlank()) return null
+
+        val jsonNode = try {
+            objectMapper.readTree(value)
+        } catch (_: JsonProcessingException) {
+            throw BusinessException(ErrorCode.INVALID_INPUT_VALUE)
+        }
+        if (jsonNode == null || !jsonNode.isArray || jsonNode.any { !it.isTextual }) {
+            throw BusinessException(ErrorCode.INVALID_INPUT_VALUE)
+        }
+        return jsonNode.map { it.asText() }
     }
 }

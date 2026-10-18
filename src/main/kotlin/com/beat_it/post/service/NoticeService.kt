@@ -115,7 +115,12 @@ class NoticeService(
         userService.getCurrentTeamId(userId)
         validateTitleAndContent(dto.title, dto.content)
 
-        val uploadedPostFiles = uploadAndSavePostFiles(userId, images)
+        val validImages = images.orEmpty().filterNot { it.isEmpty }
+        if (validImages.size > 10) {
+            throw BusinessException(ErrorCode.NOTICE_IMAGE_EXCEEDED)
+        }
+
+        val uploadedPostFiles = uploadAndSavePostFiles(userId, validImages)
         val thumbnailUrl = uploadedPostFiles.firstOrNull()?.cdnUrl
 
         val notice = Notices.writeNotice(
@@ -210,18 +215,77 @@ class NoticeService(
         validateWriter(notice, userId)
 
         val existingAttachments = noticeAttachmentsRepository.findByNoticeNoticeIdOrderByDisplayOrderAsc(noticeId)
-        val isImagesSame = images == null || (images.isEmpty() && existingAttachments.isEmpty())
+        val retainList = dto.retainNoticeImageUrls
+        val retainUrls = retainList?.toSet()
 
-        if (notice.title == dto.title && notice.content == dto.content && isImagesSame) {
+        if (retainList != null &&
+            (retainList.distinct().size != retainList.size ||
+                !existingAttachments.map { it.postFile.cdnUrl }.toSet().containsAll(retainList))) {
+            throw BusinessException(ErrorCode.INVALID_INPUT_VALUE)
+        }
+
+        val validImages = images.orEmpty().filterNot { it.isEmpty }
+        val retainedCount = if (retainUrls != null) {
+            existingAttachments.count { it.postFile.cdnUrl in retainUrls }
+        } else {
+            if (validImages.isNotEmpty()) 0 else existingAttachments.size
+        }
+        if (retainedCount + validImages.size > 10) {
+            throw BusinessException(ErrorCode.NOTICE_IMAGE_EXCEEDED)
+        }
+
+        val hasNewImages = validImages.isNotEmpty()
+        val isImageChanged = if (retainUrls != null) {
+            hasNewImages || retainUrls != existingAttachments.map { it.postFile.cdnUrl }.toSet()
+        } else {
+            images != null && (hasNewImages || existingAttachments.isNotEmpty())
+        }
+
+        val isAnyFieldChanged = (dto.title != notice.title) ||
+                (dto.content != notice.content) ||
+                isImageChanged
+
+        if (!isAnyFieldChanged) {
             throw BusinessException(ErrorCode.POST_NO_CONTENT_TO_UPDATE)
         }
 
         var thumbnailUrl = notice.thumbnailImageUrl
 
-        images?.let { multipartFiles ->
-            deleteNoticeAttachments(existingAttachments, noticeId)
+        if (retainUrls != null) {
+            val retainedAttachments = existingAttachments.filter { it.postFile.cdnUrl in retainUrls }
+            val attachmentsToRemove = existingAttachments.filterNot { it.postFile.cdnUrl in retainUrls }
 
-            val uploadedPostFiles = uploadAndSavePostFiles(userId, multipartFiles)
+            if (attachmentsToRemove.isNotEmpty()) {
+                deleteNoticeAttachments(attachmentsToRemove)
+            }
+
+            retainedAttachments.forEachIndexed { index, att ->
+                if (att.displayOrder != index) {
+                    att.displayOrder = index
+                    noticeAttachmentsRepository.save(att)
+                }
+            }
+
+            val uploadedPostFiles = uploadAndSavePostFiles(userId, validImages)
+            val startIndex = retainedAttachments.size
+            if (uploadedPostFiles.isNotEmpty()) {
+                val newAttachments = uploadedPostFiles.mapIndexed { index, postFile ->
+                    NoticeAttachments(
+                        notice = notice,
+                        postFile = postFile,
+                        userId = userId,
+                        fileType = FileType.IMAGE,
+                        displayOrder = startIndex + index
+                    )
+                }
+                noticeAttachmentsRepository.saveAll(newAttachments)
+            }
+
+            thumbnailUrl = (retainedAttachments.map { it.postFile.cdnUrl } + uploadedPostFiles.map { it.cdnUrl }).firstOrNull()
+        } else if (images != null) {
+            deleteNoticeAttachments(existingAttachments)
+
+            val uploadedPostFiles = uploadAndSavePostFiles(userId, validImages)
             thumbnailUrl = if (uploadedPostFiles.isNotEmpty()) {
                 uploadedPostFiles.first().cdnUrl
             } else {
@@ -246,7 +310,7 @@ class NoticeService(
         validateWriter(notice, userId)
 
         val attachments = noticeAttachmentsRepository.findByNoticeNoticeIdOrderByDisplayOrderAsc(noticeId)
-        deleteNoticeAttachments(attachments, noticeId)
+        deleteNoticeAttachments(attachments)
 
         noticeReactionRepository.deleteByNoticeNoticeId(noticeId)
         commentService.deleteCommentsByPost(PostType.NOTICE, noticeId)
@@ -292,7 +356,8 @@ class NoticeService(
         noticeAttachmentsRepository.saveAll(attachments)
     }
 
-    private fun deleteNoticeAttachments(attachments: List<NoticeAttachments>, noticeId: Long) {
+    private fun deleteNoticeAttachments(attachments: List<NoticeAttachments>) {
+        if (attachments.isEmpty()) return
         val storageKeys = attachments.map { it.postFile.storageKey }.filter { it.isNotBlank() }
         if (storageKeys.isNotEmpty()) {
             fileService.deleteFiles(storageKeys)
@@ -302,7 +367,7 @@ class NoticeService(
             attachment.postFile.delete()
             postFilesRepository.save(attachment.postFile)
         }
-        noticeAttachmentsRepository.deleteByNoticeNoticeId(noticeId)
+        noticeAttachmentsRepository.deleteAll(attachments)
     }
 
     @Transactional

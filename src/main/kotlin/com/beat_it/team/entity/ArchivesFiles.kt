@@ -55,6 +55,9 @@ class ArchivesFiles(
     @Column(length = 100)
     var checksum: String? = null,
 
+    @Column(name = "display_order", nullable = false)
+    var displayOrder: Int = 0,
+
     @Column(name = "is_public", nullable = false)
     var isPublic: Boolean = false,
 ) : BaseCreatedTimeEntity()

@@ -39,6 +39,16 @@ data class PerformanceUpdateRequest(
 
     val prices: List<PerformancePriceDto>? = null,
 
+    @Schema(description = "포스터 이미지 삭제 여부 (true인 경우 기존 포스터 삭제)", example = "false")
+    val deletePosterImage: Boolean? = false,
+
+    @Schema(description = "보존할 상세 이미지 URL 목록 (null: 기존 유지/deleteDetailFileIds 동작, []: 전체 삭제, 값 지정: 해당 URL만 보존)")
+    val retainDetailImageUrls: List<String>? = null,
+
+    @Schema(description = "보존할 상세 이미지 파일 ID 목록")
+    val retainDetailFileIds: List<Long>? = null,
+
+    @Schema(description = "삭제할 상세 이미지 파일 ID 목록")
     val deleteDetailFileIds: List<Long>? = null,
 
     val invitationCard: InvitationCardRequest? = null,

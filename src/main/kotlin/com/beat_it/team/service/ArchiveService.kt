@@ -56,6 +56,11 @@ class ArchiveService(
         validateTitle(request.title)
         validateDescription(request.description)
 
+        val validImages = archiveImages.orEmpty().filterNot { it.isEmpty }
+        if (validImages.size > 10) {
+            throw BusinessException(ErrorCode.ARCHIVE_IMAGE_EXCEEDED)
+        }
+
         val team = findCurrentTeamForArchiveOrThrow(userId)
         val locationId = request.locationId
             ?: throw BusinessException(ErrorCode.ARCHIVE_LOCATION_REQUIRED)
@@ -171,7 +176,7 @@ class ArchiveService(
         val archive = findAccessibleArchiveOrThrow(userId, archiveId)
         val writerProfile = userService.getUserProfileResponse(archive.writerId)
         val archiveImageUrls = archivesFilesRepository
-            .findAllByArchiveArchiveIdOrderByArchiveFileIdAsc(archiveId)
+            .findAllByArchiveArchiveIdOrderByDisplayOrderAsc(archiveId)
             .map { archiveFile -> archiveFile.cdnUrl }
 
         val myRating = archiveRatingsRepository
@@ -223,7 +228,7 @@ class ArchiveService(
 
         val archive = findAccessibleArchiveOrThrow(userId, archiveId)
         validateArchiveUpdatePermission(userId, archive)
-        val existingFiles = archivesFilesRepository.findAllByArchiveArchiveIdOrderByArchiveFileIdAsc(archiveId)
+        val existingFiles = archivesFilesRepository.findAllByArchiveArchiveIdOrderByDisplayOrderAsc(archiveId)
         val retainList = request.retainArchiveImageUrls
         val retainUrls = retainList?.toSet()
         if (retainList != null &&
@@ -231,6 +236,17 @@ class ArchiveService(
                 !existingFiles.map { it.cdnUrl }.toSet().containsAll(retainList))) {
             throw BusinessException(ErrorCode.INVALID_INPUT_VALUE)
         }
+
+        val validImages = archiveImages.orEmpty().filterNot { it.isEmpty }
+        val retainedCount = if (retainUrls != null) {
+            existingFiles.count { it.cdnUrl in retainUrls }
+        } else {
+            if (validImages.isNotEmpty()) 0 else existingFiles.size
+        }
+        if (retainedCount + validImages.size > 10) {
+            throw BusinessException(ErrorCode.ARCHIVE_IMAGE_EXCEEDED)
+        }
+
         validateArchiveChanged(
             archive = archive,
             request = request,
@@ -258,7 +274,7 @@ class ArchiveService(
         )
 
         val archiveImageUrls = archivesFilesRepository
-            .findAllByArchiveArchiveIdOrderByArchiveFileIdAsc(archiveId)
+            .findAllByArchiveArchiveIdOrderByDisplayOrderAsc(archiveId)
             .map { archiveFile -> archiveFile.cdnUrl }
 
         return ArchiveUpdateResponse(
@@ -459,6 +475,7 @@ class ArchiveService(
         archive: Archives,
         userId: Long,
         archiveImages: List<MultipartFile>?,
+        startOrder: Int = 0,
     ): List<ArchivesFiles> {
         val validImages = archiveImages
             .orEmpty()
@@ -476,6 +493,7 @@ class ArchiveService(
                 mimeType = validImages[index].contentType,
                 mediaCategory = MediaCategory.IMAGE,
                 fileSizeBytes = validImages[index].size,
+                displayOrder = startOrder + index,
                 isPublic = true,
             )
         }
@@ -499,15 +517,23 @@ class ArchiveService(
         val retainedFiles = existingFiles.filter { it.cdnUrl in urlsToRetain }
         val filesToRemove = existingFiles.filterNot { it.cdnUrl in urlsToRetain }
 
+        if (filesToRemove.isNotEmpty()) {
+            archivesFilesRepository.deleteAll(filesToRemove)
+        }
+
+        retainedFiles.forEachIndexed { index, file ->
+            if (file.displayOrder != index) {
+                file.displayOrder = index
+                archivesFilesRepository.save(file)
+            }
+        }
+
         val addedFiles = saveArchiveImages(
             archive = archive,
             userId = userId,
             archiveImages = validImages,
+            startOrder = retainedFiles.size,
         )
-
-        if (filesToRemove.isNotEmpty()) {
-            archivesFilesRepository.deleteAll(filesToRemove)
-        }
 
         archive.updateArchiveImageUrl((retainedFiles + addedFiles).firstOrNull()?.cdnUrl)
         deleteFilesAfterCommit(filesToRemove.map { it.storageKey })

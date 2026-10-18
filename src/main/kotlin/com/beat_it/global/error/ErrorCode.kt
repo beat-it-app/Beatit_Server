@@ -86,6 +86,7 @@ enum class ErrorCode(
     ARCHIVE_INVALID_COMMENT_CONTENT(HttpStatus.BAD_REQUEST, "ARCHIVE-011", "연습실 댓글은 1자 이상 1000자 이하로 입력해주세요."),
     ARCHIVE_COMMENT_NOT_FOUND(HttpStatus.NOT_FOUND, "ARCHIVE-012", "연습실 댓글을 찾을 수 없습니다."),
     ARCHIVE_COMMENT_NO_DELETE_PERMISSION(HttpStatus.FORBIDDEN, "ARCHIVE-013", "연습실 댓글 삭제 권한이 없습니다."),
+    ARCHIVE_IMAGE_EXCEEDED(HttpStatus.BAD_REQUEST, "ARCHIVE-014", "연습실 이미지는 최대 10장까지 등록 가능합니다."),
 
     // --- 4. 채팅 관련 에러 (CHAT) ---
     CHAT_ROOM_NAME_REQUIRED(HttpStatus.BAD_REQUEST, "CHAT-001", "채팅방 이름은 필수입니다."),
@@ -108,6 +109,7 @@ enum class ErrorCode(
     POLL_OPTION_REQUIRED(HttpStatus.BAD_REQUEST, "POST-010", "투표할 항목을 선택해주세요."),
     POLL_ALREADY_VOTED(HttpStatus.BAD_REQUEST, "POST-011", "이미 참여자가 있는 투표는 수정할 수 없습니다."),
     POLL_NOT_VOTED(HttpStatus.BAD_REQUEST, "POST-012", "투표에 참여하지 않은 상태입니다."),
+    NOTICE_IMAGE_EXCEEDED(HttpStatus.BAD_REQUEST, "POST-013", "공지사항 이미지는 최대 10장까지 등록 가능합니다."),
 
     // --- 6. 모임 조율 관련 에러 (MEETIT) ---
     MEETIT_TEAM_MISMATCH(HttpStatus.FORBIDDEN, "MEETIT-001", "현재 팀에서 접근할 수 없는 모임 조율입니다."),
