@@ -3,6 +3,7 @@ package com.beat_it.auth.dto
 import com.beat_it.auth.entity.enum.SocialProvider
 import com.beat_it.team.entity.enum.TeamType
 import java.time.LocalDate
+import java.util.UUID
 
 data class MyPageResponse (
     val userId: Long,
@@ -16,6 +17,7 @@ data class MyPageResponse (
 
 data class MyPageTeamResponse(
     val teamId: Long,
+    val teamPublicId: UUID,
     val type: TeamType,
     val name: String,
     val imageUrl: String,
