@@ -53,7 +53,7 @@ class MyPageController (
     }
 
     @Operation(summary = "프로필 이미지 변경")
-    @PatchMapping("/image", consumes = [MediaType.MULTIPART_FORM_DATA_VALUE])
+    @PatchMapping("/profile/image", consumes = [MediaType.MULTIPART_FORM_DATA_VALUE])
     fun updateProfileImage(
         @AuthenticationPrincipal userDetails: UserDetails,
         @RequestPart(value = "image", required = false) image: MultipartFile?,
