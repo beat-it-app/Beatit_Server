@@ -75,10 +75,10 @@ class EmailService(
                         <tr style="background-color: #000000">
                           <td class="title" style="padding: 40px 32px 24px; color: #ffffff; font-weight: 400">
                             <img
-                              src="https://placehold.co/120x24/000000/FFFFFF.png?text=BEAT+IT"
+                              src="https://d35igkpa6kzkgw.cloudfront.net/common/778a0dbb-f8a2-4835-82fb-474f5dfefde3_beatit_img.png"
                               alt="Beat It"
-                              height="18"
-                              style="display: block; height: 18px; width: auto; border: 0;"
+                              height="20"
+                              style="display: block; height: 20px; width: auto; border: 0; padding: 0 0 20px 0;"
                             />
                             <div style="margin: 0; font-size: 28px">${purpose.heading}</div>
                             <span style="margin: 0; font-size: 28px; color: #ff5518">메일 인증</span>
