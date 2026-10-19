@@ -58,6 +58,7 @@ class MyPageService (
                     name = team.teamName,
                     imageUrl = team.teamImageUrl ?: "",
                     leaderName = leaderName,
+                    myRole = membership.teamRole,
                     memberCount = memberCount,
                     establishedOn = team.establishedOn
                 )
