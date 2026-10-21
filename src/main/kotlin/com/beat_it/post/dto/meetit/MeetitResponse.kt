@@ -1,5 +1,6 @@
 package com.beat_it.post.dto.meetit
 
+import com.fasterxml.jackson.annotation.JsonProperty
 import java.time.OffsetDateTime
 
 data class MeetitListResponse(
@@ -31,6 +32,7 @@ data class MeetitDetailResponse(
     val candidateDates: List<String>,
     val totalInvitedCount: Int,
     val respondedCount: Int,
+    @get:JsonProperty("isParticipant")
     val isParticipant: Boolean,
     val respondedParticipants: List<MeetitParticipantInfoResponse>,
     val entireMemberOptimalSlots: List<MeetitOptimalSlotResponse>,

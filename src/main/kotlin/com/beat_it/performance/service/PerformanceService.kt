@@ -9,17 +9,12 @@ import com.beat_it.global.service.FileService
 import com.beat_it.location.dto.LocationResponse
 import com.beat_it.location.service.LocationsService
 import com.beat_it.performance.dto.*
-import com.beat_it.performance.entity.PerformanceFiles
-import com.beat_it.performance.entity.PerformancePrices
-import com.beat_it.performance.entity.Performances
-import com.beat_it.performance.entity.enum.PerformanceFileType
-import com.beat_it.performance.entity.enum.PerformanceFilterStatus
-import com.beat_it.performance.entity.enum.PerformanceStatus
-import com.beat_it.performance.entity.enum.TicketPriceType
-import com.beat_it.performance.repository.PerformanceFilesRepository
-import com.beat_it.performance.repository.PerformancePricesRepository
-import com.beat_it.performance.repository.PerformanceRepository
+import com.beat_it.performance.entity.*
+import com.beat_it.performance.entity.enum.*
+import com.beat_it.performance.repository.*
 import com.beat_it.team.service.TeamService
+import com.fasterxml.jackson.core.type.TypeReference
+import com.fasterxml.jackson.databind.ObjectMapper
 import org.springframework.data.domain.PageRequest
 import org.springframework.data.domain.Sort
 import org.springframework.stereotype.Service
@@ -34,10 +29,12 @@ class PerformanceService(
     private val performanceRepository: PerformanceRepository,
     private val performancePricesRepository: PerformancePricesRepository,
     private val performanceFilesRepository: PerformanceFilesRepository,
+    private val invitationCardRepository: InvitationCardRepository,
     private val locationsService: LocationsService,
     private val fileService: FileService,
     private val userService: UserService,
-    private val teamService: TeamService
+    private val teamService: TeamService,
+    private val objectMapper: ObjectMapper
 ) {
 
     @Transactional
@@ -50,7 +47,9 @@ class PerformanceService(
         val teamId = userService.getCurrentTeamId(userId)
 
         validateBasicInfo(request.title, request.hostName)
+        validateHostContactAndLink(request.hostContact, request.hostLink)
         validatePricesAndBooking(request.prices, request.bookingDeadline, request.bookingLink)
+        request.invitationCard?.let { validateInvitationCard(it) }
 
         val validDetailImages = detailImages?.filter { !it.isEmpty } ?: emptyList()
         if (validDetailImages.size > 5) {
@@ -116,6 +115,18 @@ class PerformanceService(
 
         savePrices(savedPerformance, request.prices)
 
+        if (request.invitationCard != null) {
+            val setlistJson = request.invitationCard.setlist?.let { objectMapper.writeValueAsString(it) }
+            val invitationCard = InvitationCard(
+                performance = savedPerformance,
+                performanceTeam = request.invitationCard.performanceTeam,
+                description = request.invitationCard.description,
+                setlist = setlistJson
+            )
+            val savedCard = invitationCardRepository.save(invitationCard)
+            savedPerformance.invitationCard = savedCard
+        }
+
         return toPerformanceResponse(savedPerformance)
     }
 
@@ -131,8 +142,13 @@ class PerformanceService(
     @Transactional(readOnly = true)
     fun getPerformanceInvitation(publicId: UUID): PerformanceInvitationResponse {
         val performance = findPerformanceOrThrow(publicId)
-        val teamName = runCatching { teamService.findTeamForCommandOrThrow(performance.teamId).teamName }.getOrNull()
-        return PerformanceInvitationResponse.from(performance, teamName)
+        val invitationCard = invitationCardRepository.findByPerformance(performance).orElse(null)
+        val setlist = parseSetlist(invitationCard?.setlist)
+        return PerformanceInvitationResponse.from(
+            performance = performance,
+            invitationCard = invitationCard,
+            setlist = setlist
+        )
     }
 
     @Transactional(readOnly = true)
@@ -350,6 +366,17 @@ class PerformanceService(
             savePrices(performance, request.prices)
         }
 
+        val hostContact: String?
+        val hostLink: String?
+        if (request.hostContact != null || request.hostLink != null) {
+            validateHostContactAndLink(request.hostContact, request.hostLink)
+            hostContact = request.hostContact?.takeIf { it.isNotBlank() }
+            hostLink = request.hostLink?.takeIf { it.isNotBlank() }
+        } else {
+            hostContact = performance.hostContact
+            hostLink = performance.hostLink
+        }
+
         performance.updatePerformance(
             title = request.title,
             performanceDateTime = request.performanceDateTime,
@@ -361,10 +388,31 @@ class PerformanceService(
             bookingDeadline = request.bookingDeadline,
             bookingLink = request.bookingLink,
             hostName = request.hostName,
-            hostContact = request.hostContact,
-            hostLink = request.hostLink,
-            performanceStatus = request.performanceStatus
+            hostContact = hostContact,
+            hostLink = hostLink
         )
+
+        if (request.invitationCard != null) {
+            validateInvitationCard(request.invitationCard)
+            val setlistJson = request.invitationCard.setlist?.let { objectMapper.writeValueAsString(it) }
+            val existingCard = invitationCardRepository.findByPerformance(performance).orElse(null)
+            if (existingCard != null) {
+                existingCard.update(
+                    performanceTeam = request.invitationCard.performanceTeam,
+                    description = request.invitationCard.description,
+                    setlist = setlistJson
+                )
+            } else {
+                val newCard = InvitationCard(
+                    performance = performance,
+                    performanceTeam = request.invitationCard.performanceTeam,
+                    description = request.invitationCard.description,
+                    setlist = setlistJson
+                )
+                val savedCard = invitationCardRepository.save(newCard)
+                performance.invitationCard = savedCard
+            }
+        }
 
         return toPerformanceResponse(performance)
     }
@@ -388,7 +436,7 @@ class PerformanceService(
             locationResponse = locationResponse,
             poster = poster,
             detailImages = detailImages,
-            prices = prices
+            prices = prices,
         )
     }
 
@@ -426,6 +474,15 @@ class PerformanceService(
         }
         if (hostName.isNullOrBlank()) {
             throw BusinessException(ErrorCode.PERFORMANCE_HOST_NAME_REQUIRED)
+        }
+    }
+
+    private fun validateHostContactAndLink(hostContact: String?, hostLink: String?) {
+        val hasContact = !hostContact.isNullOrBlank()
+        val hasLink = !hostLink.isNullOrBlank()
+
+        if ((hasContact && hasLink) || (!hasContact && !hasLink)) {
+            throw BusinessException(ErrorCode.PERFORMANCE_HOST_CONTACT_OR_LINK_REQUIRED)
         }
     }
 
@@ -482,5 +539,46 @@ class PerformanceService(
         if (performance.createdUserId != userId) {
             throw BusinessException(ErrorCode.NOT_AUTHOR)
         }
+    }
+
+    private fun validateInvitationCard(request: InvitationCardRequest) {
+        if (request.performanceTeam.isBlank()) {
+            throw BusinessException(ErrorCode.PERFORMANCE_TEAM_REQUIRED)
+        }
+
+        if (request.description != null && request.description.length > 150) {
+            throw BusinessException(ErrorCode.PERFORMANCE_INVITATION_DESCRIPTION_TOO_LONG)
+        }
+
+        val setlist = request.setlist
+        if (!setlist.isNullOrEmpty()) {
+            val hasMultipleTeams = setlist.size >= 2
+            for (team in setlist) {
+                if (hasMultipleTeams && team.teamName.isNullOrBlank()) {
+                    throw BusinessException(ErrorCode.PERFORMANCE_SETLIST_TEAM_NAME_REQUIRED)
+                }
+
+                val musics = team.musics
+                if (musics.isEmpty()) {
+                    throw BusinessException(ErrorCode.PERFORMANCE_SETLIST_MUSIC_REQUIRED)
+                }
+
+                for (music in musics) {
+                    if (music.musicTitle.isBlank() || music.musicArtist.isBlank()) {
+                        throw BusinessException(ErrorCode.PERFORMANCE_SETLIST_MUSIC_REQUIRED)
+                    }
+                    if (music.description != null && music.description.length > 50) {
+                        throw BusinessException(ErrorCode.PERFORMANCE_SETLIST_MUSIC_DESCRIPTION_TOO_LONG)
+                    }
+                }
+            }
+        }
+    }
+
+    private fun parseSetlist(setlistJson: String?): List<SetlistTeamDto>? {
+        if (setlistJson.isNullOrBlank()) return null
+        return runCatching {
+            objectMapper.readValue(setlistJson, object : TypeReference<List<SetlistTeamDto>>() {})
+        }.getOrNull()
     }
 }

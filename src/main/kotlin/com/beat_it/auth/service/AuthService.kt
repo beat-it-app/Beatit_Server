@@ -11,12 +11,16 @@ import com.beat_it.auth.dto.NaverLoginRequest
 import com.beat_it.auth.dto.AppleLoginRequest
 import com.beat_it.auth.dto.ResetPasswordRequest
 import com.beat_it.auth.dto.ResetPasswordResponse
+import com.beat_it.auth.dto.WithdrawalRequest
+import com.beat_it.auth.dto.WithdrawalResponse
 import com.beat_it.auth.entity.UserAuthAccounts
 import com.beat_it.auth.entity.UserSettings
 import com.beat_it.auth.entity.Users
 import com.beat_it.auth.entity.enum.AccountStatus
 import com.beat_it.auth.entity.enum.Role
 import com.beat_it.auth.entity.enum.SocialProvider
+import com.beat_it.auth.entity.UserWithdrawalReason
+import com.beat_it.auth.repository.UserWithdrawalReasonRepository
 import com.beat_it.auth.repository.UserAuthAccountRepository
 import com.beat_it.auth.repository.UserProfilesRepository
 import com.beat_it.auth.repository.UserRepository
@@ -24,13 +28,17 @@ import com.beat_it.auth.repository.UserSettingsRepository
 import com.beat_it.global.error.BusinessException
 import com.beat_it.global.error.ErrorCode
 import com.beat_it.global.security.jwt.JwtTokenProvider
-import jakarta.transaction.Transactional
+import org.springframework.transaction.annotation.Transactional
 import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.stereotype.Service
 import org.springframework.data.redis.core.StringRedisTemplate
+import com.beat_it.auth.dto.UserWithdrawalInfoResponse
+import com.beat_it.cal.service.ScheduleService
 import com.beat_it.notification.dto.PushTokenRegisterRequest
 import com.beat_it.notification.entity.enum.PlatformType
 import com.beat_it.notification.service.PushTokenService
+import com.beat_it.team.service.TeamCloudService
+import com.beat_it.team.service.TeamService
 import org.slf4j.LoggerFactory
 
 @Service
@@ -38,6 +46,7 @@ class AuthService (
     private val userRepository: UserRepository,
     private val userAuthAccountRepository: UserAuthAccountRepository,
     private val userSettingsRepository: UserSettingsRepository,
+    private val userWithdrawalReasonRepository: UserWithdrawalReasonRepository,
     private val passwordEncoder: PasswordEncoder,
     private val jwtTokenProvider: JwtTokenProvider,
     private val userProfilesRepository: UserProfilesRepository,
@@ -48,7 +57,10 @@ class AuthService (
     private val refreshTokenService: RefreshTokenService,
     private val emailService: EmailService,
     private val redisTemplate: StringRedisTemplate,
-    private val pushTokenService: PushTokenService
+    private val pushTokenService: PushTokenService,
+    private val teamService: TeamService,
+    private val teamCloudService: TeamCloudService,
+    private val scheduleService: ScheduleService
 ){
     private val log = LoggerFactory.getLogger(AuthService::class.java)
 
@@ -646,5 +658,54 @@ class AuthService (
         redisTemplate.delete(verifiedKey)
 
         return ResetPasswordResponse(request.newPassword)
+    }
+
+    @Transactional
+    fun withdraw(userId: Long, request: WithdrawalRequest): WithdrawalResponse {
+        val user = userRepository.findById(userId)
+            .orElseThrow { BusinessException(ErrorCode.USER_NOT_FOUND) }
+
+        user.withdraw()
+        pushTokenService.deactivateAllUserTokens(userId)
+
+        userWithdrawalReasonRepository.save(
+            UserWithdrawalReason.of(
+                userId = userId,
+                withdrawalReason = request.withdrawalReason,
+                detailReason = request.detailReason
+            )
+        )
+
+        return WithdrawalResponse(
+            userId = userId,
+            requestedAt = user.withdrawnAt!!,
+            scheduledDeletionDate = user.withdrawnAt!!.plusDays(7)
+        )
+    }
+
+    fun logout(userId: Long, deviceId: String? = null) {
+        refreshTokenService.deleteRefreshToken(userId.toString())
+        if (!deviceId.isNullOrBlank()) {
+            pushTokenService.deactivateToken(userId, deviceId)
+        }
+    }
+
+    @Transactional(readOnly = true)
+    fun getWithdrawalInfo(userId: Long): UserWithdrawalInfoResponse {
+        userRepository.findById(userId)
+            .orElseThrow { BusinessException(ErrorCode.USER_NOT_FOUND) }
+
+        val teamCount = teamService.countActiveTeamsByUserId(userId)
+        val fileCount = teamCloudService.countUploadedFilesByUserId(userId) +
+                scheduleService.countScheduleFilesByUserId(userId)
+        val sharedMusicCount = teamCloudService.countScoresAndMusicsByUserId(userId)
+        val scheduleCount = scheduleService.countSchedulesByUserId(userId)
+
+        return UserWithdrawalInfoResponse(
+            teamCount = teamCount,
+            fileCount = fileCount,
+            sharedMusicCount = sharedMusicCount,
+            scheduleCount = scheduleCount
+        )
     }
 }

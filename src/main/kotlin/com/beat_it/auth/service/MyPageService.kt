@@ -2,12 +2,12 @@ package com.beat_it.auth.service
 
 import com.beat_it.auth.dto.MyPageResponse
 import com.beat_it.auth.dto.MyPageTeamResponse
+import com.beat_it.auth.dto.ScreenModeDto
 import com.beat_it.auth.dto.UpdateNameRequest
-import com.beat_it.auth.dto.WithdrawalRequest
-import com.beat_it.auth.dto.WithdrawalResponse
 import com.beat_it.auth.entity.AuthFiles
 import com.beat_it.auth.entity.UserAuthAccounts
 import com.beat_it.auth.entity.UserProfiles
+import com.beat_it.auth.entity.UserSettings
 import com.beat_it.auth.entity.Users
 import com.beat_it.auth.entity.enum.DefaultProfileImage
 import com.beat_it.auth.entity.enum.MediaCategory
@@ -16,11 +16,11 @@ import com.beat_it.auth.repository.*
 import com.beat_it.global.error.BusinessException
 import com.beat_it.global.error.ErrorCode
 import com.beat_it.global.service.FileService
+import com.beat_it.notification.service.NotificationService
 import com.beat_it.notification.service.PushTokenService
 import com.beat_it.team.repository.TeamMembershipRepository
 import jakarta.transaction.Transactional
 import org.springframework.data.repository.findByIdOrNull
-import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.stereotype.Service
 import org.springframework.web.multipart.MultipartFile
 
@@ -32,9 +32,8 @@ class MyPageService (
     private val teamMembershipRepository: TeamMembershipRepository,
     private val authFilesRepository: AuthFilesRepository,
     private val fileService: FileService,
-    private val passwordEncoder: PasswordEncoder,
-    private val refreshTokenService: RefreshTokenService,
-    private val pushTokenService: PushTokenService
+    private val notificationService: NotificationService,
+    private val userSettingsRepository: UserSettingsRepository,
 ){
     fun getMyPage(userId: Long): MyPageResponse {
         val user = getUser(userId)
@@ -54,11 +53,14 @@ class MyPageService (
 
                 MyPageTeamResponse(
                     teamId = teamId,
+                    teamPublicId = team.publicId,
                     type = team.teamType,
                     name = team.teamName,
                     imageUrl = team.teamImageUrl ?: "",
                     leaderName = leaderName,
-                    memberCount = memberCount
+                    myRole = membership.teamRole,
+                    memberCount = memberCount,
+                    establishedOn = team.establishedOn
                 )
             }
         }
@@ -68,6 +70,10 @@ class MyPageService (
         if (authAccount.naverId != null) socialAccounts.add(SocialProvider.NAVER)
         if (authAccount.googleId != null) socialAccounts.add(SocialProvider.GOOGLE)
 
+        val unreadNotificationCount = user.currentTeamId?.let {
+            notificationService.getUnreadStatus(userId).unreadCount
+        } ?: 0L
+
         return MyPageResponse(
             userId = userId,
             userName = userProfile.name,
@@ -76,7 +82,8 @@ class MyPageService (
                 ?: userProfile.defaultProfileImage?.let { fileService.getFileUrl(it.storageKey) }
                 ?: "",
             socialAccounts = socialAccounts,
-            team = teamResponse
+            team = teamResponse,
+            unreadNotificationCount = unreadNotificationCount
         )
     }
 
@@ -163,25 +170,16 @@ class MyPageService (
         userProfile.updateProfileImage(null, DefaultProfileImage.getRandom())
     }
 
+    fun getScreenMode(userId: Long): ScreenModeDto {
+        val userSettings = getUserSettings(userId)
+        return ScreenModeDto(screenMode = userSettings.screenMode)
+    }
+
     @Transactional
-    fun withdraw(userId: Long, request: WithdrawalRequest): WithdrawalResponse {
-        val user = getUser(userId)
-        val authAccount = getUserAuthAccount(userId)
-
-        if (authAccount.identifier != null) {
-            if (request.password.isNullOrBlank() || !passwordEncoder.matches(request.password, authAccount.password)) {
-                throw BusinessException(ErrorCode.INVALID_PASSWORD)
-            }
-        }
-
-        user.withdraw()
-        pushTokenService.deactivateAllUserTokens(userId)
-
-        return WithdrawalResponse(
-            userId = userId,
-            requestedAt = user.withdrawnAt!!,
-            scheduledDeletionDate = user.withdrawnAt!!.plusDays(7)
-        )
+    fun updateScreenMode(userId: Long, request: ScreenModeDto): ScreenModeDto {
+        val userSettings = getUserSettings(userId)
+        userSettings.updateScreenMode(request.screenMode)
+        return ScreenModeDto(screenMode = userSettings.screenMode)
     }
 
     private fun getUser(userId: Long): Users{
@@ -199,10 +197,16 @@ class MyPageService (
             ?: throw BusinessException(ErrorCode.USER_NOT_FOUND)
     }
 
-    fun logout(userId: Long, deviceId: String? = null) {
-        refreshTokenService.deleteRefreshToken(userId.toString())
-        if (!deviceId.isNullOrBlank()) {
-            pushTokenService.deactivateToken(userId, deviceId)
-        }
+    private fun getUserSettings(userId: Long): UserSettings {
+        return userSettingsRepository.findByUsers_UserId(userId)
+            ?: run {
+                val user = getUser(userId)
+                userSettingsRepository.save(
+                    UserSettings.createNewUser(
+                        user = user,
+                        allowAutoLogin = false
+                    )
+                )
+            }
     }
 }

@@ -26,7 +26,7 @@ class PerformanceController(
     private val performanceService: PerformanceService
 ) {
 
-    @Operation(summary = "공연 등록하기", description = "공연 정보(JSON), 포스터 이미지(선택), 상세 이미지(0~5장 선택)를 등록합니다.")
+    @Operation(summary = "공연 등록하기")
     @PostMapping(consumes = [MediaType.MULTIPART_FORM_DATA_VALUE])
     fun createPerformance(
         @AuthenticationPrincipal userDetails: UserDetails,
@@ -50,7 +50,7 @@ class PerformanceController(
             .body(BasicResponse.success(response, HttpStatus.CREATED, "공연이 성공적으로 등록되었습니다."))
     }
 
-    @Operation(summary = "공연 상세 조회", description = "공연 Public UUID로 공연의 상세 정보(포스터, 상세 이미지들, 장소, 티켓 가격 등)를 조회합니다.")
+    @Operation(summary = "공연 상세 조회")
     @GetMapping("/{publicId}")
     fun getPerformanceDetail(
         @AuthenticationPrincipal userDetails: UserDetails,
@@ -65,10 +65,9 @@ class PerformanceController(
             .body(BasicResponse.success(response, HttpStatus.OK, "공연 상세 정보를 성공적으로 조회했습니다."))
     }
 
-    @Operation(summary = "모바일 초대장 조회", description = "공연 Public UUID로 모바일 초대장 정보(공연명, 일시, 장소명, 설명)를 조회합니다.")
+    @Operation(summary = "모바일 초대장 조회")
     @GetMapping("/{publicId}/invitation")
-    fun getPerformanceInvitation(
-        @PathVariable publicId: UUID
+    fun getPerformanceInvitation(@PathVariable publicId: UUID
     ): ResponseEntity<BasicResponse<PerformanceInvitationResponse>> {
         val response = performanceService.getPerformanceInvitation(publicId)
 
@@ -77,7 +76,7 @@ class PerformanceController(
             .body(BasicResponse.success(response, HttpStatus.OK, "모바일 초대장 정보를 성공적으로 조회했습니다."))
     }
 
-    @Operation(summary = "나의 공연 목록 조회", description = "우리 팀 소속의 공연 목록을 페이징 조회합니다. (상태 필터링 및 제목 검색 가능)")
+    @Operation(summary = "나의 공연 목록 조회")
     @GetMapping("/my")
     fun getMyPerformanceList(
         @AuthenticationPrincipal userDetails: UserDetails,
@@ -101,7 +100,7 @@ class PerformanceController(
             .body(BasicResponse.success(response, HttpStatus.OK, "나의 공연 목록 조회를 성공했습니다."))
     }
 
-    @Operation(summary = "전체 공연 목록 조회", description = "전체 공연 목록을 페이징 조회합니다. (상태 필터링 및 제목 검색 가능)")
+    @Operation(summary = "전체 공연 목록 조회")
     @GetMapping
     fun getPerformanceList(
         @RequestParam(defaultValue = "ALL") filter: PerformanceFilterStatus,
@@ -121,11 +120,8 @@ class PerformanceController(
             .body(BasicResponse.success(response, HttpStatus.OK, "공연 목록 조회를 성공했습니다."))
     }
 
-    @Operation(summary = "공연 수정하기", description = "공연 정보, 포스터 이미지 교체, 상세 이미지 추가/삭제, 티켓 가격 수정을 처리합니다.")
-    @PatchMapping(
-        "/{publicId}",
-        consumes = [MediaType.MULTIPART_FORM_DATA_VALUE]
-    )
+    @Operation(summary = "공연 수정하기")
+    @PatchMapping("/{publicId}", consumes = [MediaType.MULTIPART_FORM_DATA_VALUE])
     fun updatePerformance(
         @AuthenticationPrincipal userDetails: UserDetails,
         @PathVariable publicId: UUID,
@@ -151,7 +147,7 @@ class PerformanceController(
             .body(BasicResponse.success(response, HttpStatus.OK, "공연 정보가 성공적으로 수정되었습니다."))
     }
 
-    @Operation(summary = "공연 삭제하기", description = "공연 및 첨부된 포스터/상세 이미지 파일을 삭제합니다.")
+    @Operation(summary = "공연 삭제하기")
     @DeleteMapping("/{publicId}")
     fun deletePerformance(
         @AuthenticationPrincipal userDetails: UserDetails,

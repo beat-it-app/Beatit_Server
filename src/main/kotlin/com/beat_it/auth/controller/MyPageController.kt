@@ -1,9 +1,8 @@
 package com.beat_it.auth.controller
 
 import com.beat_it.auth.dto.MyPageResponse
+import com.beat_it.auth.dto.ScreenModeDto
 import com.beat_it.auth.dto.UpdateNameRequest
-import com.beat_it.auth.dto.WithdrawalRequest
-import com.beat_it.auth.dto.WithdrawalResponse
 import com.beat_it.auth.service.MyPageService
 import com.beat_it.global.error.BusinessException
 import com.beat_it.global.error.ErrorCode
@@ -14,7 +13,6 @@ import jakarta.validation.Valid
 import org.springframework.http.HttpStatus
 import org.springframework.http.MediaType
 import org.springframework.http.ResponseEntity
-import org.springframework.security.core.Authentication
 import org.springframework.security.core.annotation.AuthenticationPrincipal
 import org.springframework.security.core.userdetails.UserDetails
 import org.springframework.web.bind.annotation.*
@@ -55,7 +53,7 @@ class MyPageController (
     }
 
     @Operation(summary = "프로필 이미지 변경")
-    @PatchMapping("/image", consumes = [MediaType.MULTIPART_FORM_DATA_VALUE])
+    @PatchMapping("/profile/image", consumes = [MediaType.MULTIPART_FORM_DATA_VALUE])
     fun updateProfileImage(
         @AuthenticationPrincipal userDetails: UserDetails,
         @RequestPart(value = "image", required = false) image: MultipartFile?,
@@ -84,39 +82,37 @@ class MyPageController (
         )
     }
 
-    @Operation(summary = "회원 탈퇴")
-    @PatchMapping("/withdraw")
-    fun withdraw(
-        @AuthenticationPrincipal userDetails: UserDetails,
-        @Valid @RequestBody request: WithdrawalRequest
-    ): ResponseEntity<BasicResponse<WithdrawalResponse>> {
-        val userId = extractUserId(userDetails)
-
-        val data = myPageService.withdraw(userId, request)
-
-        return ResponseEntity.ok(
-            BasicResponse.success(data, HttpStatus.OK, "회원 탈퇴 요청이 정상적으로 접수되었습니다.")
-        )
-    }
-
-    @Operation(summary = "로그아웃", description = "로그아웃을 처리하며, 현재 기기의 푸시 토큰을 자동으로 비활성화합니다.")
-    @PostMapping("/logout")
-    fun logout(
-        @AuthenticationPrincipal userDetails: UserDetails,
-        authentication: Authentication
-    ): ResponseEntity<BasicResponse<Nothing>> {
-        val userId = extractUserId(userDetails)
-        val deviceId = authentication.details as? String
-
-        myPageService.logout(userId, deviceId)
-
-        return ResponseEntity.ok(
-            BasicResponse.success(HttpStatus.OK, "로그아웃이 성공적으로 처리되었습니다.")
-        )
-    }
-
     private fun extractUserId(userDetails: UserDetails): Long {
         return userDetails.username.toLongOrNull()
             ?: throw BusinessException(ErrorCode.UNAUTHORIZED)
+    }
+
+    @Operation(summary = "화면 모드 조회")
+    @GetMapping("/screen-mode")
+    fun getScreenMode(
+        @AuthenticationPrincipal userDetails: UserDetails
+    ): ResponseEntity<BasicResponse<ScreenModeDto>> {
+        val userId = extractUserId(userDetails)
+
+        val data = myPageService.getScreenMode(userId)
+
+        return ResponseEntity
+            .status(HttpStatus.OK)
+            .body(BasicResponse.success(data, HttpStatus.OK, "화면 모드 불러오기에 성공했습니다."))
+    }
+
+    @Operation(summary = "화면 모드 변경")
+    @PatchMapping("/screen-mode")
+    fun updateScreenMode(
+        @AuthenticationPrincipal userDetails: UserDetails,
+        @Valid @RequestBody request: ScreenModeDto
+    ): ResponseEntity<BasicResponse<ScreenModeDto>> {
+        val userId = extractUserId(userDetails)
+
+        val data = myPageService.updateScreenMode(userId, request)
+
+        return ResponseEntity
+            .status(HttpStatus.OK)
+            .body(BasicResponse.success(data, HttpStatus.OK, "화면 모드 변경에 성공했습니다."))
     }
 }

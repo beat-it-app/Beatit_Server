@@ -10,5 +10,4 @@ import org.springframework.stereotype.Repository
 interface PerformanceFilesRepository : JpaRepository<PerformanceFiles, Long> {
     fun findByPerformanceOrderByDisplayOrderAsc(performance: Performances): List<PerformanceFiles>
     fun findByPerformanceAndFileType(performance: Performances, fileType: PerformanceFileType): List<PerformanceFiles>
-    fun deleteByPerformance(performance: Performances)
 }
