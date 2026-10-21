@@ -515,7 +515,11 @@ class AuthService (
         redisTemplate.opsForValue().set(codeKey, verificationCode, java.time.Duration.ofSeconds(180))
 
         try {
-            emailService.sendVerificationEmail(email, verificationCode)
+            emailService.sendVerificationEmail(
+                email,
+                verificationCode,
+                EmailService.VerificationPurpose.FIND_IDENTIFIER
+            )
         } catch (e: Exception) {
             redisTemplate.delete(codeKey)
             log.error("Failed to send find-id verification email to $email", e)
@@ -548,7 +552,11 @@ class AuthService (
         redisTemplate.opsForValue().set(codeKey, verificationCode, java.time.Duration.ofSeconds(180))
 
         try {
-            emailService.sendVerificationEmail(email, verificationCode)
+            emailService.sendVerificationEmail(
+                email,
+                verificationCode,
+                EmailService.VerificationPurpose.RESET_PASSWORD
+            )
         } catch (e: Exception) {
             redisTemplate.delete(codeKey)
             log.error("Failed to send reset-pw verification email to $email", e)
