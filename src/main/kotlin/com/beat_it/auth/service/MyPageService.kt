@@ -53,10 +53,12 @@ class MyPageService (
 
                 MyPageTeamResponse(
                     teamId = teamId,
+                    teamPublicId = team.publicId,
                     type = team.teamType,
                     name = team.teamName,
                     imageUrl = team.teamImageUrl ?: "",
                     leaderName = leaderName,
+                    myRole = membership.teamRole,
                     memberCount = memberCount,
                     establishedOn = team.establishedOn
                 )
