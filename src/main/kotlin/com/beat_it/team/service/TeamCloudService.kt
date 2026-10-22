@@ -415,7 +415,7 @@ class TeamCloudService(
             extension in VIDEO_EXTENSIONS -> MediaCategory.VIDEO
             extension in DOCUMENT_EXTENSIONS -> MediaCategory.DOCUMENT
             extension in OTHER_EXTENSIONS -> MediaCategory.OTHER
-            else -> MediaCategory.OTHER // 정의되지 않은 확장자도 기타로 분류
+            else -> MediaCategory.OTHER
         }
     }
 
