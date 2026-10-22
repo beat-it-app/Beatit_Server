@@ -4,6 +4,7 @@ import com.beat_it.auth.dto.UserProfileResponse
 import com.beat_it.chat.entity.ChatMessage
 import com.fasterxml.jackson.annotation.JsonProperty
 import java.time.OffsetDateTime
+import com.beat_it.chat.dto.ChatMessageReadUserResponse
 
 data class GetChatMessageQueryResponse(
     val messageId: Long,

@@ -74,19 +74,7 @@ class ScheduleService(
             )
         }
 
-        if (!files.isNullOrEmpty()) {
-            val validFiles = files.filter { !it.isEmpty }
-            if (validFiles.isNotEmpty()) {
-                val uploadedFiles = fileService.uploadFiles(validFiles, com.beat_it.global.service.FileDirectory.SCHEDULE)
-                uploadedFiles.forEach { fileResult ->
-                    schedule.addFile(
-                        originalFileName = fileResult.originalFileName,
-                        storageKey = fileResult.storageKey,
-                        cdnUrl = fileResult.cdnUrl
-                    )
-                }
-            }
-        }
+        uploadAndAttachFiles(schedule, files)
 
         if (request.participantUserIds.isNotEmpty()) {
             val isValidTeamMembers = teamService.validateMembersInTeam(currentTeamId, request.participantUserIds)
@@ -173,19 +161,7 @@ class ScheduleService(
         }
         schedule.files.removeIf { it.id !in retainFileIds }
 
-        if (!files.isNullOrEmpty()) {
-            val validFiles = files.filter { !it.isEmpty }
-            if (validFiles.isNotEmpty()) {
-                val uploadedFiles = fileService.uploadFiles(validFiles, com.beat_it.global.service.FileDirectory.SCHEDULE)
-                uploadedFiles.forEach { fileResult ->
-                    schedule.addFile(
-                        originalFileName = fileResult.originalFileName,
-                        storageKey = fileResult.storageKey,
-                        cdnUrl = fileResult.cdnUrl
-                    )
-                }
-            }
-        }
+        uploadAndAttachFiles(schedule, files)
 
         schedule.update(
             title = request.title!!,
@@ -292,6 +268,10 @@ class ScheduleService(
     @Transactional(readOnly = true)
     fun getCalendarSchedules(userId: Long, year: Int, month: Int): CalendarSchedulesResponse {
         validateYearAndMonth(year, month)
+
+        val currentTeamId = userService.getCurrentTeamId(userId)
+        teamService.validateTeamMember(currentTeamId, userId)
+
         val firstDayOfMonth = LocalDate.of(year, month, 1)
         val lastDayOfMonth = firstDayOfMonth.withDayOfMonth(firstDayOfMonth.lengthOfMonth())
 
@@ -302,7 +282,7 @@ class ScheduleService(
         val startDateTime = OffsetDateTime.of(startLocalDate, LocalTime.MIN, zoneOffset)
         val endDateTime = OffsetDateTime.of(endLocalDate, LocalTime.MAX, zoneOffset)
 
-        val schedules = scheduleRepository.findByUserIdAndMonthRange(userId, startDateTime, endDateTime)
+        val schedules = scheduleRepository.findByTeamIdAndMonthRange(currentTeamId, startDateTime, endDateTime)
 
         val calendarSchedules = schedules.map { schedule ->
             CalendarSchedule(
@@ -319,13 +299,17 @@ class ScheduleService(
     @Transactional(readOnly = true)
     fun getDateSchedules(userId: Long, year: Int, month: Int, date: Int): DateSchedulesResponse {
         validateYearMonthAndDate(year, month, date)
+
+        val currentTeamId = userService.getCurrentTeamId(userId)
+        teamService.validateTeamMember(currentTeamId, userId)
+
         val targetLocalDate = LocalDate.of(year, month, date)
 
         val zoneOffset = ZoneOffset.ofHours(9)
         val startDateTime = OffsetDateTime.of(targetLocalDate, LocalTime.MIN, zoneOffset)
         val endDateTime = OffsetDateTime.of(targetLocalDate, LocalTime.MAX, zoneOffset)
 
-        val schedules = scheduleRepository.findByUserIdAndDailyRange(userId, startDateTime, endDateTime)
+        val schedules = scheduleRepository.findByTeamIdAndDailyRange(currentTeamId, startDateTime, endDateTime)
 
         if (schedules.isEmpty()) {
             return DateSchedulesResponse(items = emptyList())
@@ -474,6 +458,22 @@ class ScheduleService(
                             scheduleId = schedule.scheduleId
                         )
                     )
+                )
+            }
+        }
+    }
+
+    private fun uploadAndAttachFiles(schedule: Schedule, files: List<MultipartFile>?) {
+        if (files.isNullOrEmpty()) return
+
+        val validFiles = files.filter { !it.isEmpty }
+        if (validFiles.isNotEmpty()) {
+            val uploadedFiles = fileService.uploadFiles(validFiles, com.beat_it.global.service.FileDirectory.SCHEDULE)
+            uploadedFiles.forEach { fileResult ->
+                schedule.addFile(
+                    originalFileName = fileResult.originalFileName,
+                    storageKey = fileResult.storageKey,
+                    cdnUrl = fileResult.cdnUrl
                 )
             }
         }
