@@ -31,6 +31,24 @@ class TeamCloudService(
 ) {
     companion object {
         private const val MAX_STORAGE_BYTES: Long = 10L * 1024 * 1024 * 1024
+
+        private val DOCUMENT_EXTENSIONS = setOf(
+            "pdf", "txt", "docx", "doc", "hwp", "hwpx", "pages", "rtf",
+            "xlsx", "xls", "csv", "pptx", "ppt", "key",
+            "mscz", "gp", "gp5", "gpx", "sib", "mus", "musx", "dorico"
+        )
+        private val AUDIO_EXTENSIONS = setOf(
+            "mp3", "wav", "flac", "m4a", "aac", "ogg", "wma", "aiff", "aif", "alac", "mid", "midi"
+        )
+        private val VIDEO_EXTENSIONS = setOf(
+            "mp4", "mov", "m4v", "avi", "mkv", "webm", "wmv", "flv", "3gp", "ts"
+        )
+        private val IMAGE_EXTENSIONS = setOf(
+            "jpg", "jpeg", "png", "webp", "gif", "heic", "heif", "svg", "psd", "ai", "raw", "cr2", "nef", "dng"
+        )
+        private val OTHER_EXTENSIONS = setOf(
+            "zip", "rar", "7z", "tar", "gz", "logicx", "flp", "cpr", "als", "ptx", "bin", "dat"
+        )
     }
 
     @Transactional(readOnly = true)
@@ -314,10 +332,11 @@ class TeamCloudService(
 
         val categoryDetails = categoryUsages.map { usage ->
             val label = when (usage.category) {
-                MediaCategory.DOCUMENT -> "PDF"
+                MediaCategory.DOCUMENT -> "문서"
+                MediaCategory.AUDIO -> "음원"
                 MediaCategory.VIDEO -> "영상"
-                MediaCategory.AUDIO -> "MP3"
-                MediaCategory.IMAGE -> "이미지"
+                MediaCategory.IMAGE -> "사진"
+                MediaCategory.OTHER -> "기타"
             }
             TeamCloudStorageResponse.CategoryUsageDetail(
                 category = label,
@@ -380,11 +399,13 @@ class TeamCloudService(
 
     private fun determineMediaCategory(fileName: String): MediaCategory {
         val extension = fileName.substringAfterLast(".", "").lowercase()
-        return when (extension) {
-            "jpg", "jpeg", "png" -> MediaCategory.IMAGE
-            "mp3", "wav" -> MediaCategory.AUDIO
-            "mp4", "avi", "mov" -> MediaCategory.VIDEO
-            else -> MediaCategory.DOCUMENT
+        return when {
+            extension in IMAGE_EXTENSIONS -> MediaCategory.IMAGE
+            extension in AUDIO_EXTENSIONS -> MediaCategory.AUDIO
+            extension in VIDEO_EXTENSIONS -> MediaCategory.VIDEO
+            extension in DOCUMENT_EXTENSIONS -> MediaCategory.DOCUMENT
+            extension in OTHER_EXTENSIONS -> MediaCategory.OTHER
+            else -> MediaCategory.OTHER // 정의되지 않은 확장자도 기타로 분류
         }
     }
 
