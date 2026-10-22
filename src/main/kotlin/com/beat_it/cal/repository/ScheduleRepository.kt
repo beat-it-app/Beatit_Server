@@ -10,27 +10,27 @@ import java.time.OffsetDateTime
 @Repository
 interface ScheduleRepository : JpaRepository<Schedule, Long> {
     @Query("""
-        SELECT s FROM Schedule s 
-        WHERE s.userId = :userId 
-          AND s.startsAt <= :endDateTime 
+        SELECT s FROM Schedule s
+        WHERE s.teamId = :teamId
+          AND s.startsAt <= :endDateTime
           AND s.endsAt >= :startDateTime
         ORDER BY s.startsAt ASC
     """)
-    fun findByUserIdAndMonthRange(
-        @Param("userId") userId: Long,
+    fun findByTeamIdAndMonthRange(
+        @Param("teamId") teamId: Long,
         @Param("startDateTime") startDateTime: OffsetDateTime,
         @Param("endDateTime") endDateTime: OffsetDateTime
     ): List<Schedule>
 
     @Query("""
-        SELECT s FROM Schedule s 
-        WHERE s.userId = :userId 
-          AND s.startsAt <= :endDateTime 
+        SELECT s FROM Schedule s
+        WHERE s.teamId = :teamId
+          AND s.startsAt <= :endDateTime
           AND s.endsAt >= :startDateTime
         ORDER BY s.startsAt ASC
     """)
-    fun findByUserIdAndDailyRange(
-        @Param("userId") userId: Long,
+    fun findByTeamIdAndDailyRange(
+        @Param("teamId") teamId: Long,
         @Param("startDateTime") startDateTime: OffsetDateTime,
         @Param("endDateTime") endDateTime: OffsetDateTime
     ): List<Schedule>

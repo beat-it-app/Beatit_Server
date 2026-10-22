@@ -318,7 +318,14 @@ class ChatService(
 
     @Transactional(readOnly = true)
     fun getChatRooms(currentUserId: Long): ChatRoomListResponse {
-        val chatRooms = chatRepository.findByMembersUserIdAndIsParticipatingTrue(currentUserId)
+
+        val currentTeamId = userService.getCurrentTeamId(currentUserId)
+        teamService.validateTeamMember(currentTeamId, currentUserId)
+
+        val chatRooms = chatRepository.findByTeamIdAndMembersUserIdAndIsParticipatingTrue(
+            teamId = currentTeamId,
+            userId = currentUserId
+        )
 
         if (chatRooms.isEmpty()) {
             return ChatRoomListResponse(emptyList())
@@ -426,7 +433,7 @@ class ChatService(
             val systemMessage = ChatMessage(
                 chatRoom = chatRoom,
                 senderId = userId,
-                content = "${userName}님이 나갔습니다.",
+                content = "${userName}님이 채팅방을 나갔습니다.",
                 type = ChatMessageType.SYSTEM
             )
 
