@@ -71,6 +71,9 @@ jwt:
 kakao:
   rest-api-key: ${KAKAO_REST_API_KEY}
 
+apple:
+  bundle-id: com.beatit.ios
+
 logging:
   level:
     org.apache.kafka: ERROR
