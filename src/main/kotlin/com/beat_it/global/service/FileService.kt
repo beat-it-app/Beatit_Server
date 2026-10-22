@@ -56,6 +56,10 @@ class FileService(
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
 
+    companion object {
+        const val MAX_DOWNLOAD_URL_REQUEST_SIZE = 50
+    }
+
     val allowedExtensions = setOf(
         "jpg", "jpeg", "png", "gif", "webp", "heic",
         "mp3", "wav", "m4a", "aac", "ogg", "flac",
@@ -388,6 +392,15 @@ class FileService(
         items: List<DownloadUrlItemRequest>,
         expirationMinutes: Long = 10L
     ): List<PresignedDownloadUrlResponse> {
+        if (items.isEmpty()) {
+            return emptyList()
+        }
+
+        if (items.size > MAX_DOWNLOAD_URL_REQUEST_SIZE) {
+            log.warn("Presigned download url request size exceeded: ${items.size} > $MAX_DOWNLOAD_URL_REQUEST_SIZE")
+            throw BusinessException(ErrorCode.FILE_DOWNLOAD_LIMIT_EXCEEDED)
+        }
+
         return items.map { item ->
             generatePresignedDownloadUrl(
                 storageKey = item.storageKey,

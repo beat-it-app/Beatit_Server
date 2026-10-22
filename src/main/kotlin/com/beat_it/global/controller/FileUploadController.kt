@@ -109,8 +109,8 @@ class FileUploadController(
     }
 
     @Operation(
-        summary = "S3 Presigned 다운로드 URL 다중 발급 (여러 파일)",
         description = "여러 파일에 대해 S3에서 직접 다운로드할 수 있는 사전 서명된 GET URL 목록을 일괄 발급합니다."
+        summary = "S3 Presigned 다운로드 URL 다중 발급 (여러 파일, 최대 50개)",
     )
     @PostMapping("/download-urls")
     fun getPresignedDownloadUrls(
