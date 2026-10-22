@@ -15,6 +15,7 @@ import com.beat_it.team.entity.enum.MediaCategory
 import com.beat_it.team.repository.TeamCloudFolderRepository
 import com.beat_it.team.repository.TeamCloudItemRepository
 import com.beat_it.team.repository.TeamFileRepository
+import com.beat_it.team.repository.TeamMembershipRepository
 import com.beat_it.team.repository.TeamRepository
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -26,6 +27,7 @@ class TeamCloudService(
     private val teamRepository: TeamRepository,
     private val teamCloudItemRepository: TeamCloudItemRepository,
     private val teamFileRepository: TeamFileRepository,
+    private val teamMembershipRepository: TeamMembershipRepository,
     private val fileService: FileService,
     private val userService: UserService
 ) {
@@ -56,6 +58,10 @@ class TeamCloudService(
         val teamId = userService.getCurrentTeamId(userId)
         val team = findTeamOrThrow(teamId)
 
+        val membership = teamMembershipRepository.findByTeamTeamIdAndUserIdAndLeftAtIsNull(teamId, userId)
+            ?: throw BusinessException(ErrorCode.NOT_TEAM_MEMBER)
+        val currentUserRole = membership.teamRole
+
         if (folderId == null) {
             val rootFolders = teamCloudFolderRepository.findByTeam(team)
             val rootItems = teamCloudItemRepository.findByTeamAndTeamCloudFolderIsNull(team)
@@ -72,15 +78,18 @@ class TeamCloudService(
                     folderId = folder.teamCloudFolderId!!,
                     folderName = folder.folderName,
                     itemCount = folder.items.size,
-                    creatorName = creatorProfile?.name ?: "알 수 없음"
+                    creatorId = folder.creatorId,
+                    creatorName = creatorProfile?.name ?: "알 수 없음",
+                    isWriter = (folder.creatorId == userId)
                 )
             }
 
-            val itemResponses = mapToItemResponses(rootItems, userProfileMap)
+            val itemResponses = mapToItemResponses(rootItems, userProfileMap, userId)
 
 
             return TeamCloudListResponse(
                 currentFolderName = null,
+                currentUserRole = currentUserRole,
                 folders = folderResponses,
                 items = itemResponses
             )
@@ -93,10 +102,11 @@ class TeamCloudService(
         val uploaderIds = items.map { it.uploaderId }.distinct()
         val userProfileMap = userService.getUserProfiles(uploaderIds).associateBy { it.userId }
 
-        val itemResponses = mapToItemResponses(items, userProfileMap)
+        val itemResponses = mapToItemResponses(items, userProfileMap, userId)
 
         return TeamCloudListResponse(
             currentFolderName = targetFolder.folderName,
+            currentUserRole = currentUserRole,
             folders = emptyList(),
             items = itemResponses
         )
@@ -420,7 +430,8 @@ class TeamCloudService(
 
     private fun mapToItemResponses(
         items: List<TeamCloudItem>,
-        userProfileMap: Map<Long, UserProfileResponse>
+        userProfileMap: Map<Long, UserProfileResponse>,
+        currentUserId: Long
     ): List<TeamCloudListResponse.ItemResponse> {
         return items.map { item ->
             val uploaderProfile = userProfileMap[item.uploaderId]
@@ -430,7 +441,9 @@ class TeamCloudService(
                 fileSize = item.teamFile?.fileSizeBytes,
                 mimeType = item.teamFile?.mimeType,
                 linkUrl = item.linkUrl,
+                uploaderId = item.uploaderId,
                 uploaderName = uploaderProfile?.name ?: "알 수 없음",
+                isWriter = (item.uploaderId == currentUserId),
                 createdAt = item.createdAt
             )
         }
