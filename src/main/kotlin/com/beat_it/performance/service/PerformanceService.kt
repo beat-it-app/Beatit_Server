@@ -302,14 +302,18 @@ class PerformanceService(
 
         val location = request.locationId?.let { locationsService.findLocation(it) } ?: performance.location
 
-        if (posterImage != null && !posterImage.isEmpty) {
+        val hasNewPoster = posterImage != null && !posterImage.isEmpty
+        if (hasNewPoster) {
             val oldPosterFiles = performanceFilesRepository.findByPerformanceAndFileType(performance, PerformanceFileType.POSTER)
             oldPosterFiles.forEach { file ->
                 fileService.deleteFile(file.storageKey)
-                performanceFilesRepository.delete(file)
+            }
+            if (oldPosterFiles.isNotEmpty()) {
+                performanceFilesRepository.deleteAll(oldPosterFiles)
+                performanceFilesRepository.flush()
             }
 
-            val posterUploadResult = fileService.uploadFile(posterImage, FileDirectory.PERFORMANCE)
+            val posterUploadResult = fileService.uploadFile(posterImage!!, FileDirectory.PERFORMANCE)
             val newPosterFile = PerformanceFiles(
                 performance = performance,
                 userId = userId,
@@ -324,25 +328,69 @@ class PerformanceService(
             )
             val savedPoster = performanceFilesRepository.save(newPosterFile)
             performance.posterFileId = savedPoster.performanceFileId!!
+        } else if (request.deletePosterImage == true) {
+            val oldPosterFiles = performanceFilesRepository.findByPerformanceAndFileType(performance, PerformanceFileType.POSTER)
+            oldPosterFiles.forEach { file ->
+                fileService.deleteFile(file.storageKey)
+            }
+            if (oldPosterFiles.isNotEmpty()) {
+                performanceFilesRepository.deleteAll(oldPosterFiles)
+                performanceFilesRepository.flush()
+            }
+            performance.posterFileId = null
         }
 
-        if (!request.deleteDetailFileIds.isNullOrEmpty()) {
-            val filesToDelete = performanceFilesRepository.findAllById(request.deleteDetailFileIds)
-                .filter { it.performance.performanceId == performance.performanceId }
-            filesToDelete.forEach { file ->
-                fileService.deleteFile(file.storageKey)
-                performanceFilesRepository.delete(file)
+        val existingDetailFiles = performanceFilesRepository.findByPerformanceAndFileType(performance, PerformanceFileType.DETAIL_IMAGE)
+
+        val filesToRetain: List<PerformanceFiles>
+        val filesToRemove: List<PerformanceFiles>
+
+        if (request.retainDetailImageUrls != null) {
+            val retainUrls = request.retainDetailImageUrls
+            if (retainUrls.distinct().size != retainUrls.size ||
+                !existingDetailFiles.map { it.cdnUrl }.toSet().containsAll(retainUrls)) {
+                throw BusinessException(ErrorCode.INVALID_INPUT_VALUE)
             }
+            filesToRetain = existingDetailFiles.filter { it.cdnUrl in retainUrls }
+            filesToRemove = existingDetailFiles.filterNot { it.cdnUrl in retainUrls }
+        } else if (request.retainDetailFileIds != null) {
+            val retainIds = request.retainDetailFileIds
+            val existingIds = existingDetailFiles.mapNotNull { it.performanceFileId }.toSet()
+            if (retainIds.distinct().size != retainIds.size || !existingIds.containsAll(retainIds)) {
+                throw BusinessException(ErrorCode.INVALID_INPUT_VALUE)
+            }
+            filesToRetain = existingDetailFiles.filter { it.performanceFileId in retainIds }
+            filesToRemove = existingDetailFiles.filterNot { it.performanceFileId in retainIds }
+        } else if (!request.deleteDetailFileIds.isNullOrEmpty()) {
+            filesToRemove = existingDetailFiles.filter { it.performanceFileId in request.deleteDetailFileIds }
+            filesToRetain = existingDetailFiles.filterNot { it.performanceFileId in request.deleteDetailFileIds }
+        } else {
+            filesToRetain = existingDetailFiles
+            filesToRemove = emptyList()
         }
 
         val validDetailImages = detailImages?.filter { !it.isEmpty } ?: emptyList()
-        if (validDetailImages.isNotEmpty()) {
-            val currentDetailFiles = performanceFilesRepository.findByPerformanceAndFileType(performance, PerformanceFileType.DETAIL_IMAGE)
-            if (currentDetailFiles.size + validDetailImages.size > 5) {
-                throw BusinessException(ErrorCode.PERFORMANCE_DETAIL_IMAGE_EXCEEDED)
-            }
+        if (filesToRetain.size + validDetailImages.size > 5) {
+            throw BusinessException(ErrorCode.PERFORMANCE_DETAIL_IMAGE_EXCEEDED)
+        }
 
-            val startOrder = (currentDetailFiles.maxOfOrNull { it.displayOrder } ?: 0) + 1
+        if (filesToRemove.isNotEmpty()) {
+            filesToRemove.forEach { file ->
+                fileService.deleteFile(file.storageKey)
+            }
+            performanceFilesRepository.deleteAll(filesToRemove)
+            performanceFilesRepository.flush()
+        }
+
+        filesToRetain.forEachIndexed { index, file ->
+            if (file.displayOrder != index + 1) {
+                file.displayOrder = index + 1
+                performanceFilesRepository.save(file)
+            }
+        }
+
+        if (validDetailImages.isNotEmpty()) {
+            val startOrder = filesToRetain.size + 1
             validDetailImages.forEachIndexed { index, imageFile ->
                 val uploadResult = fileService.uploadFile(imageFile, FileDirectory.PERFORMANCE)
                 val detailFile = PerformanceFiles(
