@@ -15,6 +15,7 @@ import com.beat_it.team.entity.enum.MediaCategory
 import com.beat_it.team.repository.TeamCloudFolderRepository
 import com.beat_it.team.repository.TeamCloudItemRepository
 import com.beat_it.team.repository.TeamFileRepository
+import com.beat_it.team.repository.TeamMembershipRepository
 import com.beat_it.team.repository.TeamRepository
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -26,17 +27,40 @@ class TeamCloudService(
     private val teamRepository: TeamRepository,
     private val teamCloudItemRepository: TeamCloudItemRepository,
     private val teamFileRepository: TeamFileRepository,
+    private val teamMembershipRepository: TeamMembershipRepository,
     private val fileService: FileService,
     private val userService: UserService
 ) {
     companion object {
         private const val MAX_STORAGE_BYTES: Long = 10L * 1024 * 1024 * 1024
+
+        private val DOCUMENT_EXTENSIONS = setOf(
+            "pdf", "txt", "docx", "doc", "hwp", "hwpx", "pages", "rtf",
+            "xlsx", "xls", "csv", "pptx", "ppt", "key",
+            "mscz", "gp", "gp5", "gpx", "sib", "mus", "musx", "dorico"
+        )
+        private val AUDIO_EXTENSIONS = setOf(
+            "mp3", "wav", "flac", "m4a", "aac", "ogg", "wma", "aiff", "aif", "alac", "mid", "midi"
+        )
+        private val VIDEO_EXTENSIONS = setOf(
+            "mp4", "mov", "m4v", "avi", "mkv", "webm", "wmv", "flv", "3gp", "ts"
+        )
+        private val IMAGE_EXTENSIONS = setOf(
+            "jpg", "jpeg", "png", "webp", "gif", "heic", "heif", "svg", "psd", "ai", "raw", "cr2", "nef", "dng"
+        )
+        private val OTHER_EXTENSIONS = setOf(
+            "zip", "rar", "7z", "tar", "gz", "logicx", "flp", "cpr", "als", "ptx", "bin", "dat"
+        )
     }
 
     @Transactional(readOnly = true)
     fun getTeamCloudList(userId: Long, folderId: Long?): TeamCloudListResponse {
         val teamId = userService.getCurrentTeamId(userId)
         val team = findTeamOrThrow(teamId)
+
+        val membership = teamMembershipRepository.findByTeamTeamIdAndUserIdAndLeftAtIsNull(teamId, userId)
+            ?: throw BusinessException(ErrorCode.NOT_TEAM_MEMBER)
+        val currentUserRole = membership.teamRole
 
         if (folderId == null) {
             val rootFolders = teamCloudFolderRepository.findByTeam(team)
@@ -54,15 +78,18 @@ class TeamCloudService(
                     folderId = folder.teamCloudFolderId!!,
                     folderName = folder.folderName,
                     itemCount = folder.items.size,
-                    creatorName = creatorProfile?.name ?: "알 수 없음"
+                    creatorId = folder.creatorId,
+                    creatorName = creatorProfile?.name ?: "알 수 없음",
+                    isWriter = (folder.creatorId == userId)
                 )
             }
 
-            val itemResponses = mapToItemResponses(rootItems, userProfileMap)
+            val itemResponses = mapToItemResponses(rootItems, userProfileMap, userId)
 
 
             return TeamCloudListResponse(
                 currentFolderName = null,
+                currentUserRole = currentUserRole,
                 folders = folderResponses,
                 items = itemResponses
             )
@@ -75,10 +102,11 @@ class TeamCloudService(
         val uploaderIds = items.map { it.uploaderId }.distinct()
         val userProfileMap = userService.getUserProfiles(uploaderIds).associateBy { it.userId }
 
-        val itemResponses = mapToItemResponses(items, userProfileMap)
+        val itemResponses = mapToItemResponses(items, userProfileMap, userId)
 
         return TeamCloudListResponse(
             currentFolderName = targetFolder.folderName,
+            currentUserRole = currentUserRole,
             folders = emptyList(),
             items = itemResponses
         )
@@ -314,10 +342,11 @@ class TeamCloudService(
 
         val categoryDetails = categoryUsages.map { usage ->
             val label = when (usage.category) {
-                MediaCategory.DOCUMENT -> "PDF"
+                MediaCategory.DOCUMENT -> "문서"
+                MediaCategory.AUDIO -> "음원"
                 MediaCategory.VIDEO -> "영상"
-                MediaCategory.AUDIO -> "MP3"
-                MediaCategory.IMAGE -> "이미지"
+                MediaCategory.IMAGE -> "사진"
+                MediaCategory.OTHER -> "기타"
             }
             TeamCloudStorageResponse.CategoryUsageDetail(
                 category = label,
@@ -380,11 +409,13 @@ class TeamCloudService(
 
     private fun determineMediaCategory(fileName: String): MediaCategory {
         val extension = fileName.substringAfterLast(".", "").lowercase()
-        return when (extension) {
-            "jpg", "jpeg", "png" -> MediaCategory.IMAGE
-            "mp3", "wav" -> MediaCategory.AUDIO
-            "mp4", "avi", "mov" -> MediaCategory.VIDEO
-            else -> MediaCategory.DOCUMENT
+        return when {
+            extension in IMAGE_EXTENSIONS -> MediaCategory.IMAGE
+            extension in AUDIO_EXTENSIONS -> MediaCategory.AUDIO
+            extension in VIDEO_EXTENSIONS -> MediaCategory.VIDEO
+            extension in DOCUMENT_EXTENSIONS -> MediaCategory.DOCUMENT
+            extension in OTHER_EXTENSIONS -> MediaCategory.OTHER
+            else -> MediaCategory.OTHER
         }
     }
 
@@ -399,7 +430,8 @@ class TeamCloudService(
 
     private fun mapToItemResponses(
         items: List<TeamCloudItem>,
-        userProfileMap: Map<Long, UserProfileResponse>
+        userProfileMap: Map<Long, UserProfileResponse>,
+        currentUserId: Long
     ): List<TeamCloudListResponse.ItemResponse> {
         return items.map { item ->
             val uploaderProfile = userProfileMap[item.uploaderId]
@@ -409,7 +441,9 @@ class TeamCloudService(
                 fileSize = item.teamFile?.fileSizeBytes,
                 mimeType = item.teamFile?.mimeType,
                 linkUrl = item.linkUrl,
+                uploaderId = item.uploaderId,
                 uploaderName = uploaderProfile?.name ?: "알 수 없음",
+                isWriter = (item.uploaderId == currentUserId),
                 createdAt = item.createdAt
             )
         }

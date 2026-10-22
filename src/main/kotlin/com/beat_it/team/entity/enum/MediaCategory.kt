@@ -4,5 +4,6 @@ enum class MediaCategory {
     IMAGE,
     AUDIO,
     VIDEO,
-    DOCUMENT
+    DOCUMENT,
+    OTHER,
 }
