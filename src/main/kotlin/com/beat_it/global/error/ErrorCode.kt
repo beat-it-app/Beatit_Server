@@ -126,6 +126,8 @@ enum class ErrorCode(
     FILE_UPLOAD_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "FILE-004", "서버 오류로 인해 파일 업로드에 실패했습니다."),
     FILE_REQUIRED(HttpStatus.BAD_REQUEST, "FILE-005", "미디어 타입 전송 시 파일 첨부는 필수입니다."),
     FILE_DELETE_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "FILE-006", "파일 삭제에 실패했습니다."),
+    FILE_DOWNLOAD_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "FILE-007", "파일 다운로드에 실패했습니다."),
+    FILE_NOT_FOUND(HttpStatus.NOT_FOUND, "FILE-008", "요청한 파일을 찾을 수 없습니다."),
 
 
     // --- 멤버 관련 에러 ---

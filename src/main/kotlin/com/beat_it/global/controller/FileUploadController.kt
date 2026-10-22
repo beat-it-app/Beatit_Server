@@ -1,9 +1,11 @@
 package com.beat_it.global.controller
 
 import com.beat_it.global.response.BasicResponse
+import com.beat_it.global.service.DownloadUrlItemRequest
 import com.beat_it.global.service.FileDirectory
 import com.beat_it.global.service.FileService
 import com.beat_it.global.service.FileUploadResult
+import com.beat_it.global.service.PresignedDownloadUrlResponse
 import com.beat_it.global.service.PresignedUrlResponse
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.tags.Tag
@@ -20,7 +22,7 @@ import org.springframework.web.bind.annotation.RequestPart
 import org.springframework.web.bind.annotation.RestController
 import org.springframework.web.multipart.MultipartFile
 
-@Tag(name = "8-2. (GLOBAL) FILE API", description = "파일 업로드 및 삭제 API")
+@Tag(name = "8-2. (GLOBAL) FILE API", description = "파일 업로드, 다운로드(Presigned) 및 삭제 API")
 @RestController
 @RequestMapping("/files")
 class FileUploadController(
@@ -89,5 +91,34 @@ class FileUploadController(
         return ResponseEntity
             .status(HttpStatus.OK)
             .body(BasicResponse.success(Unit, HttpStatus.OK, "다중 파일 삭제에 성공했습니다."))
+    }
+
+    @Operation(
+        summary = "S3 Presigned 다운로드 URL 발급 (단일 파일)",
+        description = "파일을 S3에서 클라이언트가 직접 다운로드할 수 있는 사전 서명된 GET URL을 발급합니다."
+    )
+    @GetMapping("/download-url")
+    fun getPresignedDownloadUrl(
+        @RequestParam storageKey: String,
+        @RequestParam(required = false) originalFileName: String?
+    ): ResponseEntity<BasicResponse<PresignedDownloadUrlResponse>> {
+        val result = fileService.generatePresignedDownloadUrl(storageKey, originalFileName)
+        return ResponseEntity
+            .status(HttpStatus.OK)
+            .body(BasicResponse.success(result, HttpStatus.OK, "다운로드 Presigned URL 발급에 성공했습니다."))
+    }
+
+    @Operation(
+        summary = "S3 Presigned 다운로드 URL 다중 발급 (여러 파일)",
+        description = "여러 파일에 대해 S3에서 직접 다운로드할 수 있는 사전 서명된 GET URL 목록을 일괄 발급합니다."
+    )
+    @PostMapping("/download-urls")
+    fun getPresignedDownloadUrls(
+        @RequestBody items: List<DownloadUrlItemRequest>
+    ): ResponseEntity<BasicResponse<List<PresignedDownloadUrlResponse>>> {
+        val results = fileService.generatePresignedDownloadUrls(items)
+        return ResponseEntity
+            .status(HttpStatus.OK)
+            .body(BasicResponse.success(results, HttpStatus.OK, "다중 다운로드 Presigned URL 발급에 성공했습니다."))
     }
 }

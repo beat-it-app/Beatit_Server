@@ -11,12 +11,14 @@ import software.amazon.awssdk.services.s3.S3Client
 import software.amazon.awssdk.services.s3.model.Delete
 import software.amazon.awssdk.services.s3.model.DeleteObjectRequest
 import software.amazon.awssdk.services.s3.model.DeleteObjectsRequest
-import software.amazon.awssdk.services.s3.model.HeadObjectRequest
-import software.amazon.awssdk.services.s3.model.NoSuchKeyException
+import software.amazon.awssdk.services.s3.model.GetObjectRequest
 import software.amazon.awssdk.services.s3.model.ObjectIdentifier
 import software.amazon.awssdk.services.s3.model.PutObjectRequest
 import software.amazon.awssdk.services.s3.presigner.S3Presigner
+import software.amazon.awssdk.services.s3.presigner.model.GetObjectPresignRequest
 import software.amazon.awssdk.services.s3.presigner.model.PutObjectPresignRequest
+import java.net.URLEncoder
+import java.nio.charset.StandardCharsets
 import java.time.Duration
 import java.util.UUID
 
@@ -31,6 +33,18 @@ data class PresignedUrlResponse(
     val storageKey: String,
     val cdnUrl: String,
     val expirationMinutes: Long
+)
+
+data class PresignedDownloadUrlResponse(
+    val presignedUrl: String,
+    val storageKey: String,
+    val fileName: String,
+    val expirationMinutes: Long
+)
+
+data class DownloadUrlItemRequest(
+    val storageKey: String,
+    val originalFileName: String? = null
 )
 
 @Service
@@ -50,9 +64,6 @@ class FileService(
     )
     val maxFileSize = 50 * 1024 * 1024L // 50MB
 
-    /**
-     * file(직접 업로드) 또는 storageKey(Presigned URL로 사전 업로드) 중 하나를 받아 FileUploadResult 생성
-     */
     fun resolveFile(
         file: MultipartFile?,
         storageKey: String?,
@@ -218,7 +229,6 @@ class FileService(
         val uniqueFileName = "${UUID.randomUUID()}_$sanitizedOriginalName"
         val storageKey = if (cleanPath.isBlank()) uniqueFileName else "$cleanPath/$uniqueFileName"
 
-        // 확장자 기반 Content-Type 자동 감지 (직접 전달된 값이 없으면 자동 유추)
         val resolvedContentType = contentType?.takeIf { it.isNotBlank() }
             ?: org.springframework.http.MediaTypeFactory.getMediaType(originalFileName)
                 .map { it.toString() }
@@ -323,10 +333,67 @@ class FileService(
         }
     }
 
-    /**
-     * storageKey를 CloudFront CDN URL로 변환
-     */
     fun getFileUrl(storageKey: String): String {
         return "https://$cloudFrontDomain/$storageKey"
+    }
+
+    fun generatePresignedDownloadUrl(
+        storageKey: String,
+        originalFileName: String? = null,
+        expirationMinutes: Long = 10L
+    ): PresignedDownloadUrlResponse {
+        if (storageKey.isBlank()) {
+            throw BusinessException(ErrorCode.INVALID_INPUT_VALUE)
+        }
+
+        val key = storageKey.trim()
+        val resolvedFileName = originalFileName?.takeIf { it.isNotBlank() }
+            ?: key.substringAfterLast("/").substringAfter("_").takeIf { it.isNotBlank() }
+            ?: "downloaded_file"
+
+        val encodedFileName = URLEncoder.encode(resolvedFileName, StandardCharsets.UTF_8.toString())
+            .replace("+", "%20")
+        val contentDisposition = "attachment; filename=\"$encodedFileName\"; filename*=UTF-8''$encodedFileName"
+
+        try {
+            val getObjectRequest = GetObjectRequest.builder()
+                .bucket(bucket)
+                .key(key)
+                .responseContentDisposition(contentDisposition)
+                .build()
+
+            val getObjectPresignRequest = GetObjectPresignRequest.builder()
+                .signatureDuration(Duration.ofMinutes(expirationMinutes))
+                .getObjectRequest(getObjectRequest)
+                .build()
+
+            val presignedGetObjectRequest = s3Presigner.presignGetObject(getObjectPresignRequest)
+            val presignedUrl = presignedGetObjectRequest.url().toExternalForm()
+
+            log.info("Generated S3 Presigned Download URL: key=$key, fileName=$resolvedFileName, url=$presignedUrl")
+
+            return PresignedDownloadUrlResponse(
+                presignedUrl = presignedUrl,
+                storageKey = key,
+                fileName = resolvedFileName,
+                expirationMinutes = expirationMinutes
+            )
+        } catch (e: Exception) {
+            log.error("Failed to generate presigned download url: key=$key", e)
+            throw BusinessException(ErrorCode.FILE_DOWNLOAD_FAILED)
+        }
+    }
+
+    fun generatePresignedDownloadUrls(
+        items: List<DownloadUrlItemRequest>,
+        expirationMinutes: Long = 10L
+    ): List<PresignedDownloadUrlResponse> {
+        return items.map { item ->
+            generatePresignedDownloadUrl(
+                storageKey = item.storageKey,
+                originalFileName = item.originalFileName,
+                expirationMinutes = expirationMinutes
+            )
+        }
     }
 }
