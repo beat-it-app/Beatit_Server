@@ -182,7 +182,7 @@ class NoticeService(
             dislikeCount = notice.dislikeCounter,
             isLiked = isLiked!!,
             isDisliked = isDisliked!!,
-            commentCount = comments.size
+            commentCount = comments.sumOf { 1 + it.replies.size }
         )
 
         return NoticeDetailResponse(

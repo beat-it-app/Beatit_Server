@@ -282,7 +282,7 @@ class PollService(
             updatedAt = poll.updatedAt,
             pollItems = pollItemResponses,
             isWriter = poll.userId == userId,
-            commentCount = comments.size,
+            commentCount = comments.sumOf { 1 + it.replies.size },
             commentList = comments
         )
     }
