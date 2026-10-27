@@ -128,7 +128,9 @@ class ScheduleService(
             throw BusinessException(ErrorCode.CALENDAR_NO_CONTENT_TO_UPDATE)
         }
 
-        request.participantUserIds?.let { newIds ->
+        val existingParticipantIds = schedule.participants.map { it.userId }.toSet()
+
+        val addedParticipantIds = request.participantUserIds?.let { newIds ->
             if (newIds.isNotEmpty()) {
                 val isValidTeamMembers = teamService.validateMembersInTeam(schedule.teamId, newIds)
                 if (!isValidTeamMembers) {
@@ -140,7 +142,9 @@ class ScheduleService(
             newIds.forEach { participantId ->
                 schedule.addParticipant(participantId)
             }
-        }
+
+            newIds.filter { it !in existingParticipantIds && it != userId }
+        } ?: emptyList()
 
         val retainMusicIds = request.retainMusicIds ?: emptyList()
         schedule.musics.removeIf { it.id !in retainMusicIds }
@@ -170,6 +174,21 @@ class ScheduleService(
             startsAt = request.startsAt!!,
             endsAt = request.endsAt!!
         )
+
+        if (addedParticipantIds.isNotEmpty()) {
+            val teamName = teamService.getTeamName(schedule.teamId)
+            eventPublisher.publishEvent(
+                NotificationEvent(
+                    targetUserIds = addedParticipantIds,
+                    teamId = schedule.teamId,
+                    message = NotificationTemplate.scheduleRegistered(
+                        teamName = teamName,
+                        scheduleTitle = schedule.title,
+                        scheduleId = schedule.scheduleId
+                    )
+                )
+            )
+        }
 
         return ScheduleCreateResponse(
             scheduleId = schedule.scheduleId!!,
