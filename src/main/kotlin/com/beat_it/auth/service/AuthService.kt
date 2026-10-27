@@ -659,6 +659,10 @@ class AuthService (
             ?: throw BusinessException(ErrorCode.USER_NOT_FOUND)
 
         validatePassword(request.newPassword)
+
+        if (account.password != null && passwordEncoder.matches(request.newPassword, account.password)) {
+            throw BusinessException(ErrorCode.SAME_AS_OLD_PASSWORD)
+        }
         val encodedPassword = passwordEncoder.encode(request.newPassword)
         account.updatePassword(encodedPassword)
         userAuthAccountRepository.save(account)
