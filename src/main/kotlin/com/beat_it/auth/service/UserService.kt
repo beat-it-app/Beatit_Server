@@ -122,7 +122,7 @@ class UserService (
 
             UserSimpleInfo(
                 userPublicId = user.publicId,
-                userName = profile?.name ?: "이름 없음",
+                userName = profile?.name ?: "알 수 없음",
                 profileImageUrl = profile?.profileImageUrl,
             )
         }

@@ -351,7 +351,7 @@ class ScheduleService(
                 val profile = userProfileMap[participant.userId]
                 ScheduleParticipantProfileResponse(
                     userId = participant.userId,
-                    name = profile?.name ?: "알 수 없는 사용자",
+                    name = profile?.name ?: "알 수 없음",
                     profileImageUrl = profile?.profileImageUrl
                 )
             }

@@ -85,7 +85,7 @@ class MeetitService(
         val profileMap = profiles.associateBy { it.userId }
 
         val participants = request.participantUserIds.map { participantUserId ->
-            val profileName = profileMap[participantUserId]?.name ?: "이름 없음"
+            val profileName = profileMap[participantUserId]?.name ?: "알 수 없음"
             MeetitParticipant(
                 meetit = savedMeetit,
                 userId = participantUserId,
@@ -173,7 +173,7 @@ class MeetitService(
             val profile = profilesMap[p.userId]
             MeetitParticipantInfoResponse(
                 userId = p.userId,
-                name = profile?.userName ?: p.name
+                name = profile?.name ?: "알 수 없음"
             )
         }
 

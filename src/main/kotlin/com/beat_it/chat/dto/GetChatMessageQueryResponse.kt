@@ -33,7 +33,7 @@ data class GetChatMessageQueryResponse(
             return GetChatMessageQueryResponse(
                 messageId = message.chatMessageId!!,
                 senderId = message.senderId,
-                senderName = profile?.name ?: "알 수 없는 사용자",
+                senderName = profile?.name ?: "알 수 없음",
                 profileImageUrl = if (isMine) null else profile?.profileImageUrl,
                 content = message.content,
                 messageType = message.type.name,
