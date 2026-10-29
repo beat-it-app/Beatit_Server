@@ -165,7 +165,7 @@ class MeetitService(
         val respondedParticipantIds = responses.map { it.meetitParticipant.meetitParticipantId }.toSet()
 
         val participantUserIds = participants.map { it.userId }
-        val profilesMap = userService.getUserSimpleInfos(participantUserIds)
+        val profilesMap = userService.getUserProfiles(participantUserIds).associateBy { it.userId }
 
         val respondedParticipantsInfo = participants.filter { p ->
             respondedParticipantIds.contains(p.meetitParticipantId)
