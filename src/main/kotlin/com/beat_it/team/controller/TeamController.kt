@@ -258,7 +258,7 @@ class TeamController(
     }
 
     @Operation(summary = "팀 탈퇴 안내 페이지 정보 조회")
-    @GetMapping("/withdrawl-info")
+    @GetMapping("/withdrawal-info")
     fun getTeamWithdrawalInfo(
         @AuthenticationPrincipal userDetails: UserDetails
     ): ResponseEntity<BasicResponse<TeamExitInfoResponse>> {
