@@ -125,6 +125,7 @@ class AuthService (
         )
     }
 
+    @Transactional
     fun login(loginRequest: LoginRequest) : Triple<String, String, LoginResponse> {
         val userAuthAccount = userAuthAccountRepository.findByIdentifier(loginRequest.identifier)
             ?: throw BusinessException(ErrorCode.IDENTIFIER_NOT_FOUND)
@@ -134,6 +135,7 @@ class AuthService (
         }
 
         val user = userAuthAccount.user
+        restoreIfWithdrawn(user)
         val isCreatedProfile = userProfilesRepository.existsByUser_UserId(user.userId)
 
         val rememberMe = loginRequest.rememberMe
@@ -213,6 +215,7 @@ class AuthService (
         }
 
         val user = userAuthAccount.user
+        restoreIfWithdrawn(user)
         val isCreatedProfile = userProfilesRepository.existsByUser_UserId(user.userId)
 
         val accessToken = jwtTokenProvider.createAccessToken(
@@ -277,6 +280,7 @@ class AuthService (
         }
 
         val user = userAuthAccount.user
+        restoreIfWithdrawn(user)
         val isCreatedProfile = userProfilesRepository.existsByUser_UserId(user.userId)
 
         val accessToken = jwtTokenProvider.createAccessToken(
@@ -340,6 +344,7 @@ class AuthService (
         }
 
         val user = userAuthAccount.user
+        restoreIfWithdrawn(user)
         val isCreatedProfile = userProfilesRepository.existsByUser_UserId(user.userId)
 
         val accessToken = jwtTokenProvider.createAccessToken(
@@ -405,6 +410,7 @@ class AuthService (
         }
 
         val user = userAuthAccount.user
+        restoreIfWithdrawn(user)
         val isCreatedProfile = userProfilesRepository.existsByUser_UserId(user.userId)
 
         val accessToken = jwtTokenProvider.createAccessToken(
@@ -437,6 +443,13 @@ class AuthService (
                 socialProvider = SocialProvider.APPLE
             )
         )
+    }
+
+    private fun restoreIfWithdrawn(user: Users) {
+        if (user.accountStatus == AccountStatus.WITHDRAWN) {
+            user.restore()
+            userRepository.save(user)
+        }
     }
 
     private fun registerPushTokenIfPresent(
@@ -678,6 +691,7 @@ class AuthService (
             .orElseThrow { BusinessException(ErrorCode.USER_NOT_FOUND) }
 
         user.withdraw()
+        refreshTokenService.deleteRefreshToken(userId.toString())
         pushTokenService.deactivateAllUserTokens(userId)
 
         userWithdrawalReasonRepository.save(
