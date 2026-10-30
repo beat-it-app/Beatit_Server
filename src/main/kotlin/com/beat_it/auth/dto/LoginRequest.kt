@@ -1,6 +1,7 @@
 package com.beat_it.auth.dto
 
 import com.beat_it.notification.entity.enum.PlatformType
+import com.fasterxml.jackson.annotation.JsonProperty
 import io.swagger.v3.oas.annotations.media.Schema
 
 data class LoginRequest(
@@ -23,5 +24,8 @@ data class LoginRequest(
     val pushToken: String? = null,
 
     @Schema(description = "앱 버전 (선택)", example = "1.0.0", required = false)
-    val appVersion: String? = null
+    val appVersion: String? = null,
+
+    @Schema(description = "탈퇴 유예 계정 복구 여부 (복구 확인 팝업에서 '복구하기' 클릭 시 true 전달)", example = "false", required = false)
+    val isRestore: Boolean = false
 )

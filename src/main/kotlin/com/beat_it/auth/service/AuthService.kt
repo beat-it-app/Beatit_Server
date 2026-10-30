@@ -135,7 +135,7 @@ class AuthService (
         }
 
         val user = userAuthAccount.user
-        restoreIfWithdrawn(user)
+        restoreIfWithdrawn(user, loginRequest.isRestore)
         val isCreatedProfile = userProfilesRepository.existsByUser_UserId(user.userId)
 
         val rememberMe = loginRequest.rememberMe
@@ -215,7 +215,7 @@ class AuthService (
         }
 
         val user = userAuthAccount.user
-        restoreIfWithdrawn(user)
+        restoreIfWithdrawn(user, dto.isRestore)
         val isCreatedProfile = userProfilesRepository.existsByUser_UserId(user.userId)
 
         val accessToken = jwtTokenProvider.createAccessToken(
@@ -280,7 +280,7 @@ class AuthService (
         }
 
         val user = userAuthAccount.user
-        restoreIfWithdrawn(user)
+        restoreIfWithdrawn(user, dto.isRestore)
         val isCreatedProfile = userProfilesRepository.existsByUser_UserId(user.userId)
 
         val accessToken = jwtTokenProvider.createAccessToken(
@@ -344,7 +344,7 @@ class AuthService (
         }
 
         val user = userAuthAccount.user
-        restoreIfWithdrawn(user)
+        restoreIfWithdrawn(user, dto.isRestore)
         val isCreatedProfile = userProfilesRepository.existsByUser_UserId(user.userId)
 
         val accessToken = jwtTokenProvider.createAccessToken(
@@ -410,7 +410,7 @@ class AuthService (
         }
 
         val user = userAuthAccount.user
-        restoreIfWithdrawn(user)
+        restoreIfWithdrawn(user, dto.isRestore)
         val isCreatedProfile = userProfilesRepository.existsByUser_UserId(user.userId)
 
         val accessToken = jwtTokenProvider.createAccessToken(
@@ -445,8 +445,11 @@ class AuthService (
         )
     }
 
-    private fun restoreIfWithdrawn(user: Users) {
+    private fun restoreIfWithdrawn(user: Users, isRestore: Boolean) {
         if (user.accountStatus == AccountStatus.WITHDRAWN) {
+            if (!isRestore) {
+                throw BusinessException(ErrorCode.USER_WITHDRAWN_PENDING)
+            }
             user.restore()
             userRepository.save(user)
         }

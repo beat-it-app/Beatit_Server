@@ -41,6 +41,7 @@ enum class ErrorCode(
     REFRESH_TOKEN_NOT_FOUND(HttpStatus.UNAUTHORIZED, "LOGIN-008", "존재하지 않거나 만료된 Refresh 토큰입니다."),
     PROFILE_NOT_FOUND(HttpStatus.NOT_FOUND, "LOGIN-009", "프로필이 생성되지 않았습니다."),
     DUPLICATE_NAME(HttpStatus.BAD_REQUEST, "LOGIN-010", "기존 이름과 동일한 이름으로 변경할 수 없습니다."),
+    USER_WITHDRAWN_PENDING(HttpStatus.FORBIDDEN, "LOGIN-011", "탈퇴 유예 중인 계정입니다. 탈퇴를 취소하시겠습니까?"),
 
     // --- 4. 일정 관련 에러 (CALENDAR) ---
     CALENDAR_NO_CONTENT_TO_UPDATE(HttpStatus.BAD_REQUEST, "CALENDAR-001", "변경할 내용이 없습니다."),
