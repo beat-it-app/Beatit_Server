@@ -30,10 +30,14 @@ class TeamCloudItem(
     val linkUrl: String? = null,
 
     @Column(name = "item_name", nullable = false)
-    val itemName: String
+    var itemName: String
 ) : BaseCreatedTimeEntity() {
 
     fun changeFolder(folder: TeamCloudFolder?) {
         this.teamCloudFolder = folder
+    }
+
+    fun updateItemName(newItemName: String) {
+        this.itemName = newItemName
     }
 }

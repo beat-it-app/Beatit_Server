@@ -92,6 +92,7 @@ class TeamCloudController(
         @RequestParam storageKey: String,
         @RequestParam(required = false) fileSize: Long?,
         @RequestParam(required = false) contentType: String?,
+        @RequestParam(required = false) itemName: String?,
         @AuthenticationPrincipal userDetails: UserDetails
     ): ResponseEntity<BasicResponse<Long>> {
         val userId = extractUserId(userDetails)
@@ -101,12 +102,24 @@ class TeamCloudController(
             storageKey = storageKey,
             fileName = fileName,
             fileSize = fileSize,
-            contentType = contentType
+            contentType = contentType,
+            itemName = itemName
         )
 
         return ResponseEntity
             .status(HttpStatus.CREATED)
             .body(BasicResponse.success(itemId, HttpStatus.CREATED, "파일이 성공적으로 등록되었습니다."))
+    }
+
+    @PatchMapping("/items/{itemId}/name")
+    fun updateItemName(
+        @PathVariable itemId: Long,
+        @RequestBody request: TeamCloudItemNameUpdateRequest,
+        @AuthenticationPrincipal userDetails: UserDetails
+    ): ResponseEntity<BasicResponse<Nothing?>> {
+        val userId = extractUserId(userDetails)
+        teamCloudService.updateItemName(userId, itemId, request.itemName)
+        return ResponseEntity.ok(BasicResponse.success(null, HttpStatus.OK, "아이템 이름이 성공적으로 변경되었습니다."))
     }
 
     @PostMapping("/links")

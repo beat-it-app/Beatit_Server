@@ -140,7 +140,8 @@ class TeamCloudService(
         storageKey: String,
         fileName: String,
         fileSize: Long? = null,
-        contentType: String? = null
+        contentType: String? = null,
+        itemName: String? = null
     ): Long {
         val teamId = userService.getCurrentTeamId(userId)
         val team = findTeamOrThrow(teamId)
@@ -160,6 +161,8 @@ class TeamCloudService(
         val mediaCategory = determineMediaCategory(fileUploadResult.originalFileName)
         val actualContentType = contentType
 
+        val finalItemName = itemName?.takeIf { it.isNotBlank() } ?: fileName
+
         try {
             return saveTeamCloudFileToDatabase(
                 team = team,
@@ -169,7 +172,7 @@ class TeamCloudService(
                 mediaCategory = mediaCategory,
                 fileSize = actualSize,
                 contentType = actualContentType,
-                itemName = fileName
+                itemName = finalItemName
             )
         } catch (e: Exception) {
             fileService.deleteFile(fileUploadResult.storageKey)
@@ -234,6 +237,21 @@ class TeamCloudService(
         val savedItem = teamCloudItemRepository.save(cloudItem)
 
         return savedItem.teamCloudItemId!!
+    }
+
+    @Transactional
+    fun updateItemName(userId: Long, itemId: Long, newItemName: String) {
+        if (newItemName.isBlank()) {
+            throw BusinessException(ErrorCode.TEAM_CLOUD_ITEM_NAME_REQUIRED)
+        }
+        val teamId = userService.getCurrentTeamId(userId)
+        val item = findItemOrThrow(itemId)
+
+        if (item.team.teamId != teamId) {
+            throw BusinessException(ErrorCode.TEAM_CLOUD_ITEM_TEAM_MISMATCH)
+        }
+
+        item.updateItemName(newItemName)
     }
 
     @Transactional
