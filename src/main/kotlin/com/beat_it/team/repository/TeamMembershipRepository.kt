@@ -3,6 +3,9 @@ package com.beat_it.team.repository
 import com.beat_it.team.entity.TeamMemberships
 import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.stereotype.Repository
+import org.springframework.data.jpa.repository.Query
+import org.springframework.data.repository.query.Param
+import com.beat_it.team.entity.enum.TeamRole
 
 @Repository
 interface TeamMembershipRepository : JpaRepository<TeamMemberships, Long> {
@@ -37,4 +40,7 @@ interface TeamMembershipRepository : JpaRepository<TeamMemberships, Long> {
     fun findAllByUserId(userId: Long): List<TeamMemberships>
 
     fun countByUserId(userId: Long): Long
+
+    @Query("SELECT COUNT(tm) > 0 FROM TeamMemberships tm WHERE tm.userId = :userId AND tm.teamRole = :teamRole AND tm.team.deletedAt IS NULL")
+    fun existsByUserIdAndTeamRoleAndTeamDeletedAtIsNull(@Param("userId") userId: Long, @Param("teamRole") teamRole: TeamRole): Boolean
 }

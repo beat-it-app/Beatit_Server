@@ -473,8 +473,6 @@ class TeamCloudService(
     fun countScoresAndMusicsByTeamIdAndUserId(teamId: Long, userId: Long): Long {
         return teamCloudItemRepository.countScoresAndMusicsByTeamIdAndUserId(teamId, userId)
     }
-
-    @Transactional(readOnly = true)
     @Transactional
     fun deleteAllByTeam(team: Teams) {
         val items = teamCloudItemRepository.findByTeam(team)

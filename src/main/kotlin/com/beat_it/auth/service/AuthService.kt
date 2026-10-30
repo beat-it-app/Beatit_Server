@@ -693,6 +693,10 @@ class AuthService (
         val user = userRepository.findById(userId)
             .orElseThrow { BusinessException(ErrorCode.USER_NOT_FOUND) }
 
+        if (teamService.isLeaderOfAnyActiveTeam(userId)) {
+            throw BusinessException(ErrorCode.TEAM_LEADER_CANNOT_WITHDRAW)
+        }
+
         user.withdraw()
         refreshTokenService.deleteRefreshToken(userId.toString())
         pushTokenService.deactivateAllUserTokens(userId)

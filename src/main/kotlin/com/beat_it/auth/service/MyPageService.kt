@@ -12,6 +12,7 @@ import com.beat_it.auth.entity.Users
 import com.beat_it.auth.entity.enum.DefaultProfileImage
 import com.beat_it.auth.entity.enum.MediaCategory
 import com.beat_it.auth.entity.enum.SocialProvider
+import com.beat_it.auth.entity.enum.AccountStatus
 import com.beat_it.auth.repository.*
 import com.beat_it.global.error.BusinessException
 import com.beat_it.global.error.ErrorCode
@@ -48,7 +49,7 @@ class MyPageService (
                     .find { it.teamRole.name == "LEADER" }
 
                 val leaderName = leaderMembership?.let {
-                    userProfilesRepository.findByUserUserId(it.userId)?.name
+                    userProfilesRepository.findByUserUserId(it.userId)?.takeIf { profile -> profile.user?.accountStatus == AccountStatus.ACTIVE }?.name
                 } ?: "알 수 없음"
 
                 MyPageTeamResponse(

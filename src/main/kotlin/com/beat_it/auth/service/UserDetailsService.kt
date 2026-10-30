@@ -3,6 +3,7 @@ package com.beat_it.auth.service
 import com.beat_it.auth.repository.UserRepository
 import com.beat_it.global.error.BusinessException
 import com.beat_it.global.error.ErrorCode
+import com.beat_it.auth.entity.enum.AccountStatus
 import org.springframework.data.repository.findByIdOrNull
 import org.springframework.security.core.authority.SimpleGrantedAuthority
 import org.springframework.security.core.userdetails.User
@@ -17,6 +18,14 @@ class UserDetailsService (
     override fun loadUserByUsername(userId: String): UserDetails {
         val user = userRepository.findByIdOrNull(userId.toLong())
             ?: throw BusinessException(ErrorCode.USER_NOT_FOUND)
+
+        if (user.accountStatus == AccountStatus.WITHDRAWN) {
+
+            throw BusinessException(ErrorCode.USER_NOT_FOUND)
+
+        }
+
+        
 
         return User(
             user.userId.toString(),

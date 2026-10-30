@@ -531,6 +531,11 @@ class TeamService(
     }
 
     @Transactional(readOnly = true)
+    fun isLeaderOfAnyActiveTeam(userId: Long): Boolean {
+        return teamMembershipRepository.existsByUserIdAndTeamRoleAndTeamDeletedAtIsNull(userId, TeamRole.LEADER)
+    }
+    
+    @Transactional(readOnly = true)
     fun countActiveTeamsByUserId(userId: Long): Long {
         return teamMembershipRepository.countByUserId(userId)
     }
