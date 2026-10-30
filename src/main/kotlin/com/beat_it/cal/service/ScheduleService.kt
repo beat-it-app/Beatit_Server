@@ -527,4 +527,20 @@ class ScheduleService(
     fun countScheduleFilesByTeamId(teamId: Long): Long {
         return scheduleFileRepository.countByTeamId(teamId)
     }
+
+    @Transactional
+    fun deleteAllByTeamId(teamId: Long) {
+        val schedules = scheduleRepository.findAllByTeamId(teamId)
+        if (schedules.isEmpty()) return
+
+        val storageKeys = schedules.flatMap { schedule ->
+            schedule.files.map { it.storageKey }
+        }
+
+        scheduleRepository.deleteAll(schedules)
+
+        if (storageKeys.isNotEmpty()) {
+            fileService.deleteFiles(storageKeys)
+        }
+    }
 }

@@ -41,10 +41,10 @@ class MyPageService (
         val authAccount = getUserAuthAccount(userId)
 
         val teamResponse = user.currentTeamId?.let { teamId ->
-            teamMembershipRepository.findByTeamTeamIdAndUserIdAndLeftAtIsNull(teamId, userId)?.let { membership ->
+            teamMembershipRepository.findByTeamTeamIdAndUserId(teamId, userId)?.let { membership ->
                 val team = membership.team
-                val memberCount = teamMembershipRepository.countByTeamTeamIdAndLeftAtIsNull(teamId)
-                val leaderMembership = teamMembershipRepository.findAllByTeamTeamIdAndLeftAtIsNull(teamId)
+                val memberCount = teamMembershipRepository.countByTeamTeamId(teamId)
+                val leaderMembership = teamMembershipRepository.findAllByTeamTeamId(teamId)
                     .find { it.teamRole.name == "LEADER" }
 
                 val leaderName = leaderMembership?.let {
