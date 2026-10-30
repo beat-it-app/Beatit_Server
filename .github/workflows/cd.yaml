@@ -46,20 +46,24 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
-      # appspec.yml 파일을 프로젝트 최상단(루트)에 생성하여 보관할 경우 아래 이동 스텝은 필요 없습니다.
-      # 만약 특정 폴더(예: cicd/) 아래에 보관하신다면 주석을 해제하고 실제 폴더 경로로 채워주세요.
-      # - name: Move appspec.yml to root (최상단으로 이동)
-      #   run: mv cicd/appspec.yml .
+      # 프로젝트 구성에 필요한 배포 파일만 최상위 루트 기준으로 가볍게 압축
+      - name: 배포용 압축 파일 생성
+        run: |
+          zip -r ${{ github.sha }}.zip \
+            appspec.yml \
+            scripts/ \
+            Dockerfile \
+            docker-compose.yml \
+            nginx/ \
+            build/libs/*.jar
 
+      # S3에 zip 파일 업로드
       - name: AWS S3 에 build 결과 업로드
         run: |
-          aws deploy push \
-            --application-name ${{ env.CODE_DEPLOY_APPLICATION_NAME }} \
-            --ignore-hidden-files \
-            --s3-location s3://${{ env.S3_BUCKET_NAME }}/${{ github.sha }}.zip \
-            --source . \
+          aws s3 cp ${{ github.sha }}.zip s3://${{ env.S3_BUCKET_NAME }}/${{ github.sha }}.zip \
             --region ${{ env.AWS_REGION }}
 
+      # CodeDeploy 배포 실행
       - name: S3 버킷 내 파일 CodeDeploy 실행
         run: |
           aws deploy create-deployment \
