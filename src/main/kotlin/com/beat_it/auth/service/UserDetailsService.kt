@@ -20,12 +20,8 @@ class UserDetailsService (
             ?: throw BusinessException(ErrorCode.USER_NOT_FOUND)
 
         if (user.accountStatus == AccountStatus.WITHDRAWN) {
-
             throw BusinessException(ErrorCode.USER_NOT_FOUND)
-
         }
-
-        
 
         return User(
             user.userId.toString(),

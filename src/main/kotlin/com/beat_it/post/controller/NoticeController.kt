@@ -52,7 +52,6 @@ class NoticeController (
     @PostMapping(consumes = [MediaType.MULTIPART_FORM_DATA_VALUE])
     fun createNotice(
         @AuthenticationPrincipal userDetails: UserDetails,
-        // TODO : 제목이랑 본문은 parameter로 받으면 안될 것 같은데.. 어떻게 수정할 수 있는지 모르겠음! (공지 수정도 마찬가지)
         @Parameter(description = "공지 제목", example = "[아주 중요] 합주실 사용 공지")
         @RequestParam title: String,
         @Parameter(description = "공지 본문", example = "((합주실 깨끗.하게 쓰세요!))")

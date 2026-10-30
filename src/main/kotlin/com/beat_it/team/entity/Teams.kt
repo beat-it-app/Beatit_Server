@@ -11,9 +11,7 @@ import java.util.UUID
 
 @Entity
 @Table(name = "teams")
-// 1. repository.delete() 호출 시 실행될 쿼리 지정 (자동화의 핵심)
 @SQLDelete(sql = "UPDATE teams SET deleted_at = CURRENT_TIMESTAMP WHERE team_id = ?")
-// 2. 조회 시 삭제된 데이터는 자동으로 필터링 (과거 @Where 역할)
 @SQLRestriction("deleted_at IS NULL")
 class Teams(
     @Id

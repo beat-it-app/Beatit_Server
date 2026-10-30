@@ -173,8 +173,6 @@ class UserService (
     }
 
     @Transactional(readOnly = true)
-
-
     fun getUserProfiles(userIds: List<Long>): List<UserProfileResponse> {
         if (userIds.isEmpty()) return emptyList()
 

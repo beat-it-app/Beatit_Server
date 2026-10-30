@@ -37,21 +37,15 @@ class UserWithdrawalScheduler(
 
         for (user in targetUsers) {
             val userId = user.userId!!
-
-            // 1. 프로필 삭제 (AuthFiles FK 참조 해제)
             userProfilesRepository.findByUserUserId(userId)?.let { profile ->
                 userProfilesRepository.delete(profile)
                 userProfilesRepository.flush()
             }
-
-            // 2. 유저 귀속 AuthFiles 및 S3 파일 일괄 삭제
             val userFiles = authFilesRepository.findAllByUser_UserId(userId)
             if (userFiles.isNotEmpty()) {
                 fileService.deleteFiles(userFiles.map { it.storageKey })
                 authFilesRepository.deleteAll(userFiles)
             }
-
-            // 3. 계정, 설정, 팀 멤버십, 유저 본체 삭제
             userAuthAccountRepository.findByUserUserId(userId)?.let(userAuthAccountRepository::delete)
             userSettingsRepository.findByUsers_UserId(userId)?.let(userSettingsRepository::delete)
             teamMembershipRepository.deleteAll(teamMembershipRepository.findAllByUserId(userId))

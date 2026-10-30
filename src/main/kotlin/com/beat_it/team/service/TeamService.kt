@@ -167,17 +167,12 @@ class TeamService(
 
         userService.clearCurrentTeamIdByTeamId(teamId)
 
-
-
-
         teamCloudService.deleteAllByTeam(team)
         scheduleService.deleteAllByTeamId(teamId)
         teamLinksRepository.deleteAllByTeamTeamId(teamId)
 
         val memberships = teamMembershipRepository.findAllByTeamTeamId(teamId)
         teamMembershipRepository.deleteAll(memberships)
-
-
 
         team.delete()
         team.teamImageStorageKey?.let { deleteAfterCommit(it) }

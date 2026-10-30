@@ -15,7 +15,7 @@ class AuthFiles(
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
-    val user: Users, // FK 설정
+    val user: Users,
 
     @Column(name = "original_file_name", nullable = false, length = 255)
     var originalFileName: String,
