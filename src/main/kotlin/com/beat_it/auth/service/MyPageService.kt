@@ -12,6 +12,7 @@ import com.beat_it.auth.entity.Users
 import com.beat_it.auth.entity.enum.DefaultProfileImage
 import com.beat_it.auth.entity.enum.MediaCategory
 import com.beat_it.auth.entity.enum.SocialProvider
+import com.beat_it.auth.entity.enum.AccountStatus
 import com.beat_it.auth.repository.*
 import com.beat_it.global.error.BusinessException
 import com.beat_it.global.error.ErrorCode
@@ -41,14 +42,14 @@ class MyPageService (
         val authAccount = getUserAuthAccount(userId)
 
         val teamResponse = user.currentTeamId?.let { teamId ->
-            teamMembershipRepository.findByTeamTeamIdAndUserIdAndLeftAtIsNull(teamId, userId)?.let { membership ->
+            teamMembershipRepository.findByTeamTeamIdAndUserId(teamId, userId)?.let { membership ->
                 val team = membership.team
-                val memberCount = teamMembershipRepository.countByTeamTeamIdAndLeftAtIsNull(teamId)
-                val leaderMembership = teamMembershipRepository.findAllByTeamTeamIdAndLeftAtIsNull(teamId)
+                val memberCount = teamMembershipRepository.countByTeamTeamId(teamId)
+                val leaderMembership = teamMembershipRepository.findAllByTeamTeamId(teamId)
                     .find { it.teamRole.name == "LEADER" }
 
                 val leaderName = leaderMembership?.let {
-                    userProfilesRepository.findByUserUserId(it.userId)?.name
+                    userProfilesRepository.findByUserUserId(it.userId)?.takeIf { profile -> profile.user?.accountStatus == AccountStatus.ACTIVE }?.name
                 } ?: "알 수 없음"
 
                 MyPageTeamResponse(

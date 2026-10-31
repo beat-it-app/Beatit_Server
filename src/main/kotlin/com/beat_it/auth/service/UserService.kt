@@ -12,7 +12,7 @@ import com.beat_it.auth.repository.UserRepository
 import com.beat_it.global.error.BusinessException
 import com.beat_it.global.error.ErrorCode
 import com.beat_it.global.service.FileService
-import org.springframework.cache.annotation.Cacheable
+import com.beat_it.auth.entity.enum.AccountStatus
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import org.springframework.web.multipart.MultipartFile
@@ -122,7 +122,7 @@ class UserService (
 
             UserSimpleInfo(
                 userPublicId = user.publicId,
-                userName = profile?.name ?: "이름 없음",
+                userName = profile?.name ?: "알 수 없음",
                 profileImageUrl = profile?.profileImageUrl,
             )
         }
@@ -164,6 +164,7 @@ class UserService (
 
     fun getUserProfile(userId: Long): UserProfiles? {
         return userProfilesRepository.findByUserUserId(userId)
+            ?.takeIf { it.user?.accountStatus == AccountStatus.ACTIVE }
     }
 
     @Transactional(readOnly = true)
@@ -172,12 +173,11 @@ class UserService (
     }
 
     @Transactional(readOnly = true)
-    @Cacheable(cacheNames = ["userProfiles"], key = "#userIds.sorted().toString()")
-    //TODO: updateProfile 만들면 @CacheEvict 적용
     fun getUserProfiles(userIds: List<Long>): List<UserProfileResponse> {
         if (userIds.isEmpty()) return emptyList()
 
         val profiles = userProfilesRepository.findByUserUserIdIn(userIds)
+            .filter { it.user?.accountStatus == AccountStatus.ACTIVE }
         return profiles.map { profile ->
             UserProfileResponse(
                 userId = profile.user?.userId ?: 0L,

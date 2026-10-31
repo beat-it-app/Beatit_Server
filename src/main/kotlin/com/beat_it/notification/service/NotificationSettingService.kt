@@ -137,7 +137,7 @@ class NotificationSettingService(
 
     private fun checkIsManager(userId: Long): Boolean {
         val currentTeamId = userService.getCurrentTeamIdOrNull(userId) ?: return false
-        val membership = teamMembershipRepository.findByTeamTeamIdAndUserIdAndLeftAtIsNull(currentTeamId, userId)
+        val membership = teamMembershipRepository.findByTeamTeamIdAndUserId(currentTeamId, userId)
         return membership?.teamRole == TeamRole.LEADER || membership?.teamRole == TeamRole.MANAGER
     }
 }

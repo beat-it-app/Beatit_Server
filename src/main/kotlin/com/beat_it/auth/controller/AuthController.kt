@@ -230,7 +230,7 @@ class AuthController (
 
     @Operation(summary = "회원 탈퇴 안내 페이지 정보 조회")
     @SecurityRequirement(name = "JWT AUTH")
-    @GetMapping("/withdrawl-info")
+    @GetMapping("/withdrawal-info")
     fun getWithdrawalInfo(
         @AuthenticationPrincipal userDetails: UserDetails
     ): ResponseEntity<BasicResponse<UserWithdrawalInfoResponse>> {

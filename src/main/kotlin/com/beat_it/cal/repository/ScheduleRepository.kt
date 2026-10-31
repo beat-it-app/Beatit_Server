@@ -78,4 +78,6 @@ interface ScheduleRepository : JpaRepository<Schedule, Long> {
         WHERE s.teamId = :teamId
     """)
     fun countSchedulesByTeamId(@Param("teamId") teamId: Long): Long
+
+    fun findAllByTeamId(teamId: Long): List<Schedule>
 }

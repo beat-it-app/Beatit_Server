@@ -351,7 +351,7 @@ class ScheduleService(
                 val profile = userProfileMap[participant.userId]
                 ScheduleParticipantProfileResponse(
                     userId = participant.userId,
-                    name = profile?.name ?: "알 수 없는 사용자",
+                    name = profile?.name ?: "알 수 없음",
                     profileImageUrl = profile?.profileImageUrl
                 )
             }
@@ -526,5 +526,21 @@ class ScheduleService(
     @Transactional(readOnly = true)
     fun countScheduleFilesByTeamId(teamId: Long): Long {
         return scheduleFileRepository.countByTeamId(teamId)
+    }
+
+    @Transactional
+    fun deleteAllByTeamId(teamId: Long) {
+        val schedules = scheduleRepository.findAllByTeamId(teamId)
+        if (schedules.isEmpty()) return
+
+        val storageKeys = schedules.flatMap { schedule ->
+            schedule.files.map { it.storageKey }
+        }
+
+        scheduleRepository.deleteAll(schedules)
+
+        if (storageKeys.isNotEmpty()) {
+            fileService.deleteFiles(storageKeys)
+        }
     }
 }

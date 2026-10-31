@@ -258,7 +258,7 @@ class TeamController(
     }
 
     @Operation(summary = "팀 탈퇴 안내 페이지 정보 조회")
-    @GetMapping("/withdrawl-info")
+    @GetMapping("/withdrawal-info")
     fun getTeamWithdrawalInfo(
         @AuthenticationPrincipal userDetails: UserDetails
     ): ResponseEntity<BasicResponse<TeamExitInfoResponse>> {
@@ -280,7 +280,7 @@ class TeamController(
         val responseData = teamService.teamWithdraw(userId)
 
         return ResponseEntity.ok(
-            BasicResponse.success(responseData, HttpStatus.OK, "팀 탈퇴 요청이 정상적으로 접수되었습니다. 7일의 유예기간 후 완전히 탈퇴 처리됩니다.")
+            BasicResponse.success(responseData, HttpStatus.OK, "팀 탈퇴가 성공적으로 처리되었습니다.")
         )
     }
 

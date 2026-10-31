@@ -428,7 +428,7 @@ class ChatService(
             chatMemberRepository.delete(member)
 
             val userProfile = userService.getUserProfiles(listOf(userId)).firstOrNull()
-            val userName = userProfile?.name ?: "알 수 없는 사용자"
+            val userName = userProfile?.name ?: "알 수 없음"
 
             val systemMessage = ChatMessage(
                 chatRoom = chatRoom,

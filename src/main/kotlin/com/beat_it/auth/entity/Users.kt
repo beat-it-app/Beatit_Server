@@ -53,4 +53,9 @@ class Users (
         this.accountStatus = AccountStatus.WITHDRAWN
         this.withdrawnAt = OffsetDateTime.now()
     }
+
+    fun restore() {
+        this.accountStatus = AccountStatus.ACTIVE
+        this.withdrawnAt = null
+    }
 }

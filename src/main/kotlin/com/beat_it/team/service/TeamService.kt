@@ -22,6 +22,7 @@ import org.springframework.context.annotation.Lazy
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import org.springframework.web.multipart.MultipartFile
+import java.time.OffsetDateTime
 import java.util.UUID
 
 @Service
@@ -166,12 +167,12 @@ class TeamService(
 
         userService.clearCurrentTeamIdByTeamId(teamId)
 
-        val activeMemberships = teamMembershipRepository
-            .findAllByTeamTeamIdAndLeftAtIsNull(teamId)
+        teamCloudService.deleteAllByTeam(team)
+        scheduleService.deleteAllByTeamId(teamId)
+        teamLinksRepository.deleteAllByTeamTeamId(teamId)
 
-        activeMemberships.forEach { it.leaveTeam() }
-
-        //TODO: 유효기간 관련 처리
+        val memberships = teamMembershipRepository.findAllByTeamTeamId(teamId)
+        teamMembershipRepository.deleteAll(memberships)
 
         team.delete()
         team.teamImageStorageKey?.let { deleteAfterCommit(it) }
@@ -184,7 +185,7 @@ class TeamService(
 
         val requesterMembership = findActiveMembershipOrThrow(teamId, userId)
 
-        val memberCount = teamMembershipRepository.countByTeamTeamIdAndLeftAtIsNull(teamId)
+        val memberCount = teamMembershipRepository.countByTeamTeamId(teamId)
 
         val links = teamLinksRepository
             .findAllByTeamTeamId(teamId)
@@ -197,7 +198,7 @@ class TeamService(
             }
 
         val members = toTeamMemberInfos(
-            teamMembershipRepository.findTop10ByTeamTeamIdAndLeftAtIsNullOrderByJoinedAtAsc(teamId)
+            teamMembershipRepository.findTop10ByTeamTeamIdOrderByJoinedAtAsc(teamId)
         ).map { member ->
             TeamDetailMemberResponse(
                 userName = member.userName,
@@ -243,7 +244,7 @@ class TeamService(
 
         val savedMembership = teamMembershipRepository.save(teamMembership)
 
-        val managerUserIds = teamMembershipRepository.findAllByTeamTeamIdAndLeftAtIsNull(team.teamId!!)
+        val managerUserIds = teamMembershipRepository.findAllByTeamTeamId(team.teamId!!)
             .filter { it.teamRole == TeamRole.LEADER || it.teamRole == TeamRole.MANAGER }
             .map { it.userId }
             .filter { it != userId }
@@ -272,7 +273,7 @@ class TeamService(
     fun getUserTeams(userId: Long) : UserTeamListResponse {
         userService.validateUserExists(userId)
 
-        val memberships = teamMembershipRepository.findAllByUserIdAndLeftAtIsNullAndTeamDeletedAtIsNullOrderByJoinedAtDesc(userId)
+        val memberships = teamMembershipRepository.findAllByUserIdAndTeamDeletedAtIsNullOrderByJoinedAtDesc(userId)
 
         val teams = memberships.map { membership ->
             val team = membership.team
@@ -346,8 +347,8 @@ class TeamService(
         val teamId = userService.getCurrentTeamId(userId)
         val requesterMembership = findActiveMembershipOrThrow(teamId, userId)
 
-        val memberships = teamMembershipRepository
-            .findAllByTeamTeamIdAndLeftAtIsNull(teamId)
+        val memberships = teamMembershipRepository.findAllByTeamTeamId(teamId)
+
 
         val allMemberItems = toTeamMemberInfos(memberships)
 
@@ -386,7 +387,7 @@ class TeamService(
         val teamId = userService.getCurrentTeamId(userId)
         validateTeamMember(teamId, userId)
 
-        val memberships = teamMembershipRepository.findAllByTeamTeamIdAndLeftAtIsNull(teamId)
+        val memberships = teamMembershipRepository.findAllByTeamTeamId(teamId)
         val memberItems = toTeamMemberInfos(memberships)
         val sortedMembers = memberItems.sortedBy { it.userName }.map {
             MemberPositionItem(
@@ -415,7 +416,7 @@ class TeamService(
                 }
 
                 val targetMembership = teamMembershipRepository
-                    .findByTeamTeamIdAndUserIdAndLeftAtIsNull(teamId, item.userId)
+                    .findByTeamTeamIdAndUserId(teamId, item.userId)
                     ?: throw BusinessException(ErrorCode.NOT_TEAM_MEMBER)
 
                 targetMembership.updatePosition(cleanPosition)
@@ -433,7 +434,7 @@ class TeamService(
             }
         }
 
-        val memberships = teamMembershipRepository.findAllByTeamTeamIdAndLeftAtIsNull(teamId)
+        val memberships = teamMembershipRepository.findAllByTeamTeamId(teamId)
         val memberItems = toTeamMemberInfos(memberships)
         val sortedMembers = memberItems.sortedBy { it.userName }.map {
             MemberPositionItem(
@@ -452,16 +453,17 @@ class TeamService(
         val teamId = userService.getCurrentTeamId(userId)
         val team = findTeamForCommandOrThrow(teamId)
 
-        val membership = teamMembershipRepository.findByTeamTeamIdAndUserIdAndLeftAtIsNull(teamId, userId)
+        val membership = teamMembershipRepository.findByTeamTeamIdAndUserId(teamId, userId)
             ?: throw BusinessException(ErrorCode.NOT_TEAM_MEMBER)
 
         if (membership.teamRole == TeamRole.LEADER) {
             throw BusinessException(ErrorCode.TEAM_LEADER_CANNOT_WITHDRAW)
         }
 
-        membership.leaveTeam()
+        val withdrawnAt = OffsetDateTime.now()
+        teamMembershipRepository.delete(membership)
 
-        val managerUserIds = teamMembershipRepository.findAllByTeamTeamIdAndLeftAtIsNull(teamId)
+        val managerUserIds = teamMembershipRepository.findAllByTeamTeamId(teamId)
             .filter { it.teamRole == TeamRole.LEADER || it.teamRole == TeamRole.MANAGER }
             .map { it.userId }
             .filter { it != userId }
@@ -482,8 +484,8 @@ class TeamService(
         return TeamWithdrawalResponse(
             teamPublicId = team.publicId,
             userId = userId,
-            requestedAt = membership.leftAt!!,
-            scheduledDeletionDate = membership.leftAt!!.plusDays(7)
+            withdrawnAt = withdrawnAt
+
         )
     }
 
@@ -524,8 +526,13 @@ class TeamService(
     }
 
     @Transactional(readOnly = true)
+    fun isLeaderOfAnyActiveTeam(userId: Long): Boolean {
+        return teamMembershipRepository.existsByUserIdAndTeamRoleAndTeamDeletedAtIsNull(userId, TeamRole.LEADER)
+    }
+    
+    @Transactional(readOnly = true)
     fun countActiveTeamsByUserId(userId: Long): Long {
-        return teamMembershipRepository.countByUserIdAndLeftAtIsNull(userId)
+        return teamMembershipRepository.countByUserId(userId)
     }
 
     private fun findInviteCodeOrThrow(inviteCode: String): Teams {
@@ -618,7 +625,7 @@ class TeamService(
     }
 
     private fun findActiveMembershipOrThrow(teamId: Long, userId: Long): TeamMemberships {
-        return teamMembershipRepository.findByTeamTeamIdAndUserIdAndLeftAtIsNull(teamId, userId)
+        return teamMembershipRepository.findByTeamTeamIdAndUserId(teamId, userId)
             ?: throw BusinessException(ErrorCode.NOT_TEAM_MEMBER)
     }
 
@@ -665,7 +672,7 @@ class TeamService(
 
     @Transactional(readOnly = true)
     fun getTeamMemberUserIds(teamId: Long): List<Long> {
-        return teamMembershipRepository.findAllByTeamTeamIdAndLeftAtIsNull(teamId).map { it.userId }
+        return teamMembershipRepository.findAllByTeamTeamId(teamId).map { it.userId }
     }
 
     private fun changeToLeader(
@@ -789,7 +796,7 @@ class TeamService(
 
     private fun validateNotAlreadyJoined(teamId: Long, userId: Long) {
         val alreadyJoined = teamMembershipRepository
-            .existsByTeamTeamIdAndUserIdAndLeftAtIsNull(teamId, userId)
+            .existsByTeamTeamIdAndUserId(teamId, userId)
 
         if (alreadyJoined) {
             throw BusinessException(ErrorCode.TEAM_ALREADY_JOINED)
@@ -828,7 +835,7 @@ class TeamService(
 
     fun validateMembersInTeam(teamId: Long, userIds: List<Long>): Boolean {
         if (userIds.isEmpty()) return false
-        val activeMembers = teamMembershipRepository.findAllByTeamTeamIdAndUserIdInAndLeftAtIsNull(teamId, userIds)
+        val activeMembers = teamMembershipRepository.findAllByTeamTeamIdAndUserIdIn(teamId, userIds)
         val uniqueUserIdsCount = userIds.distinct().size
         return activeMembers.size == uniqueUserIdsCount
     }
@@ -837,7 +844,7 @@ class TeamService(
     fun getMemberPositions(teamId: Long, userIds: List<Long>): Map<Long, String?> {
         if (userIds.isEmpty()) return emptyMap()
         return teamMembershipRepository
-            .findAllByTeamTeamIdAndUserIdInAndLeftAtIsNull(teamId, userIds)
+            .findAllByTeamTeamIdAndUserIdIn(teamId, userIds)
             .associate { it.userId to it.position }
     }
 }

@@ -58,7 +58,7 @@ class TeamCloudService(
         val teamId = userService.getCurrentTeamId(userId)
         val team = findTeamOrThrow(teamId)
 
-        val membership = teamMembershipRepository.findByTeamTeamIdAndUserIdAndLeftAtIsNull(teamId, userId)
+        val membership = teamMembershipRepository.findByTeamTeamIdAndUserId(teamId, userId)
             ?: throw BusinessException(ErrorCode.NOT_TEAM_MEMBER)
         val currentUserRole = membership.teamRole
 
@@ -490,6 +490,29 @@ class TeamCloudService(
     @Transactional(readOnly = true)
     fun countScoresAndMusicsByTeamIdAndUserId(teamId: Long, userId: Long): Long {
         return teamCloudItemRepository.countScoresAndMusicsByTeamIdAndUserId(teamId, userId)
+    }
+    @Transactional
+    fun deleteAllByTeam(team: Teams) {
+        val items = teamCloudItemRepository.findByTeam(team)
+        val teamFiles = items.mapNotNull { it.teamFile }
+        val storageKeys = teamFiles.map { it.storageKey }
+
+        if (items.isNotEmpty()) {
+            teamCloudItemRepository.deleteAll(items)
+        }
+
+        val folders = teamCloudFolderRepository.findByTeam(team)
+        if (folders.isNotEmpty()) {
+            teamCloudFolderRepository.deleteAll(folders)
+        }
+
+        if (teamFiles.isNotEmpty()) {
+            teamFileRepository.deleteAll(teamFiles)
+        }
+
+        if (storageKeys.isNotEmpty()) {
+            fileService.deleteFiles(storageKeys)
+        }
     }
 
     @Transactional(readOnly = true)

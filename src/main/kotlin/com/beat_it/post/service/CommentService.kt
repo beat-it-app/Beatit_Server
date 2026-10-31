@@ -230,7 +230,7 @@ class CommentService(
         explicitMentionedUserIds: List<Long>?,
         directTo: String? = null
     ) {
-        val activeMembers = teamMembershipRepository.findAllByTeamTeamIdAndLeftAtIsNull(teamId)
+        val activeMembers = teamMembershipRepository.findAllByTeamTeamId(teamId)
         if (activeMembers.isEmpty()) return
 
         val activeMemberUserIds = activeMembers.map { it.userId }.toSet()

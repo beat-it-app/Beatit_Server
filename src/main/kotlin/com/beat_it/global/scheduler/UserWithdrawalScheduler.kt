@@ -22,108 +22,36 @@ class UserWithdrawalScheduler(
 ) {
     private val log = LoggerFactory.getLogger(UserWithdrawalScheduler::class.java)
 
+    @Scheduled(cron = "0 0 3 * * *")
     @Transactional
     fun processWithdrawnUsers() {
-        log.info("[Scheduler] 탈퇴 보류 기간 초과 유저 정리 작업 시작")
-        
         val cutoffTime = OffsetDateTime.now().minusDays(7)
         val targetUsers = userRepository.findAllByAccountStatusAndWithdrawnAtBefore(
             AccountStatus.WITHDRAWN,
             cutoffTime
         )
 
-        if (targetUsers.isEmpty()) {
-            log.info("[Scheduler] 탈퇴 처리할 유저가 없습니다.")
-            return
-        }
+        if (targetUsers.isEmpty()) return
 
         log.info("[Scheduler] 탈퇴 처리 대상 유저 수: ${targetUsers.size}명")
 
         for (user in targetUsers) {
             val userId = user.userId!!
-            log.info("[Scheduler] 유저 ID: $userId 영구 탈퇴 처리 시작")
-
-            try {
-                // 1. 프로필 정보 및 업로드된 프로필 파일 정리
-                val profile = userProfilesRepository.findByUserUserId(userId)
-                if (profile != null) {
-                    profile.authFile?.let { oldFile ->
-                        fileService.deleteFile(oldFile.storageKey)
-                    }
-                    userProfilesRepository.delete(profile)
-                }
-
-                // 2. 유저에게 귀속된 모든 AuthFiles 삭제
-                val userFiles = authFilesRepository.findAllByUser_UserId(userId)
-                for (file in userFiles) {
-                    fileService.deleteFile(file.storageKey)
-                    authFilesRepository.delete(file)
-                }
-
-                // 3. 인증 계정 정보 삭제
-                val authAccount = userAuthAccountRepository.findByUserUserId(userId)
-                if (authAccount != null) {
-                    userAuthAccountRepository.delete(authAccount)
-                }
-
-                // 4. 유저 설정 정보 삭제
-                val userSetting = userSettingsRepository.findByUsers_UserId(userId)
-                if (userSetting != null) {
-                    userSettingsRepository.delete(userSetting)
-                }
-
-                // 5. 팀 멤버십 삭제 (탈퇴 대기/완료 상관없이 해당 유저의 모든 멤버십 일괄 삭제)
-                val memberships = teamMembershipRepository.findAllByUserId(userId)
-                teamMembershipRepository.deleteAll(memberships)
-
-                // 6. Users 최종 삭제
-                userRepository.delete(user)
-                
-                log.info("[Scheduler] 유저 ID: $userId 영구 탈퇴 처리 완료")
-            } catch (e: Exception) {
-                log.error("[Scheduler] 유저 ID: $userId 탈퇴 처리 중 오류 발생: ${e.message}", e)
-                throw e
+            userProfilesRepository.findByUserUserId(userId)?.let { profile ->
+                userProfilesRepository.delete(profile)
+                userProfilesRepository.flush()
             }
+            val userFiles = authFilesRepository.findAllByUser_UserId(userId)
+            if (userFiles.isNotEmpty()) {
+                fileService.deleteFiles(userFiles.map { it.storageKey })
+                authFilesRepository.deleteAll(userFiles)
+            }
+            userAuthAccountRepository.findByUserUserId(userId)?.let(userAuthAccountRepository::delete)
+            userSettingsRepository.findByUsers_UserId(userId)?.let(userSettingsRepository::delete)
+            teamMembershipRepository.deleteAll(teamMembershipRepository.findAllByUserId(userId))
+            userRepository.delete(user)
+
+            log.info("[Scheduler] 유저 ID: $userId 영구 탈퇴 처리 완료")
         }
-    }
-
-    @Transactional
-    fun processLeftTeamMemberships() {
-        log.info("[Scheduler] 탈퇴 보류 기간 초과 팀 멤버십 정리 작업 시작")
-        
-        val cutoffTime = OffsetDateTime.now().minusDays(7)
-        val targetMemberships = teamMembershipRepository.findAllByLeftAtBefore(cutoffTime)
-
-        if (targetMemberships.isEmpty()) {
-            log.info("[Scheduler] 정리할 팀 멤버십이 없습니다.")
-            return
-        }
-
-        log.info("[Scheduler] 정리 대상 팀 멤버십 수: ${targetMemberships.size}개")
-        
-        teamMembershipRepository.deleteAll(targetMemberships)
-        
-        log.info("[Scheduler] 팀 멤버십 정리 완료")
-    }
-
-    @Scheduled(cron = "0 0 3 * * *")
-    fun runCleanUpTasks() {
-        log.info("[Scheduler] 새벽 정기 데이터 정리 스케줄러 작동 시작")
-        
-        // 1. 팀 탈퇴 처리 (보류 기간이 지난 멤버십을 먼저 삭제)
-        try {
-            processLeftTeamMemberships()
-        } catch (e: Exception) {
-            log.error("[Scheduler] 팀 멤버십 정리 중 오류 발생", e)
-        }
-
-        // 2. 회원 탈퇴 처리 (유저 및 연관 데이터 정리)
-        try {
-            processWithdrawnUsers()
-        } catch (e: Exception) {
-            log.error("[Scheduler] 유저 영구 탈퇴 처리 중 오류 발생", e)
-        }
-
-        log.info("[Scheduler] 새벽 정기 데이터 정리 스케줄러 작동 완료")
     }
 }

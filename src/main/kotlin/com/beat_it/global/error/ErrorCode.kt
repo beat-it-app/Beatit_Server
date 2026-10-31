@@ -41,6 +41,7 @@ enum class ErrorCode(
     REFRESH_TOKEN_NOT_FOUND(HttpStatus.UNAUTHORIZED, "LOGIN-008", "존재하지 않거나 만료된 Refresh 토큰입니다."),
     PROFILE_NOT_FOUND(HttpStatus.NOT_FOUND, "LOGIN-009", "프로필이 생성되지 않았습니다."),
     DUPLICATE_NAME(HttpStatus.BAD_REQUEST, "LOGIN-010", "기존 이름과 동일한 이름으로 변경할 수 없습니다."),
+    USER_WITHDRAWN_PENDING(HttpStatus.FORBIDDEN, "LOGIN-011", "탈퇴 유예 중인 계정입니다. 탈퇴를 취소하시겠습니까?"),
 
     // --- 4. 일정 관련 에러 (CALENDAR) ---
     CALENDAR_NO_CONTENT_TO_UPDATE(HttpStatus.BAD_REQUEST, "CALENDAR-001", "변경할 내용이 없습니다."),
@@ -69,7 +70,7 @@ enum class ErrorCode(
     NOT_TEAM_MEMBER(HttpStatus.FORBIDDEN, "TEAM-011", "해당 팀의 멤버가 아닙니다."),
     TEAM_NOT_SELECTED(HttpStatus.BAD_REQUEST, "TEAM-012", "현재 선택된 팀이 없습니다. 팀을 먼저 선택해주세요."),
     TEAM_NO_DELETE_PERMISSION(HttpStatus.FORBIDDEN, "TEAM-013", "팀 삭제 권한이 없습니다."),
-    TEAM_LEADER_CANNOT_WITHDRAW(HttpStatus.BAD_REQUEST, "TEAM-014", "리더는 팀을 탈퇴할 수 없습니다. 권한을 양도하거나 팀을 삭제해주세요."),
+    TEAM_LEADER_CANNOT_WITHDRAW(HttpStatus.BAD_REQUEST, "TEAM-014", "리더는 탈퇴할 수 없습니다. 권한을 양도하거나 팀을 삭제해주세요."),
     TEAM_POSITION_TOO_LONG(HttpStatus.BAD_REQUEST, "TEAM-015", "포지션은 10자 이하여야 합니다."),
     TEAM_LINK_DUPLICATED(HttpStatus.BAD_REQUEST, "TEAM-016", "유튜브, 인스타그램, 기타 링크는 종류별로 하나씩만 등록할 수 있습니다."),
 

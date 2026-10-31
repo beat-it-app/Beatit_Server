@@ -15,7 +15,6 @@ class TeamLinks(
     @Column(name="team_link_id", nullable = false)
     val teamLinkId: Long? = null,
 
-    //TODO: 팀 ID 연결하기
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "team_id", nullable = false)
     val team: Teams,
@@ -26,12 +25,6 @@ class TeamLinks(
 
     @Column(name="link_url",nullable = false)
     var linkUrl: String = "",
-
-//    @Column(name="update_at",nullable = false)
-//    var updateAt: OffsetDateTime = OffsetDateTime.now(),
-//
-//    @Column(name="create_at",nullable = false)
-//    val createdAt: OffsetDateTime = OffsetDateTime.now(),
 
 ) : BaseUpdatedTimeEntity() {
     fun updateLink(platformCode: PlatformCode, linkUrl: String) {

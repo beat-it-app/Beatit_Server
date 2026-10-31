@@ -42,7 +42,7 @@ class SecurityConfig(
             }
             .authorizeHttpRequests { auth ->
                 auth
-                    .requestMatchers("/auth/withdraw", "/auth/withdrawl-info", "/auth/logout").authenticated()
+                    .requestMatchers("/auth/withdraw", "/auth/withdrawal-info", "/auth/logout").authenticated()
                     .requestMatchers("/auth/**").permitAll()
                     .requestMatchers("/teams/**").permitAll()
                     .requestMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()

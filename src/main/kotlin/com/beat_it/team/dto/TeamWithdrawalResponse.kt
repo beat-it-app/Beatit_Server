@@ -6,6 +6,5 @@ import java.util.UUID
 data class TeamWithdrawalResponse(
     val teamPublicId: UUID,
     val userId: Long,
-    val requestedAt: OffsetDateTime,
-    val scheduledDeletionDate: OffsetDateTime
+    val withdrawnAt: OffsetDateTime
 )
