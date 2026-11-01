@@ -65,6 +65,7 @@ class Archives(
         description?.let { this.description = it }
         roadAddress?.let { this.roadAddress = it }
         locationId?.let { this.locationId = it }
+        this.updateTimestamp()
     }
 
     fun updateArchiveImageUrl(archiveImageUrl: String?) {
