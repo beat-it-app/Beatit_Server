@@ -353,6 +353,31 @@ class ArchiveService(
     }
 
     @Transactional
+    fun deleteRating(userId: Long, archiveId: Long): ArchiveRatingResponse {
+        val archive = findAccessibleArchiveOrThrow(userId, archiveId)
+        val existingRating = archiveRatingsRepository
+            .findByArchiveArchiveIdAndUserId(archiveId, userId)
+
+        if (existingRating != null) {
+            archiveRatingsRepository.delete(existingRating)
+            archiveRatingsRepository.flush()
+
+            archive.decreaseRatingCount()
+            val averageRating = archiveRatingsRepository
+                .findAverageScoreByArchiveId(archiveId)
+                ?: 0.0
+            archive.updateAverageRating(averageRating)
+            refreshTopArchives(archive.team.teamId!!)
+        }
+
+        return ArchiveRatingResponse(
+            averageRating = archive.roundedAverageRating(),
+            ratingCount = archive.ratingCount,
+            myRating = null,
+        )
+    }
+
+    @Transactional
     fun createComment(
         userId: Long,
         archiveId: Long,
