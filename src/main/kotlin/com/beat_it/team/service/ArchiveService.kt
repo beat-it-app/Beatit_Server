@@ -147,8 +147,15 @@ class ArchiveService(
             }
         }
 
-        val archives = archivesPage.content.map { archive ->
-            archive.toListItemResponse(teamId)
+        val pageArchives = archivesPage.content
+        val commentCounts = if (pageArchives.isEmpty()) {
+            emptyMap()
+        } else {
+            archiveCommentsRepository.countCommentsByArchiveIds(pageArchives.map { it.archiveId!! })
+                .associate { it.archiveId to it.commentCount.toInt() }
+        }
+        val archives = pageArchives.map { archive ->
+            archive.toListItemResponse(teamId, commentCounts[archive.archiveId] ?: 0)
         }
 
         return ArchiveListResponse(
@@ -158,7 +165,7 @@ class ArchiveService(
         )
     }
 
-    private fun Archives.toListItemResponse(teamId: Long): ArchiveListItemResponse {
+    private fun Archives.toListItemResponse(teamId: Long, actualCommentCount: Int): ArchiveListItemResponse {
         return ArchiveListItemResponse(
             archiveId = archiveId!!,
             teamId = teamId,
@@ -167,7 +174,7 @@ class ArchiveService(
             roadAddress = roadAddress,
             archiveImageUrl = archiveImageUrl,
             averageRating = roundedAverageRating(),
-            commentCount = commentCount,
+            commentCount = actualCommentCount,
         )
     }
 
@@ -209,7 +216,7 @@ class ArchiveService(
                 ratingCount = archive.ratingCount,
                 myRating = myRating?.score,
             ),
-            commentCount = archive.commentCount,
+            commentCount = commentResponses.sumOf { 1 + it.replies.size },
             commentList = commentResponses,
             createdAt = archive.createdAt,
             updatedAt = archive.updatedAt,
