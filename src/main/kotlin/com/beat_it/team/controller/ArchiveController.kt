@@ -138,6 +138,21 @@ class ArchiveController(
             .body(BasicResponse.success(responseData, HttpStatus.OK, "별점이 저장되었습니다."))
     }
 
+    @Operation(summary = "연습실 별점 삭제")
+    @DeleteMapping("/{archiveId}/ratings")
+    fun deleteRating(
+        @AuthenticationPrincipal userDetails: UserDetails,
+        @PathVariable archiveId: Long,
+    ): ResponseEntity<BasicResponse<ArchiveRatingResponse>> {
+        val userId = extractUserId(userDetails)
+
+        val responseData = archiveService.deleteRating(userId, archiveId)
+
+        return ResponseEntity
+            .status(HttpStatus.OK)
+            .body(BasicResponse.success(responseData, HttpStatus.OK, "별점이 삭제되었습니다."))
+    }
+
     @Operation(summary = "연습실 댓글 작성하기")
     @PostMapping("/{archiveId}/comments")
     fun createComment(

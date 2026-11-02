@@ -76,6 +76,10 @@ class Archives(
         ratingCount++
     }
 
+    fun decreaseRatingCount() {
+        ratingCount = (ratingCount - 1).coerceAtLeast(0)
+    }
+
     fun updateAverageRating(averageRating: Double) {
         this.averageRating = averageRating
     }
