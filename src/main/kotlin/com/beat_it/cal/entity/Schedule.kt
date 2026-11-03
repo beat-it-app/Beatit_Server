@@ -29,10 +29,10 @@ class Schedule(
     @Column(nullable = false, length = 200)
     var title: String,
 
-    @Column(name = "starts_at", nullable = false)
+    @Column(name = "starts_at")
     var startsAt: OffsetDateTime,
 
-    @Column(name = "ends_at", nullable = false)
+    @Column(name = "ends_at")
     var endsAt: OffsetDateTime,
 
     @Column(name = "location_id")

@@ -62,8 +62,8 @@ class ScheduleService(
             title = request.title!!,
             content = request.content,
             locationId = request.locationId,
-            startsAt = request.startsAt!!,
-            endsAt = request.endsAt!!
+            startsAt = request.startsAt,
+            endsAt = request.endsAt
         )
 
         request.musics.forEach { music ->
@@ -171,8 +171,8 @@ class ScheduleService(
             title = request.title!!,
             content = request.content,
             locationId = request.locationId,
-            startsAt = request.startsAt!!,
-            endsAt = request.endsAt!!
+            startsAt = request.startsAt,
+            endsAt = request.endsAt
         )
 
         if (addedParticipantIds.isNotEmpty()) {
@@ -374,16 +374,9 @@ class ScheduleService(
         return DateSchedulesResponse(items = dateSchedules)
     }
 
-    private fun validateScheduleCommon(title: String?, startsAt: OffsetDateTime?, endsAt: OffsetDateTime?) {
+    private fun validateScheduleCommon(title: String?, startsAt: OffsetDateTime, endsAt: OffsetDateTime) {
         if (title.isNullOrBlank()) {
             throw BusinessException(ErrorCode.CALENDAR_TITLE_REQUIRED)
-        }
-
-        if (startsAt == null) {
-            throw BusinessException(ErrorCode.CALENDAR_START_TIME_REQUIRED)
-        }
-        if (endsAt == null) {
-            throw BusinessException(ErrorCode.CALENDAR_END_TIME_REQUIRED)
         }
 
         if (endsAt.isBefore(startsAt)) {
@@ -396,8 +389,8 @@ class ScheduleService(
             (request.title != null && request.title != schedule.title) ||
                     (request.content != null && request.content != schedule.content) ||
                     (request.locationId != null && request.locationId != schedule.locationId) ||
-                    (request.startsAt != null && request.startsAt != schedule.startsAt) ||
-                    (request.endsAt != null && request.endsAt != schedule.endsAt)
+                    (request.startsAt != schedule.startsAt) ||
+                    (request.endsAt != schedule.endsAt)
 
         val isParticipantsChanged = request.participantUserIds != null &&
                 !schedule.isParticipantsSame(request.participantUserIds)
