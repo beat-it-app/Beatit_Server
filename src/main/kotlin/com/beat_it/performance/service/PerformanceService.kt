@@ -127,7 +127,7 @@ class PerformanceService(
             savedPerformance.invitationCard = savedCard
         }
 
-        return toPerformanceResponse(savedPerformance)
+        return toPerformanceResponse(savedPerformance, userId)
     }
 
     @Transactional(readOnly = true)
@@ -136,7 +136,7 @@ class PerformanceService(
         val performance = findPerformanceOrThrow(publicId)
         validateTeamAccess(teamId, performance)
 
-        return toPerformanceResponse(performance)
+        return toPerformanceResponse(performance, userId)
     }
 
     @Transactional(readOnly = true)
@@ -462,10 +462,10 @@ class PerformanceService(
             }
         }
 
-        return toPerformanceResponse(performance)
+        return toPerformanceResponse(performance, userId)
     }
 
-    private fun toPerformanceResponse(performance: Performances): PerformanceResponse {
+    private fun toPerformanceResponse(performance: Performances, currentUserId: Long): PerformanceResponse {
         val teamName = runCatching { teamService.findTeamForCommandOrThrow(performance.teamId).teamName }.getOrNull()
         val locationResponse = performance.location?.let { LocationResponse.from(it) }
         val files = performanceFilesRepository.findByPerformanceOrderByDisplayOrderAsc(performance)
@@ -485,6 +485,7 @@ class PerformanceService(
             poster = poster,
             detailImages = detailImages,
             prices = prices,
+            isWriter = performance.createdUserId == currentUserId
         )
     }
 

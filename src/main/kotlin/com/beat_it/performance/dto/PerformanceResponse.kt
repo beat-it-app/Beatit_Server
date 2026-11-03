@@ -3,6 +3,7 @@ package com.beat_it.performance.dto
 import com.beat_it.location.dto.LocationResponse
 import com.beat_it.performance.entity.Performances
 import com.beat_it.performance.entity.enum.PerformanceStatus
+import com.fasterxml.jackson.annotation.JsonProperty
 import io.swagger.v3.oas.annotations.media.Schema
 import java.time.OffsetDateTime
 import java.util.UUID
@@ -15,6 +16,8 @@ data class PerformanceResponse(
     val teamId: Long,
     val teamName: String?,
     val createdUserId: Long,
+    @get:JsonProperty("isWriter")
+    val isWriter: Boolean,
 
     val title: String,
     val description: String?,
@@ -44,6 +47,7 @@ data class PerformanceResponse(
             poster: PerformanceFileResponse?,
             detailImages: List<PerformanceFileResponse>,
             prices: List<PerformancePriceDto>,
+            isWriter: Boolean = false,
         ): PerformanceResponse {
             return PerformanceResponse(
                 performanceId = performance.performanceId!!,
@@ -51,6 +55,7 @@ data class PerformanceResponse(
                 teamId = performance.teamId,
                 teamName = teamName,
                 createdUserId = performance.createdUserId,
+                isWriter = isWriter,
                 title = performance.title,
                 performanceDateTime = performance.performanceDateTime,
                 location = locationResponse,
