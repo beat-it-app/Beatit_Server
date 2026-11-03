@@ -7,8 +7,8 @@ data class ScheduleCreateRequest(
     val locationId: Long?,
     val title: String?,
     val content: String?,
-    val startsAt: OffsetDateTime?,
-    val endsAt: OffsetDateTime?,
+    val startsAt: OffsetDateTime,
+    val endsAt: OffsetDateTime,
     val participantUserIds: List<Long> = emptyList(),
     val musics: List<MusicRequest> = emptyList()
 ) {
