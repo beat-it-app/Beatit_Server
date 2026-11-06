@@ -2,23 +2,23 @@ name: CD
 
 on:
   push:
-    branches: [ "develop" ]
+    branches: [ "develop", "main" ]
 
 env:
   AWS_REGION: ap-northeast-2
-  # S3 및 CodeDeploy 정보는 보안과 관리 편의를 위해 GitHub Secrets에 등록해두고 사용하는 것을 권장합니다.
-  S3_BUCKET_NAME: ${{ secrets.S3_BUCKET_NAME }}
   CODE_DEPLOY_APPLICATION_NAME: ${{ secrets.CODE_DEPLOY_APPLICATION_NAME }}
-  CODE_DEPLOY_DEPLOYMENT_GROUP_NAME: ${{ secrets.CODE_DEPLOY_DEPLOYMENT_GROUP_NAME }}
+  DEV_S3_BUCKET: ${{ secrets.DEV_S3_BUCKET_NAME }}
+  PROD_S3_BUCKET: ${{ secrets.PROD_S3_BUCKET_NAME }}
+  DEV_DEPLOY_GROUP: ${{ secrets.DEV_CODE_DEPLOY_DEPLOYMENT_GROUP_NAME }}
+  PROD_DEPLOY_GROUP: ${{ secrets.PROD_CODE_DEPLOY_DEPLOYMENT_GROUP_NAME }}
 
 permissions:
   contents: read
 
 jobs:
   deploy:
-    name: Deploy
+    name: Deploy to Target Environment
     runs-on: ubuntu-latest
-    environment: production
 
     steps:
       - name: 체크아웃 Github-Action
@@ -33,42 +33,52 @@ jobs:
       - name: Gradle set up
         uses: gradle/actions/setup-gradle@af1da67850ed9a4cedd57bfd976089dd991e2582 # v4.0.0
 
-      - name: gradlew 권한 부여
+      - name: gradlew 실행 권한 부여
         run: chmod +x ./gradlew
 
       - name: Gradle 빌드
         run: ./gradlew clean build -x test
 
-      - name: AWS 인증 (IAM 사용자 Access key, Secret Key 사용)
+      - name: 배포 대상 환경(개발 vs 운영) 설정
+        run: |
+          if [ "${{ github.ref }}" = "refs/heads/main" ]; then
+            echo "TARGET_ENV=production" >> $GITHUB_ENV
+            echo "DEPLOY_S3_BUCKET=${{ env.PROD_S3_BUCKET }}" >> $GITHUB_ENV
+            echo "DEPLOY_GROUP=${{ env.PROD_DEPLOY_GROUP }}" >> $GITHUB_ENV
+          else
+            echo "TARGET_ENV=development" >> $GITHUB_ENV
+            echo "DEPLOY_S3_BUCKET=${{ env.DEV_S3_BUCKET }}" >> $GITHUB_ENV
+            echo "DEPLOY_GROUP=${{ env.DEV_DEPLOY_GROUP }}" >> $GITHUB_ENV
+          fi
+
+      - name: AWS 인증 (IAM 자격 증명 주입)
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
-      # 프로젝트 구성에 필요한 배포 파일만 최상위 루트 기준으로 가볍게 압축
       - name: 배포용 압축 파일 생성
         run: |
           zip -r ${{ github.sha }}.zip \
             appspec.yml \
             scripts/ \
             Dockerfile \
-            docker-compose.yaml \
+            docker-compose.dev.yaml \
+            docker-compose.prod.yaml \
             nginx/ \
             build/libs/*.jar
 
-      # S3에 zip 파일 업로드
       - name: AWS S3 에 build 결과 업로드
         run: |
-          aws s3 cp ${{ github.sha }}.zip s3://${{ env.S3_BUCKET_NAME }}/${{ github.sha }}.zip \
+          aws s3 cp ${{ github.sha }}.zip s3://${{ env.DEPLOY_S3_BUCKET }}/${{ github.sha }}.zip \
             --region ${{ env.AWS_REGION }}
 
-      # CodeDeploy 배포 실행
-      - name: S3 버킷 내 파일 CodeDeploy 실행
+      - name: CodeDeploy 배포 실행
         run: |
           aws deploy create-deployment \
             --deployment-config-name CodeDeployDefault.AllAtOnce \
             --application-name ${{ env.CODE_DEPLOY_APPLICATION_NAME }} \
-            --deployment-group-name ${{ env.CODE_DEPLOY_DEPLOYMENT_GROUP_NAME }} \
-            --s3-location bucket=${{ env.S3_BUCKET_NAME }},key=${{ github.sha }}.zip,bundleType=zip \
+            --deployment-group-name ${{ env.DEPLOY_GROUP }} \
+            --s3-location bucket=${{ env.DEPLOY_S3_BUCKET }},key=${{ github.sha }}.zip,bundleType=zip \
             --region ${{ env.AWS_REGION }}

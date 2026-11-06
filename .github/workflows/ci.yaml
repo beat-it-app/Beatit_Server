@@ -2,19 +2,18 @@ name: CI
 
 on:
   push:
-    branches: [ "develop" ]
+    branches: [ "develop", "main" ]
   pull_request:
-    branches: [ "develop" ]
+    branches: [ "develop", "main" ]
 
 jobs:
   build:
-
+    name: Build & Test Verification
     runs-on: ubuntu-latest
     permissions:
       contents: read
 
     steps:
-
       - name: Github-Action 체크아웃
         uses: actions/checkout@v4
 
@@ -27,8 +26,8 @@ jobs:
       - name: Gradle set up
         uses: gradle/actions/setup-gradle@af1da67850ed9a4cedd57bfd976089dd991e2582 # v4.0.0
 
-      - name: gradlew 권한 부여
-        run: chmod +x gradlew
+      - name: gradlew 실행 권한 부여
+        run: chmod +x ./gradlew
 
-      - name: Gradle 빌드 (dev 프로파일 활성화)
+      - name: Gradle 빌드 및 검증
         run: ./gradlew clean build -x test
