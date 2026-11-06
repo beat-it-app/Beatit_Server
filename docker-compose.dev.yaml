@@ -16,7 +16,7 @@ services:
 
   beat-it-app:
     build: .
-    container_name: beat-it-app
+    container_name: dev-beat-it-app
     expose:
       - "8080"
     volumes:
