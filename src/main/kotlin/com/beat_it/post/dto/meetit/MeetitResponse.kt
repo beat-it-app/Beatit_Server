@@ -34,7 +34,7 @@ data class MeetitDetailResponse(
     val respondedCount: Int,
     @get:JsonProperty("isParticipant")
     val isParticipant: Boolean,
-    val respondedParticipants: List<MeetitParticipantInfoResponse>,
+    val participants: List<MeetitParticipantInfoResponse>,
     val entireMemberOptimalSlots: List<MeetitOptimalSlotResponse>,
     val maxMemberOptimalSlots: List<MeetitOptimalSlotResponse>,
     val maxOverlappingCount: Int,
@@ -43,7 +43,9 @@ data class MeetitDetailResponse(
 
 data class MeetitParticipantInfoResponse(
     val userId: Long,
-    val name: String
+    val name: String,
+    @get:JsonProperty("isResponded")
+    val isResponded: Boolean
 )
 
 data class MeetitOptimalSlotResponse(

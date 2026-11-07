@@ -27,23 +27,26 @@ interface TeamCloudItemRepository : JpaRepository<TeamCloudItem, Long> {
 
     @Query("""
         SELECT COUNT(tci) FROM TeamCloudItem tci
+        JOIN tci.teamFile tf
         WHERE tci.uploaderId = :userId
-          AND tci.teamFile IS NOT NULL
+          AND tf.mediaCategory NOT IN (com.beat_it.team.entity.enum.MediaCategory.DOCUMENT, com.beat_it.team.entity.enum.MediaCategory.AUDIO)
     """)
     fun countUploadedFilesByUserId(@Param("userId") userId: Long): Long
 
     @Query("""
         SELECT COUNT(tci) FROM TeamCloudItem tci
+        JOIN tci.teamFile tf
         WHERE tci.team.teamId = :teamId
           AND tci.uploaderId = :userId
-          AND tci.teamFile IS NOT NULL
+          AND tf.mediaCategory NOT IN (com.beat_it.team.entity.enum.MediaCategory.DOCUMENT, com.beat_it.team.entity.enum.MediaCategory.AUDIO)
     """)
     fun countUploadedFilesByTeamIdAndUserId(@Param("teamId") teamId: Long, @Param("userId") userId: Long): Long
 
     @Query("""
         SELECT COUNT(tci) FROM TeamCloudItem tci
+        JOIN tci.teamFile tf
         WHERE tci.team.teamId = :teamId
-          AND tci.teamFile IS NOT NULL
+          AND tf.mediaCategory NOT IN (com.beat_it.team.entity.enum.MediaCategory.DOCUMENT, com.beat_it.team.entity.enum.MediaCategory.AUDIO)
     """)
     fun countUploadedFilesByTeamId(@Param("teamId") teamId: Long): Long
 
