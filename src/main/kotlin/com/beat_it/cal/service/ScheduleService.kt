@@ -181,7 +181,7 @@ class ScheduleService(
                 NotificationEvent(
                     targetUserIds = addedParticipantIds,
                     teamId = schedule.teamId,
-                    message = NotificationTemplate.scheduleRegistered(
+                    message = NotificationTemplate.scheduleMemberAdded(
                         teamName = teamName,
                         scheduleTitle = schedule.title,
                         scheduleId = schedule.scheduleId

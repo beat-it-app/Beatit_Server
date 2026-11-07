@@ -148,6 +148,21 @@ object NotificationTemplate {
         )
     }
 
+    // 5-1-1. 일정 멤버 추가 (일정 수정 시 새로 추가된 멤버 수신 / direct to: 해당 일정)
+    fun scheduleMemberAdded(teamName: String, scheduleTitle: String, scheduleId: Long? = null): NotificationMessage {
+        val title = "$teamName 일정 멤버 추가"
+        val content = "[$teamName] '$scheduleTitle' 일정에 멤버로 추가되었습니다."
+        return NotificationMessage(
+            type = NotificationType.SCHEDULE_REGISTERED,
+            category = NotificationCategory.CALENDAR,
+            title = title,
+            content = content,
+            pushText = content,
+            directTo = scheduleId?.let { "/schedules/$it" } ?: "/schedules",
+            targetId = scheduleId
+        )
+    }
+
     // 5-2. 일정 d-1 (수신: 해당 일정 참여자 / direct to: 해당 일정)
     fun scheduleReminderD1(teamName: String, scheduleTitle: String, scheduleId: Long? = null): NotificationMessage {
         val title = "$teamName 일정 알림"
