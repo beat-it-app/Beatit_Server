@@ -113,10 +113,10 @@ enum class ErrorCode(
     POLL_NOT_VOTED(HttpStatus.BAD_REQUEST, "POST-012", "투표에 참여하지 않은 상태입니다."),
     NOTICE_IMAGE_EXCEEDED(HttpStatus.BAD_REQUEST, "POST-013", "공지사항 이미지는 최대 10장까지 등록 가능합니다."),
 
-    // --- 6. 모임 조율 관련 에러 (MEETIT) ---
-    MEETIT_TEAM_MISMATCH(HttpStatus.FORBIDDEN, "MEETIT-001", "현재 팀에서 접근할 수 없는 모임 조율입니다."),
-    MEETIT_NOT_PARTICIPANT(HttpStatus.FORBIDDEN, "MEETIT-002", "해당 모임 조율의 참여 대상이 아닙니다."),
-    MEETIT_NO_DELETE_PERMISSION(HttpStatus.FORBIDDEN, "MEETIT-003", "모임 조율을 삭제할 권한이 없습니다."),
+    // --- 6. 밋잇 관련 에러 (MEETIT) ---
+    MEETIT_TEAM_MISMATCH(HttpStatus.FORBIDDEN, "MEETIT-001", "현재 팀에서 접근할 수 없는 밋잇입니다."),
+    MEETIT_NOT_PARTICIPANT(HttpStatus.FORBIDDEN, "MEETIT-002", "해당 밋잇의 참여 대상이 아닙니다."),
+    MEETIT_NO_DELETE_PERMISSION(HttpStatus.FORBIDDEN, "MEETIT-003", "밋잇을 삭제할 권한이 없습니다."),
 
     // --- 장소 관련 에러 ---
     LOCATION_NOT_FOUND(HttpStatus.NOT_FOUND, "LOCATION-001", "장소를 찾을 수 없습니다."),

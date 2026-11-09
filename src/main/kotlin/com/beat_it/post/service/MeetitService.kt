@@ -167,13 +167,13 @@ class MeetitService(
         val participantUserIds = participants.map { it.userId }
         val profilesMap = userService.getUserProfiles(participantUserIds).associateBy { it.userId }
 
-        val respondedParticipantsInfo = participants.filter { p ->
-            respondedParticipantIds.contains(p.meetitParticipantId)
-        }.map { p ->
+        val participantsInfo = participants.map { p ->
             val profile = profilesMap[p.userId]
+            val isResponded = respondedParticipantIds.contains(p.meetitParticipantId)
             MeetitParticipantInfoResponse(
                 userId = p.userId,
-                name = profile?.name ?: "알 수 없음"
+                name = profile?.name ?: "알 수 없음",
+                isResponded = isResponded
             )
         }
 
@@ -251,7 +251,7 @@ class MeetitService(
             totalInvitedCount = totalCount,
             respondedCount = respondedParticipantIds.size,
             isParticipant = isParticipant,
-            respondedParticipants = respondedParticipantsInfo,
+            participants = participantsInfo,
             entireMemberOptimalSlots = entireMemberOptimalSlots,
             maxMemberOptimalSlots = maxMemberOptimalSlots,
             maxOverlappingCount = maxOverlappingCount,

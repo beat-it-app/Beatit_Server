@@ -687,6 +687,17 @@ class TeamService(
         requesterMembership.updateTeamRole(TeamRole.MANAGER)
         targetMembership.updateTeamRole(TeamRole.LEADER)
 
+        val team = targetMembership.team
+        if (targetMembership.userId != requesterMembership.userId) {
+            eventPublisher.publishEvent(
+                NotificationEvent(
+                    targetUserId = targetMembership.userId,
+                    teamId = team.teamId!!,
+                    message = NotificationTemplate.roleChanged(team.teamName, TeamRole.LEADER)
+                )
+            )
+        }
+
         return TeamManageResponse(
             updatedMembers = toTeamMemberInfos(
                 listOf(
@@ -709,6 +720,17 @@ class TeamService(
         )
 
         targetMembership.updateTeamRole(targetRole)
+
+        val team = targetMembership.team
+        if (targetRole == TeamRole.MANAGER && targetMembership.userId != requesterMembership.userId) {
+            eventPublisher.publishEvent(
+                NotificationEvent(
+                    targetUserId = targetMembership.userId,
+                    teamId = team.teamId!!,
+                    message = NotificationTemplate.roleChanged(team.teamName, TeamRole.MANAGER)
+                )
+            )
+        }
 
         return TeamManageResponse(
             updatedMembers = toTeamMemberInfos(
