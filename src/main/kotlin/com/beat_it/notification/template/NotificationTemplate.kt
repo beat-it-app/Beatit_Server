@@ -403,13 +403,17 @@ object NotificationTemplate {
     // 7-1. 채팅 (수신: 채팅방 참여자 / direct to: 해당 채팅방 / toast: false)
     fun chatMessage(
         teamName: String,
-        chatRoomName: String,
+        chatRoomName: String?,
         senderName: String,
         message: String,
         chatRoomId: Long? = null
     ): NotificationMessage {
-        val title = chatRoomName
-        val content = "[$teamName / $chatRoomName] $senderName: $message"
+        val title = chatRoomName?.takeIf { it.isNotBlank() } ?: senderName
+        val content = if (!chatRoomName.isNullOrBlank() && chatRoomName != senderName) {
+            "[$teamName / $chatRoomName] $senderName: $message"
+        } else {
+            "[$teamName] $senderName: $message"
+        }
         return NotificationMessage(
             type = NotificationType.CHAT_MESSAGE,
             category = NotificationCategory.CHAT,
