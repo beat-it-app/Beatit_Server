@@ -31,8 +31,11 @@ import com.beat_it.global.error.BusinessException
 import com.beat_it.global.error.ErrorCode
 import com.beat_it.global.service.FileService
 import com.beat_it.global.util.formatBytes
+import com.beat_it.notification.event.NotificationEvent
+import com.beat_it.notification.template.NotificationTemplate
 import com.beat_it.team.service.TeamService
 import com.fasterxml.jackson.databind.ObjectMapper
+import org.slf4j.LoggerFactory
 import org.springframework.context.ApplicationEventPublisher
 import org.springframework.data.domain.PageRequest
 import org.springframework.kafka.core.KafkaTemplate
@@ -55,6 +58,7 @@ class ChatService(
     private val objectMapper: ObjectMapper,
     private val userService: UserService
 ) {
+    private val log = LoggerFactory.getLogger(javaClass)
 
     @Transactional
     fun createChatRoom(request: ChatRoomCreateRequest, currentUserId: Long): ChatRoomCreateResponse {
@@ -111,6 +115,13 @@ class ChatService(
                 roomName = savedChatRoom.title,
                 participantIds = allParticipantIds
             )
+        )
+
+        sendChatNotification(
+            chatRoom = savedChatRoom,
+            senderId = currentUserId,
+            messageType = ChatMessageType.TEXT,
+            content = request.firstMessageContent
         )
 
         return ChatRoomCreateResponse(
@@ -202,6 +213,13 @@ class ChatService(
 
         val payload = objectMapper.writeValueAsString(messageDetail)
         kafkaTemplate.send("chat-topic", payload)
+
+        sendChatNotification(
+            chatRoom = chatRoom,
+            senderId = senderId,
+            messageType = type,
+            content = if (type == ChatMessageType.TEXT) finalContent else null
+        )
 
         return messageDetail
     }
@@ -469,5 +487,62 @@ class ChatService(
     private fun findChatMemberWithChatRoomOrThrow(chatId: Long, userId: Long): ChatMember {
         return chatMemberRepository.findByChatRoomChatIdAndUserIdWithChatRoom(chatId, userId)
             ?: throw BusinessException(ErrorCode.CHAT_MEMBER_NOT_FOUND)
+    }
+
+    private fun sendChatNotification(
+        chatRoom: ChatRoom,
+        senderId: Long,
+        messageType: ChatMessageType,
+        content: String?
+    ) {
+        try {
+            val chatId = chatRoom.chatId ?: return
+            val members = chatMemberRepository.findByChatRoomChatIdAndIsParticipatingTrue(chatId)
+            val targetUserIds = members
+                .filter { it.userId != senderId && !it.isMuted }
+                .map { it.userId }
+
+            if (targetUserIds.isEmpty()) return
+
+            val teamName = try {
+                teamService.getTeamName(chatRoom.teamId)
+            } catch (e: Exception) {
+                log.warn("Failed to get teamName for teamId {}: {}", chatRoom.teamId, e.message)
+                "팀"
+            }
+
+            val senderName = try {
+                userService.getUserProfiles(listOf(senderId)).firstOrNull()?.name ?: "알 수 없음"
+            } catch (e: Exception) {
+                log.warn("Failed to get senderName for userId {}: {}", senderId, e.message)
+                "알 수 없음"
+            }
+
+            val displayContent = when (messageType) {
+                ChatMessageType.TEXT -> content ?: "새로운 메시지가 도착했습니다."
+                ChatMessageType.IMAGE -> "[사진]"
+                ChatMessageType.VIDEO -> "[동영상]"
+                ChatMessageType.FILE -> "[파일]"
+                ChatMessageType.SYSTEM -> content ?: ""
+            }
+
+            val notificationMessage = NotificationTemplate.chatMessage(
+                teamName = teamName,
+                chatRoomName = chatRoom.title,
+                senderName = senderName,
+                message = displayContent,
+                chatRoomId = chatId
+            )
+
+            applicationEventPublisher.publishEvent(
+                NotificationEvent(
+                    targetUserIds = targetUserIds,
+                    teamId = chatRoom.teamId,
+                    message = notificationMessage
+                )
+            )
+        } catch (e: Exception) {
+            log.error("Failed to publish chat notification event for chatId {}: {}", chatRoom.chatId, e.message, e)
+        }
     }
 }
