@@ -1,0 +1,16 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://prod-db:5432/${DB_NAME}
+
+  data:
+    redis:
+      host: prod-redis
+
+  kafka:
+    bootstrap-servers: prod-kafka:29092
+
+  jpa:
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: false

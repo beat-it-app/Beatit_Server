@@ -1,0 +1,91 @@
+services:
+  nginx:
+    image: nginx:alpine
+    container_name: prod-nginx
+    restart: always
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/nginx.prod.conf:/etc/nginx/conf.d/default.conf
+    depends_on:
+      - beat-it-app
+    networks:
+      - chat-network
+
+  beat-it-app:
+    build: .
+    container_name: prod-beat-it-app
+    restart: always
+    expose:
+      - "8080"
+    volumes:
+      - ./firebase-service-key.json:/app/firebase-service-key.json
+    env_file:
+      - .env
+    environment:
+      - SPRING_PROFILES_ACTIVE=prod
+      - FIREBASE_CONFIG_PATH=/app/firebase-service-key.json
+    depends_on:
+      - prod-db
+      - prod-redis
+      - prod-kafka
+    networks:
+      - chat-network
+
+  prod-db:
+    image: postgres:15-alpine
+    container_name: prod-db
+    restart: always
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: ${DB_USERNAME}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
+    volumes:
+      - ./data/db:/var/lib/postgresql/data
+    networks:
+      - chat-network
+
+  prod-redis:
+    image: redis:alpine
+    container_name: prod-redis
+    restart: always
+    ports:
+      - "6379:6379"
+    networks:
+      - chat-network
+
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.3.0
+    container_name: prod-zookeeper
+    restart: always
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+      KAFKA_JVM_PERFORMANCE_OPTS: "-XX:-UseContainerSupport"
+    networks:
+      - chat-network
+
+  prod-kafka:
+    image: confluentinc/cp-kafka:7.3.0
+    container_name: prod-kafka
+    restart: always
+    depends_on:
+      - zookeeper
+    ports:
+      - "9092:9092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: 'zookeeper:2181'
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_INTERNAL:PLAINTEXT
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092,PLAINTEXT_INTERNAL://prod-kafka:29092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_HEAP_OPTS: "-Xmx256m -Xms256m"
+      KAFKA_JVM_PERFORMANCE_OPTS: "-XX:-UseContainerSupport"
+    networks:
+      - chat-network
+
+networks:
+  chat-network:
+    driver: bridge

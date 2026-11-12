@@ -11,10 +11,22 @@ if [ -f "$REPOSITORY/.env" ]; then
   export $(cat $REPOSITORY/.env | grep -v '^#' | xargs)
 fi
 
-# 2. Docker Compose로 전체 컨테이너 다운 및 재빌드 실행
-echo "> Docker Compose 재구동 시작" >> $REPOSITORY/deploy.log
-docker compose down >> $REPOSITORY/deploy.log 2>&1
-docker compose up -d --build --remove-orphans >> $REPOSITORY/deploy.log 2>&1
+# 2. 실행할 Docker Compose 파일 판별 (운영: prod, 개발: dev)
+if [ "$SPRING_PROFILES_ACTIVE" = "prod" ]; then
+  COMPOSE_FILE="docker-compose.prod.yaml"
+else
+  COMPOSE_FILE="docker-compose.dev.yaml"
+fi
+
+# 파일 존재 여부 검증 (누락 시 조기 차단)
+if [ ! -f "$REPOSITORY/$COMPOSE_FILE" ]; then
+  echo "> [ERROR] $COMPOSE_FILE 파일을 찾을 수 없습니다." >> $REPOSITORY/deploy.log
+  exit 1
+fi
+
+echo "> $COMPOSE_FILE 기반 컨테이너 재구동 시작" >> $REPOSITORY/deploy.log
+docker compose -f $COMPOSE_FILE down >> $REPOSITORY/deploy.log 2>&1
+docker compose -f $COMPOSE_FILE up -d --build --remove-orphans >> $REPOSITORY/deploy.log 2>&1
 
 # 3. 사용하지 않는 구버전 Docker 이미지 정리 (용량 확보)
 echo "> Dangling Docker 이미지 정리" >> $REPOSITORY/deploy.log
