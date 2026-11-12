@@ -1,0 +1,872 @@
+package com.beat_it.team.service
+
+import com.beat_it.auth.service.UserService
+import com.beat_it.global.error.BusinessException
+import com.beat_it.global.error.ErrorCode
+import com.beat_it.global.service.FileService
+import com.beat_it.team.dto.*
+import com.beat_it.team.dto.teamMember.*
+import com.beat_it.team.entity.TeamLinks
+import com.beat_it.team.entity.TeamMemberships
+import com.beat_it.team.entity.Teams
+import com.beat_it.team.entity.enum.TeamRole
+import com.beat_it.cal.service.ScheduleService
+import com.beat_it.team.repository.TeamLinksRepository
+import com.beat_it.team.repository.TeamMembershipRepository
+import com.beat_it.team.repository.TeamRepository
+import com.beat_it.notification.event.NotificationEvent
+import com.beat_it.notification.service.NotificationService
+import com.beat_it.notification.template.NotificationTemplate
+import org.springframework.context.ApplicationEventPublisher
+import org.springframework.context.annotation.Lazy
+import org.springframework.stereotype.Service
+import org.springframework.transaction.annotation.Transactional
+import org.springframework.web.multipart.MultipartFile
+import java.time.OffsetDateTime
+import java.util.UUID
+
+@Service
+class TeamService(
+    private val userService: UserService,
+    private val teamRepository: TeamRepository,
+    private val teamLinksRepository: TeamLinksRepository,
+    private val teamMembershipRepository: TeamMembershipRepository,
+    private val fileService: FileService,
+    private val teamImageUploadService: TeamImageUploadService,
+    @Lazy private val notificationService: NotificationService,
+    private val eventPublisher: ApplicationEventPublisher,
+    private val teamCloudService: TeamCloudService,
+    @Lazy private val scheduleService: ScheduleService
+) {
+
+    @Transactional
+    fun createTeam(userId: Long, request: TeamCreateRequest, teamImage: MultipartFile? = null): TeamCreateResponse {
+        validateCreateRequest(request)
+        userService.validateUserExists(userId)
+
+        val inviteCode = generateInviteCode()
+
+        val uploadedImage = if (teamImage != null && !teamImage.isEmpty) {
+            val result = teamImageUploadService.uploadImage(teamImage)
+            deleteOnRollback(result.storageKey)
+            result
+        } else null
+
+        val team = Teams(
+            teamName = request.teamName,
+            description = request.description,
+            teamType = request.teamType,
+            establishedOn = request.establishedOn,
+            teamImageUrl = uploadedImage?.cdnUrl,
+            teamImageStorageKey = uploadedImage?.storageKey,
+            inviteCode = inviteCode
+        )
+
+        val savedTeam = teamRepository.save(team)
+
+        val leaderTeamMemberships = TeamMemberships(
+            team = savedTeam,
+            userId = userId,
+            teamRole = TeamRole.LEADER,
+        )
+
+        teamMembershipRepository.save(leaderTeamMemberships)
+
+        return TeamCreateResponse(
+            teamId = savedTeam.teamId!!,
+            teamPublicId = savedTeam.publicId,
+            teamName = savedTeam.teamName,
+            description = savedTeam.description,
+            teamType = savedTeam.teamType,
+            teamImageUrl = savedTeam.teamImageUrl,
+            establishedOn = savedTeam.establishedOn,
+            inviteCode = savedTeam.inviteCode,
+            teamRole = "LEADER",
+            createdAt = savedTeam.createdAt
+        )
+    }
+
+    @Transactional
+    fun updateTeamDetail(
+        userId: Long,
+        request: TeamDetailUpdateRequest,
+        teamImage: MultipartFile? = null,
+    ): TeamDetailUpdateResponse {
+        validateUpdateRequest(request)
+        val teamId = userService.getCurrentTeamId(userId)
+
+        val team = findTeamForCommandOrThrow(teamId)
+
+        validateTeamUpdatePermission(team.teamId!!, userId)
+
+        val currentLinks = teamLinksRepository.findAllByTeamTeamId(team.teamId!!)
+
+        validateTeamDetailChanged(team, request, currentLinks, teamImage)
+
+        val uploadedImage = if (teamImage != null && !teamImage.isEmpty) {
+            val result = teamImageUploadService.uploadImage(teamImage)
+            deleteOnRollback(result.storageKey)
+            result
+        } else null
+
+        team.updateTeamDetail(
+            teamName = request.teamName,
+            description = request.description,
+            establishedOn = request.establishedOn,
+            teamType = request.teamType,
+        )
+
+        uploadedImage?.let { image ->
+            team.teamImageStorageKey?.let { oldKey -> deleteAfterCommit(oldKey) }
+            team.teamImageUrl = image.cdnUrl
+            team.teamImageStorageKey = image.storageKey
+        }
+
+        request.links?.let { linkRequests ->
+            teamLinksRepository.deleteAllByTeamTeamId(teamId)
+
+            val newLinks = linkRequests.map { linkRequest ->
+                TeamLinks(
+                    team = team,
+                    platformCode = linkRequest.platformCode,
+                    linkUrl = linkRequest.linkUrl
+                )
+            }
+
+            teamLinksRepository.saveAll(newLinks)
+        }
+
+        val links = teamLinksRepository.findAllByTeamTeamId(teamId)
+            .map {
+                LinksResponse(
+                    teamLinkId = it.teamLinkId!!,
+                    platformCode = it.platformCode,
+                    linkUrl = it.linkUrl,
+                )
+            }
+
+        return TeamDetailUpdateResponse(
+            teamId = teamId,
+            teamPublicId = team.publicId,
+            teamName = team.teamName,
+            teamImageUrl = team.teamImageUrl,
+            description = team.description,
+            teamType = team.teamType,
+            establishedOn = team.establishedOn,
+            updatedAt = team.updatedAt,
+            links = links
+        )
+    }
+
+    @Transactional
+    fun deleteTeam(userId: Long) {
+        val teamId = userService.getCurrentTeamId(userId)
+        val team = findTeamForCommandOrThrow(teamId)
+
+        validateTeamDeletePermission(teamId, userId)
+
+        userService.clearCurrentTeamIdByTeamId(teamId)
+
+        teamCloudService.deleteAllByTeam(team)
+        scheduleService.deleteAllByTeamId(teamId)
+        teamLinksRepository.deleteAllByTeamTeamId(teamId)
+
+        val memberships = teamMembershipRepository.findAllByTeamTeamId(teamId)
+        teamMembershipRepository.deleteAll(memberships)
+
+        team.delete()
+        team.teamImageStorageKey?.let { deleteAfterCommit(it) }
+    }
+
+    @Transactional(readOnly = true)
+    fun getTeamDetail(userId: Long): TeamDetailResponse {
+        val teamId = userService.getCurrentTeamId(userId)
+        val team = findTeamForCommandOrThrow(teamId)
+
+        val requesterMembership = findActiveMembershipOrThrow(teamId, userId)
+
+        val memberCount = teamMembershipRepository.countByTeamTeamId(teamId)
+
+        val links = teamLinksRepository
+            .findAllByTeamTeamId(teamId)
+            .map {
+                LinksResponse(
+                    teamLinkId = it.teamLinkId!!,
+                    platformCode = it.platformCode,
+                    linkUrl = it.linkUrl,
+                )
+            }
+
+        val members = toTeamMemberInfos(
+            teamMembershipRepository.findTop10ByTeamTeamIdOrderByJoinedAtAsc(teamId)
+        ).map { member ->
+            TeamDetailMemberResponse(
+                userName = member.userName,
+                profileImageUrl = member.profileImageUrl,
+                position = member.position,
+            )
+        }
+
+        val unreadNotificationCount = notificationService.getUnreadStatus(userId).unreadCount
+
+        return TeamDetailResponse(
+            teamId = team.teamId,
+            teamPublicId = team.publicId,
+            teamImageUrl = team.teamImageUrl,
+            teamName = team.teamName,
+            description = team.description,
+            teamType = team.teamType,
+            establishedOn = team.establishedOn,
+            inviteCode = team.inviteCode,
+            memberCount = memberCount,
+            myRole = requesterMembership.teamRole,
+            createdAt = team.createdAt,
+            updatedAt = team.updatedAt,
+            links = links,
+            members = members,
+            unreadNotificationCount = unreadNotificationCount,
+        )
+    }
+
+    @Transactional
+    fun joinTeam(userId: Long, teamPublicId: UUID): TeamJoinResponse {
+        userService.validateUserExists(userId)
+
+        val team = findTeamForCommandOrThrow(teamPublicId)
+
+        validateNotAlreadyJoined(team.teamId!!, userId)
+
+        val teamMembership = TeamMemberships(
+            team = team,
+            userId = userId,
+            teamRole = TeamRole.MEMBER
+        )
+
+        val savedMembership = teamMembershipRepository.save(teamMembership)
+
+        val managerUserIds = teamMembershipRepository.findAllByTeamTeamId(team.teamId!!)
+            .filter { it.teamRole == TeamRole.LEADER || it.teamRole == TeamRole.MANAGER }
+            .map { it.userId }
+            .filter { it != userId }
+
+        if (managerUserIds.isNotEmpty()) {
+            val memberName = userService.getUserProfile(userId)?.name ?: "새로운 멤버"
+            eventPublisher.publishEvent(
+                NotificationEvent(
+                    targetUserIds = managerUserIds,
+                    teamId = team.teamId!!,
+                    message = NotificationTemplate.memberJoin(team.teamName, memberName)
+                )
+            )
+        }
+
+        return TeamJoinResponse(
+            teamId = team.teamId!!,
+            teamPublicId = team.publicId,
+            teamName = team.teamName,
+            teamRole = savedMembership.teamRole,
+            joinedAt = savedMembership.joinedAt,
+        )
+    }
+
+    @Transactional(readOnly = true)
+    fun getUserTeams(userId: Long) : UserTeamListResponse {
+        userService.validateUserExists(userId)
+
+        val memberships = teamMembershipRepository.findAllByUserIdAndTeamDeletedAtIsNullOrderByJoinedAtDesc(userId)
+
+        val teams = memberships.map { membership ->
+            val team = membership.team
+            TeamSimpleInfo(
+                teamId = team.teamId!!,
+                teamPublicId = team.publicId,
+                teamName = team.teamName,
+                teamType = team.teamType,
+                teamImageUrl = team.teamImageUrl,
+                establishedOn = team.establishedOn,
+                createdAt = team.createdAt
+            )
+        }
+
+        return UserTeamListResponse(teams = teams)
+    }
+
+    @Transactional(readOnly = true)
+    fun getTeamInfoByInviteCode(inviteCode: String): TeamInviteInfoResponse {
+        val normalizedInviteCode = validateAndNormalizeInviteCode(inviteCode)
+        val team = findInviteCodeOrThrow(normalizedInviteCode)
+
+        return TeamInviteInfoResponse(
+            teamPublicId = team.publicId,
+            teamName = team.teamName,
+            teamType = team.teamType,
+            teamImageUrl = team.teamImageUrl,
+            establishedOn = team.establishedOn,
+            createdAt = team.createdAt,
+        )
+    }
+
+    @Transactional
+    fun selectTeam(userId: Long, teamPublicId: UUID) {
+        userService.validateUserExists(userId)
+        val team = findTeamForCommandOrThrow(teamPublicId)
+
+        validateTeamMember(team.teamId!!, userId)
+
+        userService.updateCurrentTeamId(userId, team.teamId!!)
+    }
+
+    @Transactional
+    fun updateMemberRole(request: TeamManageRequest, userId: Long, userPublicId: UUID): TeamManageResponse {
+        val teamId = userService.getCurrentTeamId(userId)
+
+        val requesterMembership = findActiveMembershipOrThrow(teamId, userId)
+
+        val targetUserId = userService.findUserId(userPublicId)
+        val targetMembership = findActiveMembershipOrThrow(teamId, targetUserId)
+
+        return when (request.targetRole) {
+            TeamRole.LEADER -> changeToLeader(
+                requesterMembership = requesterMembership,
+                targetMembership = targetMembership
+            )
+
+            TeamRole.MANAGER,
+            TeamRole.MEMBER -> changeToManagerOrMember(
+                requesterMembership = requesterMembership,
+                targetMembership = targetMembership,
+                targetRole = request.targetRole
+            )
+        }
+    }
+
+    @Transactional(readOnly = true)
+    fun getTeamMembers(userId: Long, keyword: String?, page: Int = 0, size: Int = 10): TeamMemberListResponse {
+        userService.validateUserExists(userId)
+
+        val teamId = userService.getCurrentTeamId(userId)
+        val requesterMembership = findActiveMembershipOrThrow(teamId, userId)
+
+        val memberships = teamMembershipRepository.findAllByTeamTeamId(teamId)
+
+
+        val allMemberItems = toTeamMemberInfos(memberships)
+
+        val filteredMembers = if (!keyword.isNullOrBlank()) {
+            val searchKeyword = keyword.trim()
+            allMemberItems.filter { it.userName.contains(searchKeyword, ignoreCase = true) }
+        } else {
+            allMemberItems
+        }
+
+        val sortedMembers = filteredMembers.sortedBy { it.userName }
+
+        val safePage = if (page < 0) 0 else page
+        val safeSize = if (size <= 0) 10 else size
+        val totalCount = sortedMembers.size
+        val fromIndex = safePage * safeSize
+        val pagedMembers = if (fromIndex in 0 until totalCount) {
+            sortedMembers.subList(fromIndex, minOf(fromIndex + safeSize, totalCount))
+        } else {
+            emptyList()
+        }
+        val hasNext = (fromIndex + safeSize) < totalCount
+
+        return TeamMemberListResponse(
+            myRole = requesterMembership.teamRole,
+            members = pagedMembers,
+            totalCount = totalCount,
+            hasNext = hasNext,
+        )
+    }
+
+    @Transactional(readOnly = true)
+    fun getTeamMemberPositions(userId: Long): TeamMemberPositionResponse {
+        userService.validateUserExists(userId)
+
+        val teamId = userService.getCurrentTeamId(userId)
+        validateTeamMember(teamId, userId)
+
+        val memberships = teamMembershipRepository.findAllByTeamTeamId(teamId)
+        val memberItems = toTeamMemberInfos(memberships)
+        val sortedMembers = memberItems.sortedBy { it.userName }.map {
+            MemberPositionItem(
+                userId = it.userId,
+                userName = it.userName,
+                profileImageUrl = it.profileImageUrl,
+                position = it.position,
+            )
+        }
+
+        return TeamMemberPositionResponse(members = sortedMembers)
+    }
+
+    @Transactional
+    fun updateTeamMemberPositions(userId: Long, request: TeamMemberPositionUpdateRequest): TeamMemberPositionResponse {
+        userService.validateUserExists(userId)
+
+        val teamId = userService.getCurrentTeamId(userId)
+        validateTeamUpdatePermission(teamId, userId)
+
+        if (request.positions.isNotEmpty()) {
+            request.positions.forEach { item ->
+                val cleanPosition = item.position?.trim()?.ifBlank { null }
+                if (cleanPosition != null && cleanPosition.length > 10) {
+                    throw BusinessException(ErrorCode.TEAM_POSITION_TOO_LONG)
+                }
+
+                val targetMembership = teamMembershipRepository
+                    .findByTeamTeamIdAndUserId(teamId, item.userId)
+                    ?: throw BusinessException(ErrorCode.NOT_TEAM_MEMBER)
+
+                targetMembership.updatePosition(cleanPosition)
+
+                if (cleanPosition != null && item.userId != userId) {
+                    val teamName = findTeamForCommandOrThrow(teamId).teamName
+                    eventPublisher.publishEvent(
+                        NotificationEvent(
+                            targetUserId = item.userId,
+                            teamId = teamId,
+                            message = NotificationTemplate.partAssigned(teamName, cleanPosition)
+                        )
+                    )
+                }
+            }
+        }
+
+        val memberships = teamMembershipRepository.findAllByTeamTeamId(teamId)
+        val memberItems = toTeamMemberInfos(memberships)
+        val sortedMembers = memberItems.sortedBy { it.userName }.map {
+            MemberPositionItem(
+                userId = it.userId,
+                userName = it.userName,
+                profileImageUrl = it.profileImageUrl,
+                position = it.position,
+            )
+        }
+
+        return TeamMemberPositionResponse(members = sortedMembers)
+    }
+
+    @Transactional
+    fun teamWithdraw(userId: Long): TeamWithdrawalResponse {
+        val teamId = userService.getCurrentTeamId(userId)
+        val team = findTeamForCommandOrThrow(teamId)
+
+        val membership = teamMembershipRepository.findByTeamTeamIdAndUserId(teamId, userId)
+            ?: throw BusinessException(ErrorCode.NOT_TEAM_MEMBER)
+
+        if (membership.teamRole == TeamRole.LEADER) {
+            throw BusinessException(ErrorCode.TEAM_LEADER_CANNOT_WITHDRAW)
+        }
+
+        val withdrawnAt = OffsetDateTime.now()
+        teamMembershipRepository.delete(membership)
+
+        val managerUserIds = teamMembershipRepository.findAllByTeamTeamId(teamId)
+            .filter { it.teamRole == TeamRole.LEADER || it.teamRole == TeamRole.MANAGER }
+            .map { it.userId }
+            .filter { it != userId }
+
+        if (managerUserIds.isNotEmpty()) {
+            val memberName = userService.getUserProfile(userId)?.name ?: "멤버"
+            eventPublisher.publishEvent(
+                NotificationEvent(
+                    targetUserIds = managerUserIds,
+                    teamId = teamId,
+                    message = NotificationTemplate.memberLeave(team.teamName, memberName)
+                )
+            )
+        }
+
+        userService.updateCurrentTeamId(userId, null)
+
+        return TeamWithdrawalResponse(
+            teamPublicId = team.publicId,
+            userId = userId,
+            withdrawnAt = withdrawnAt
+
+        )
+    }
+
+    @Transactional(readOnly = true)
+    fun getTeamWithdrawalInfo(userId: Long): TeamExitInfoResponse {
+        val teamId = userService.getCurrentTeamId(userId)
+
+        findActiveMembershipOrThrow(teamId, userId)
+
+        val fileCount = teamCloudService.countUploadedFilesByTeamIdAndUserId(teamId, userId) +
+                scheduleService.countScheduleFilesByTeamIdAndUserId(teamId, userId)
+        val sharedMusicCount = teamCloudService.countScoresAndMusicsByTeamIdAndUserId(teamId, userId)
+        val scheduleCount = scheduleService.countSchedulesByTeamIdAndUserId(teamId, userId)
+
+        return TeamExitInfoResponse(
+            fileCount = fileCount,
+            sharedMusicCount = sharedMusicCount,
+            scheduleCount = scheduleCount
+        )
+    }
+
+    @Transactional(readOnly = true)
+    fun getTeamDeleteInfo(userId: Long): TeamExitInfoResponse {
+        val teamId = userService.getCurrentTeamId(userId)
+
+        validateTeamDeletePermission(teamId, userId)
+
+        val fileCount = teamCloudService.countUploadedFilesByTeamId(teamId) +
+                scheduleService.countScheduleFilesByTeamId(teamId)
+        val sharedMusicCount = teamCloudService.countScoresAndMusicsByTeamId(teamId)
+        val scheduleCount = scheduleService.countSchedulesByTeamId(teamId)
+
+        return TeamExitInfoResponse(
+            fileCount = fileCount,
+            sharedMusicCount = sharedMusicCount,
+            scheduleCount = scheduleCount
+        )
+    }
+
+    @Transactional(readOnly = true)
+    fun isLeaderOfAnyActiveTeam(userId: Long): Boolean {
+        return teamMembershipRepository.existsByUserIdAndTeamRoleAndTeamDeletedAtIsNull(userId, TeamRole.LEADER)
+    }
+    
+    @Transactional(readOnly = true)
+    fun countActiveTeamsByUserId(userId: Long): Long {
+        return teamMembershipRepository.countByUserId(userId)
+    }
+
+    private fun findInviteCodeOrThrow(inviteCode: String): Teams {
+        return teamRepository.findByInviteCode(inviteCode)
+            ?: throw BusinessException(ErrorCode.TEAM_INVITE_CODE_NOT_FOUND)
+    }
+
+    fun findTeamForCommandOrThrow(teamId: Long): Teams {
+        return teamRepository.findByTeamId(teamId)
+            ?: throw BusinessException(ErrorCode.TEAM_UNAVAILABLE)
+    }
+
+    fun findTeamForCommandOrThrow(teamPublicId: UUID): Teams {
+        return teamRepository.findByPublicId(teamPublicId)
+            ?: throw BusinessException(ErrorCode.TEAM_UNAVAILABLE)
+    }
+
+    private fun validateCreateRequest(request: TeamCreateRequest) {
+        if (request.teamName.isBlank()) {
+            throw BusinessException(ErrorCode.TEAM_NAME_REQUIRED)
+        }
+
+        if (request.teamName.length > 100) {
+            throw BusinessException(ErrorCode.TEAM_NAME_TOO_LONG)
+        }
+
+        if ((request.description?.length ?: 0) > 500) {
+            throw BusinessException(ErrorCode.TEAM_DESCRIPTION_TOO_LONG)
+        }
+    }
+
+    private fun validateUpdateRequest(request: TeamDetailUpdateRequest) {
+        if (request.teamName != null && request.teamName.isBlank()) {
+            throw BusinessException(ErrorCode.TEAM_NAME_REQUIRED)
+        }
+
+        if ((request.teamName?.length ?: 0) > 100) {
+            throw BusinessException(ErrorCode.TEAM_NAME_TOO_LONG)
+        }
+
+        if ((request.description?.length ?: 0) > 500) {
+            throw BusinessException(ErrorCode.TEAM_DESCRIPTION_TOO_LONG)
+        }
+
+        val hasDuplicatePlatform = request.links
+            ?.groupingBy { it.platformCode }
+            ?.eachCount()
+            ?.any { (_, count) -> count > 1 }
+            ?: false
+
+        if (hasDuplicatePlatform) {
+            throw BusinessException(ErrorCode.TEAM_LINK_DUPLICATED)
+        }
+    }
+
+    private fun validateTeamDetailChanged(
+        team: Teams,
+        request: TeamDetailUpdateRequest,
+        currentLinks: List<TeamLinks>,
+        teamImage: MultipartFile?,
+    ) {
+        val isAnyFieldChanged =
+            (request.teamName != null && request.teamName != team.teamName) ||
+                    (request.description != null && request.description != team.description) ||
+                    (request.establishedOn != null && request.establishedOn != team.establishedOn) ||
+                    (request.teamType != null && request.teamType != team.teamType) ||
+                    (teamImage != null && !teamImage.isEmpty)
+
+        val isLinksChanged =
+            request.links != null && !isLinksSame(currentLinks, request.links)
+
+        if (!isAnyFieldChanged && !isLinksChanged) {
+            throw BusinessException(ErrorCode.TEAM_NO_CONTENT_TO_UPDATE)
+        }
+    }
+
+    private fun isLinksSame(
+        currentLinks: List<TeamLinks>,
+        requestLinks: List<TeamLinksRequest>
+    ) : Boolean {
+        val current = currentLinks
+            .map { it.platformCode to it.linkUrl }
+            .sortedWith(compareBy({it.first.toString()}, { it.second }))
+
+        val requested = requestLinks
+            .map { it.platformCode to it.linkUrl }
+            .sortedWith(compareBy({it.first.toString()}, { it.second }))
+
+        return current == requested
+    }
+
+    private fun findActiveMembershipOrThrow(teamId: Long, userId: Long): TeamMemberships {
+        return teamMembershipRepository.findByTeamTeamIdAndUserId(teamId, userId)
+            ?: throw BusinessException(ErrorCode.NOT_TEAM_MEMBER)
+    }
+
+    private fun validateTeamRole(
+        teamId: Long,
+        userId: Long,
+        roleErrorCode: ErrorCode,
+        vararg allowedRoles: TeamRole
+    ) {
+        val membership = findActiveMembershipOrThrow(teamId, userId)
+
+        if (membership.teamRole !in allowedRoles) {
+            throw BusinessException(roleErrorCode)
+        }
+    }
+
+    private fun validateTeamUpdatePermission(teamId: Long, userId: Long) {
+        validateTeamRole(
+            teamId = teamId,
+            userId = userId,
+            roleErrorCode = ErrorCode.TEAM_NO_UPDATE_PERMISSION,
+            TeamRole.LEADER,
+            TeamRole.MANAGER
+        )
+    }
+
+    private fun validateTeamDeletePermission(teamId: Long, userId: Long) {
+        validateTeamRole(
+            teamId = teamId,
+            userId = userId,
+            roleErrorCode = ErrorCode.TEAM_NO_DELETE_PERMISSION,
+            TeamRole.LEADER
+        )
+    }
+
+    fun validateTeamMember(teamId: Long, userId: Long) {
+        findActiveMembershipOrThrow(teamId, userId)
+    }
+
+    @Transactional(readOnly = true)
+    fun getTeamName(teamId: Long): String {
+        return findTeamForCommandOrThrow(teamId).teamName
+    }
+
+    @Transactional(readOnly = true)
+    fun getTeamMemberUserIds(teamId: Long): List<Long> {
+        return teamMembershipRepository.findAllByTeamTeamId(teamId).map { it.userId }
+    }
+
+    private fun changeToLeader(
+        requesterMembership: TeamMemberships,
+        targetMembership: TeamMemberships
+    ): TeamManageResponse {
+        validateLeaderChangePermission(
+            requesterMembership = requesterMembership,
+            targetMembership = targetMembership
+        )
+
+        requesterMembership.updateTeamRole(TeamRole.MANAGER)
+        targetMembership.updateTeamRole(TeamRole.LEADER)
+
+        val team = targetMembership.team
+        if (targetMembership.userId != requesterMembership.userId) {
+            eventPublisher.publishEvent(
+                NotificationEvent(
+                    targetUserId = targetMembership.userId,
+                    teamId = team.teamId!!,
+                    message = NotificationTemplate.roleChanged(team.teamName, TeamRole.LEADER)
+                )
+            )
+        }
+
+        return TeamManageResponse(
+            updatedMembers = toTeamMemberInfos(
+                listOf(
+                    targetMembership,
+                    requesterMembership,
+                )
+            ),
+        )
+    }
+
+    private fun changeToManagerOrMember(
+        requesterMembership: TeamMemberships,
+        targetMembership: TeamMemberships,
+        targetRole: TeamRole
+    ): TeamManageResponse {
+        validateManagerRoleChangePermission(
+            requesterMembership = requesterMembership,
+            targetMembership = targetMembership,
+            targetRole = targetRole
+        )
+
+        targetMembership.updateTeamRole(targetRole)
+
+        val team = targetMembership.team
+        if (targetRole == TeamRole.MANAGER && targetMembership.userId != requesterMembership.userId) {
+            eventPublisher.publishEvent(
+                NotificationEvent(
+                    targetUserId = targetMembership.userId,
+                    teamId = team.teamId!!,
+                    message = NotificationTemplate.roleChanged(team.teamName, TeamRole.MANAGER)
+                )
+            )
+        }
+
+        return TeamManageResponse(
+            updatedMembers = toTeamMemberInfos(
+                listOf(targetMembership)
+            ),
+        )
+    }
+
+    private fun validateLeaderChangePermission(
+        requesterMembership: TeamMemberships,
+        targetMembership: TeamMemberships
+    ) {
+        if (requesterMembership.teamRole != TeamRole.LEADER) {
+            throw BusinessException(ErrorCode.TEAM_NO_UPDATE_PERMISSION)
+        }
+
+        if (requesterMembership.userId == targetMembership.userId) {
+            throw BusinessException(ErrorCode.TEAM_NO_CONTENT_TO_UPDATE)
+        }
+
+        if (targetMembership.teamRole == TeamRole.LEADER) {
+            throw BusinessException(ErrorCode.TEAM_NO_CONTENT_TO_UPDATE)
+        }
+    }
+
+    private fun validateManagerRoleChangePermission(
+        requesterMembership: TeamMemberships,
+        targetMembership: TeamMemberships,
+        targetRole: TeamRole
+    ) {
+        if (requesterMembership.teamRole != TeamRole.LEADER &&
+            requesterMembership.teamRole != TeamRole.MANAGER
+        ) {
+            throw BusinessException(ErrorCode.TEAM_NO_UPDATE_PERMISSION)
+        }
+
+        if (targetMembership.teamRole == TeamRole.LEADER) {
+            throw BusinessException(ErrorCode.TEAM_NO_UPDATE_PERMISSION)
+        }
+
+        if (targetMembership.teamRole == targetRole) {
+            throw BusinessException(ErrorCode.TEAM_NO_CONTENT_TO_UPDATE)
+        }
+    }
+
+    private fun toTeamMemberInfos(
+        memberships: List<TeamMemberships>,
+    ): List<MemberItems> {
+        val userInfoById = userService.getUserSimpleInfos(
+            memberships.map { membership ->
+                membership.userId
+            }
+        )
+
+        return memberships.map { membership ->
+            val userInfo = userInfoById[membership.userId]
+                ?: throw BusinessException(ErrorCode.USER_NOT_FOUND)
+
+            MemberItems(
+                userId = membership.userId,
+                userPublicId = userInfo.userPublicId,
+                userName = userInfo.userName,
+                profileImageUrl = userInfo.profileImageUrl,
+                teamRole = membership.teamRole,
+                position = membership.position,
+            )
+        }
+    }
+
+    private fun validateAndNormalizeInviteCode(inviteCode: String?): String {
+        if(inviteCode.isNullOrBlank()) {
+            throw BusinessException(ErrorCode.TEAM_INVITE_CODE_REQUIRED)
+        }
+
+        val normalizedInviteCode = inviteCode.trim().uppercase()
+
+        val inviteCodeRegex = Regex("^[A-Z0-9]{6}$")
+
+        if (!inviteCodeRegex.matches(normalizedInviteCode)) {
+            throw BusinessException(ErrorCode.TEAM_INVITE_CODE_INVALID)
+        }
+
+        return normalizedInviteCode
+    }
+
+    private fun validateNotAlreadyJoined(teamId: Long, userId: Long) {
+        val alreadyJoined = teamMembershipRepository
+            .existsByTeamTeamIdAndUserId(teamId, userId)
+
+        if (alreadyJoined) {
+            throw BusinessException(ErrorCode.TEAM_ALREADY_JOINED)
+        }
+    }
+
+    private fun generateInviteCode(): String {
+        return UUID.randomUUID()
+            .toString()
+            .replace("-", "")
+            .take(6)
+            .uppercase()
+    }
+
+    private fun deleteOnRollback(key: String) {
+        org.springframework.transaction.support.TransactionSynchronizationManager.registerSynchronization(
+            object : org.springframework.transaction.support.TransactionSynchronization {
+                override fun afterCompletion(status: Int) {
+                    if (status != org.springframework.transaction.support.TransactionSynchronization.STATUS_COMMITTED) {
+                        runCatching { fileService.deleteFile(key) }
+                    }
+                }
+            }
+        )
+    }
+
+    private fun deleteAfterCommit(key: String) {
+        org.springframework.transaction.support.TransactionSynchronizationManager.registerSynchronization(
+            object : org.springframework.transaction.support.TransactionSynchronization {
+                override fun afterCommit() {
+                    runCatching { fileService.deleteFile(key) }
+                }
+            }
+        )
+    }
+
+    fun validateMembersInTeam(teamId: Long, userIds: List<Long>): Boolean {
+        if (userIds.isEmpty()) return false
+        val activeMembers = teamMembershipRepository.findAllByTeamTeamIdAndUserIdIn(teamId, userIds)
+        val uniqueUserIdsCount = userIds.distinct().size
+        return activeMembers.size == uniqueUserIdsCount
+    }
+
+    @Transactional(readOnly = true)
+    fun getMemberPositions(teamId: Long, userIds: List<Long>): Map<Long, String?> {
+        if (userIds.isEmpty()) return emptyMap()
+        return teamMembershipRepository
+            .findAllByTeamTeamIdAndUserIdIn(teamId, userIds)
+            .associate { it.userId to it.position }
+    }
+}

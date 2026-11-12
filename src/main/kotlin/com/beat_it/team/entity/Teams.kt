@@ -1,0 +1,62 @@
+package com.beat_it.team.entity
+import com.beat_it.global.entity.BaseDeletedTimeEntity
+import com.beat_it.global.entity.BaseUpdatedTimeEntity
+import com.beat_it.team.entity.enum.TeamType
+import jakarta.persistence.*
+import org.hibernate.annotations.SQLDelete
+import org.hibernate.annotations.SQLRestriction
+import java.time.LocalDate
+import java.time.OffsetDateTime
+import java.util.UUID
+
+@Entity
+@Table(name = "teams")
+@SQLDelete(sql = "UPDATE teams SET deleted_at = CURRENT_TIMESTAMP WHERE team_id = ?")
+@SQLRestriction("deleted_at IS NULL")
+class Teams(
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "team_id", nullable = false)
+    val teamId: Long? = null,
+
+    @Column(name = "public_id", nullable = false, unique = true)
+    val publicId: UUID = UUID.randomUUID(),
+
+    @Column(name = "team_image_url", nullable = true)
+    var teamImageUrl: String? = null,
+
+    @Column(name = "team_image_storage_key", length = 255)
+    var teamImageStorageKey: String? = null,
+
+    @Column(name = "name", nullable = false)
+    var teamName: String,
+
+    @Column(name = "description", nullable = true)
+    var description: String? = null,
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "team_type", nullable = false)
+    var teamType: TeamType = TeamType.TEAM,
+
+    @Column(name = "established_on", nullable = true)
+    var establishedOn: LocalDate? = null,
+
+    @Column(name = "invite_code", nullable = false, unique = true)
+    val inviteCode: String,
+
+
+) : BaseDeletedTimeEntity() {
+
+    fun updateTeamDetail(
+        teamName: String?,
+        description: String?,
+        establishedOn: LocalDate?,
+        teamType: TeamType?,
+    ) {
+        teamName?.let { this.teamName = it }
+        description?.let { this.description = it }
+        establishedOn?.let { this.establishedOn = it }
+        teamType?.let { this.teamType = it }
+        this.updateTimestamp()
+    }
+}

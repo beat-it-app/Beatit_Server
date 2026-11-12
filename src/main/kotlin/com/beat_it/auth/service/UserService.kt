@@ -1,0 +1,197 @@
+package com.beat_it.auth.service
+
+import com.beat_it.auth.dto.UserProfileResponse
+import com.beat_it.auth.dto.UserSimpleInfo
+import com.beat_it.auth.entity.AuthFiles
+import com.beat_it.auth.entity.UserProfiles
+import com.beat_it.auth.entity.enum.DefaultProfileImage
+import com.beat_it.auth.entity.enum.MediaCategory
+import com.beat_it.auth.repository.AuthFilesRepository
+import com.beat_it.auth.repository.UserProfilesRepository
+import com.beat_it.auth.repository.UserRepository
+import com.beat_it.global.error.BusinessException
+import com.beat_it.global.error.ErrorCode
+import com.beat_it.global.service.FileService
+import com.beat_it.auth.entity.enum.AccountStatus
+import org.springframework.stereotype.Service
+import org.springframework.transaction.annotation.Transactional
+import org.springframework.web.multipart.MultipartFile
+import java.util.UUID
+
+@Service
+class UserService (
+    private val userProfilesRepository: UserProfilesRepository,
+    private val userRepository: UserRepository,
+    private val authFilesRepository: AuthFilesRepository,
+    private val fileService: FileService
+) {
+    @Transactional
+    fun createProfile(
+        userId: Long,
+        name: String,
+        profileImage: MultipartFile?,
+        defaultImageId: Int?
+    ) {
+        validateName(name)
+
+        if (userProfilesRepository.existsByUser_UserId(userId)) {
+            throw BusinessException(ErrorCode.PROFILE_ALREADY_EXISTS)
+        }
+
+        val user = userRepository.findById(userId).orElse(null)
+            ?: throw BusinessException(ErrorCode.USER_NOT_FOUND)
+
+        var savedAuthFile: AuthFiles? = null
+        var defaultProfileImage: DefaultProfileImage? = null
+
+        val hasImage = profileImage != null && !profileImage.isEmpty
+        val hasDefaultId = defaultImageId != null
+
+        if ((!hasImage && !hasDefaultId) || (hasImage && hasDefaultId)) {
+            throw BusinessException(ErrorCode.INVALID_INPUT_VALUE)
+        }
+
+        if (hasImage) {
+            val uploadedResult = fileService.uploadFile(
+                file = profileImage!!,
+                directory = com.beat_it.global.service.FileDirectory.PROFILE
+            )
+            
+            val authFile = AuthFiles(
+                user = user,
+                originalFileName = uploadedResult.originalFileName,
+                storageKey = uploadedResult.storageKey,
+                cdnUrl = uploadedResult.cdnUrl,
+                mediaCategory = MediaCategory.IMAGE,
+                fileSizeBytes = profileImage?.size,
+                isPublic = true
+            )
+            savedAuthFile = authFilesRepository.save(authFile)
+        } else {
+            defaultProfileImage = DefaultProfileImage.getByIndex(defaultImageId!!)
+        }
+
+        val userProfile = UserProfiles.create(
+            user = user,
+            name = name,
+            authFile = savedAuthFile,
+            defaultProfileImage = defaultProfileImage
+        )
+        userProfilesRepository.save(userProfile)
+    }
+
+    fun getCurrentTeamId(userId: Long): Long {
+        val user = userRepository.findById(userId)
+            .orElseThrow { BusinessException(ErrorCode.USER_NOT_FOUND) }
+
+        return user.currentTeamId
+            ?: throw BusinessException(ErrorCode.TEAM_NOT_SELECTED)
+    }
+
+    @Transactional(readOnly = true)
+    fun getUserSimpleInfos(
+        userIds: List<Long>,
+    ): Map<Long, UserSimpleInfo> {
+        val distinctUserIds = userIds.distinct()
+
+        if (distinctUserIds.isEmpty()) {
+            return emptyMap()
+        }
+
+        val usersById = userRepository
+            .findByUserIdIn(distinctUserIds)
+            .associateBy { user ->
+                user.userId
+                    ?: throw BusinessException(ErrorCode.USER_NOT_FOUND)
+            }
+
+        if (usersById.size != distinctUserIds.size) {
+            throw BusinessException(ErrorCode.USER_NOT_FOUND)
+        }
+
+        val profilesById = getUserProfiles(distinctUserIds)
+            .associateBy { profile ->
+                profile.userId
+            }
+
+        return distinctUserIds.associateWith { userId ->
+            val user = usersById[userId]
+                ?: throw BusinessException(ErrorCode.USER_NOT_FOUND)
+
+            val profile = profilesById[userId]
+
+            UserSimpleInfo(
+                userPublicId = user.publicId,
+                userName = profile?.name ?: "알 수 없음",
+                profileImageUrl = profile?.profileImageUrl,
+            )
+        }
+    }
+
+    @Transactional(readOnly = true)
+    fun validateUserExists(userId: Long) {
+        if (!userRepository.existsById(userId)) {
+            throw BusinessException(ErrorCode.USER_NOT_FOUND)
+        }
+    }
+
+    @Transactional(readOnly = true)
+    fun findUserId(userPublicId: UUID): Long {
+        return userRepository.findByPublicId(userPublicId)?.userId
+            ?: throw BusinessException(ErrorCode.USER_NOT_FOUND)
+    }
+
+    @Transactional(readOnly = true)
+    fun getCurrentTeamIdOrNull(userId: Long): Long? {
+        val user = userRepository.findById(userId)
+            .orElseThrow { BusinessException(ErrorCode.USER_NOT_FOUND) }
+
+        return user.currentTeamId
+    }
+
+    @Transactional
+    fun updateCurrentTeamId(userId: Long, teamId: Long?) {
+        val user = userRepository.findById(userId)
+            .orElseThrow { BusinessException(ErrorCode.USER_NOT_FOUND) }
+
+        user.updateCurrentTeam(teamId)
+    }
+
+    @Transactional
+    fun clearCurrentTeamIdByTeamId(teamId: Long) {
+        userRepository.clearCurrentTeamIdByTeamId(teamId)
+    }
+
+    fun getUserProfile(userId: Long): UserProfiles? {
+        return userProfilesRepository.findByUserUserId(userId)
+            ?.takeIf { it.user?.accountStatus == AccountStatus.ACTIVE }
+    }
+
+    @Transactional(readOnly = true)
+    fun getUserProfileResponse(userId: Long): UserProfileResponse? {
+        return getUserProfiles(listOf(userId)).firstOrNull()
+    }
+
+    @Transactional(readOnly = true)
+    fun getUserProfiles(userIds: List<Long>): List<UserProfileResponse> {
+        if (userIds.isEmpty()) return emptyList()
+
+        val profiles = userProfilesRepository.findByUserUserIdIn(userIds)
+            .filter { it.user?.accountStatus == AccountStatus.ACTIVE }
+        return profiles.map { profile ->
+            UserProfileResponse(
+                userId = profile.user?.userId ?: 0L,
+                name = profile.name,
+                profileImageUrl = profile.authFile?.cdnUrl
+                    ?: profile.defaultProfileImage?.let { fileService.getFileUrl(it.storageKey) }
+                    ?: ""
+            )
+        }
+    }
+
+    private fun validateName(name: String) {
+        if (name.isBlank() || name.length > 10) {
+            throw BusinessException(ErrorCode.INVALID_NAME_FORMAT)
+        }
+    }
+}

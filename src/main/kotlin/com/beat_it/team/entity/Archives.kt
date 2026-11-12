@@ -1,0 +1,102 @@
+package com.beat_it.team.entity
+
+import com.beat_it.global.entity.BaseUpdatedTimeEntity
+import jakarta.persistence.Column
+import jakarta.persistence.Entity
+import jakarta.persistence.FetchType
+import jakarta.persistence.GeneratedValue
+import jakarta.persistence.GenerationType
+import jakarta.persistence.Id
+import jakarta.persistence.JoinColumn
+import jakarta.persistence.ManyToOne
+import jakarta.persistence.Table
+import kotlin.math.round
+
+@Entity
+@Table(name = "archives")
+class Archives(
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "archive_id", nullable = false)
+    val archiveId: Long? = null,
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "team_id", nullable = false)
+    val team: Teams,
+
+    @Column(name = "user_id", nullable = false)
+    val writerId: Long,
+
+    @Column(name = "location_id", nullable = false)
+    var locationId: Long,
+
+    @Column(name = "title", nullable = false)
+    var title: String,
+
+    @Column(name = "road_address", nullable = true)
+    var roadAddress: String? = null,
+
+    @Column(name = "description", nullable = true)
+    var description: String? = null,
+
+    @Column(name = "archive_image_url", nullable = true)
+    var archiveImageUrl: String? = null,
+
+    @Column(name = "average_rating", nullable = false)
+    var averageRating: Double = 0.0,
+
+    @Column(name = "rating_count", nullable = false)
+    var ratingCount: Int = 0,
+
+    @Column(name = "comment_count", nullable = false)
+    var commentCount: Int = 0,
+
+    @Column(name = "top_archive", nullable = false)
+    var topArchive: Boolean = false,
+) : BaseUpdatedTimeEntity() {
+
+    fun updateArchive(
+        title: String?,
+        description: String?,
+        roadAddress: String?,
+        locationId: Long?,
+    ) {
+        title?.let { this.title = it }
+        description?.let { this.description = it }
+        roadAddress?.let { this.roadAddress = it }
+        locationId?.let { this.locationId = it }
+        this.updateTimestamp()
+    }
+
+    fun updateArchiveImageUrl(archiveImageUrl: String?) {
+        this.archiveImageUrl = archiveImageUrl
+    }
+
+    fun increaseRatingCount() {
+        ratingCount++
+    }
+
+    fun decreaseRatingCount() {
+        ratingCount = (ratingCount - 1).coerceAtLeast(0)
+    }
+
+    fun updateAverageRating(averageRating: Double) {
+        this.averageRating = averageRating
+    }
+
+    fun roundedAverageRating(): Double {
+        return round(averageRating * 10) / 10.0
+    }
+
+    fun updateTopArchive(topArchive: Boolean) {
+        this.topArchive = topArchive
+    }
+
+    fun increaseComment() {
+        commentCount++
+    }
+
+    fun decreaseComment(count: Int = 1) {
+        commentCount = (commentCount - count).coerceAtLeast(0)
+    }
+}

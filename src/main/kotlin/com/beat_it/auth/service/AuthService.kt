@@ -1,0 +1,744 @@
+package com.beat_it.auth.service
+
+import com.beat_it.auth.dto.LoginRequest
+import com.beat_it.auth.dto.LoginResponse
+import com.beat_it.auth.dto.SignUpRequest
+import com.beat_it.auth.dto.SignUpResponse
+import com.beat_it.auth.dto.GoogleLoginRequest
+import com.beat_it.auth.dto.FindIdentifierResponse
+import com.beat_it.auth.dto.KakaoLoginRequest
+import com.beat_it.auth.dto.NaverLoginRequest
+import com.beat_it.auth.dto.AppleLoginRequest
+import com.beat_it.auth.dto.ResetPasswordRequest
+import com.beat_it.auth.dto.ResetPasswordResponse
+import com.beat_it.auth.dto.WithdrawalRequest
+import com.beat_it.auth.dto.WithdrawalResponse
+import com.beat_it.auth.entity.UserAuthAccounts
+import com.beat_it.auth.entity.UserSettings
+import com.beat_it.auth.entity.Users
+import com.beat_it.auth.entity.enum.AccountStatus
+import com.beat_it.auth.entity.enum.Role
+import com.beat_it.auth.entity.enum.SocialProvider
+import com.beat_it.auth.entity.UserWithdrawalReason
+import com.beat_it.auth.repository.UserWithdrawalReasonRepository
+import com.beat_it.auth.repository.UserAuthAccountRepository
+import com.beat_it.auth.repository.UserProfilesRepository
+import com.beat_it.auth.repository.UserRepository
+import com.beat_it.auth.repository.UserSettingsRepository
+import com.beat_it.global.error.BusinessException
+import com.beat_it.global.error.ErrorCode
+import com.beat_it.global.security.jwt.JwtTokenProvider
+import org.springframework.transaction.annotation.Transactional
+import org.springframework.security.crypto.password.PasswordEncoder
+import org.springframework.stereotype.Service
+import org.springframework.data.redis.core.StringRedisTemplate
+import com.beat_it.auth.dto.UserWithdrawalInfoResponse
+import com.beat_it.cal.service.ScheduleService
+import com.beat_it.notification.dto.PushTokenRegisterRequest
+import com.beat_it.notification.entity.enum.PlatformType
+import com.beat_it.notification.service.PushTokenService
+import com.beat_it.team.service.TeamCloudService
+import com.beat_it.team.service.TeamService
+import org.slf4j.LoggerFactory
+
+@Service
+class AuthService (
+    private val userRepository: UserRepository,
+    private val userAuthAccountRepository: UserAuthAccountRepository,
+    private val userSettingsRepository: UserSettingsRepository,
+    private val userWithdrawalReasonRepository: UserWithdrawalReasonRepository,
+    private val passwordEncoder: PasswordEncoder,
+    private val jwtTokenProvider: JwtTokenProvider,
+    private val userProfilesRepository: UserProfilesRepository,
+    private val googleAuthService: GoogleAuthService,
+    private val kakaoAuthService: KakaoAuthService,
+    private val naverAuthService: NaverAuthService,
+    private val appleAuthService: AppleAuthService,
+    private val refreshTokenService: RefreshTokenService,
+    private val emailService: EmailService,
+    private val redisTemplate: StringRedisTemplate,
+    private val pushTokenService: PushTokenService,
+    private val teamService: TeamService,
+    private val teamCloudService: TeamCloudService,
+    private val scheduleService: ScheduleService
+){
+    private val log = LoggerFactory.getLogger(AuthService::class.java)
+
+    companion object {
+        private val PASSWORD_PATTERN = Regex("^(?=.*[A-Za-z])(?=.*\\d)(?=.*[!@#\\$%^&*?_~])[A-Za-z\\d!@#\\$%^&*?_~]{8,20}$")
+    }
+
+    private fun validatePassword(password: String) {
+        if (!PASSWORD_PATTERN.matches(password)) {
+            throw BusinessException(ErrorCode.INVALID_PASSWORD_FORMAT)
+        }
+    }
+
+    @Transactional
+    fun signUp(dto : SignUpRequest): SignUpResponse {
+        val identifier = dto.identifier
+        checkDuplicateIdentifier(identifier)
+
+        val email = dto.email
+        if (userAuthAccountRepository.existsByEmail(email)) {
+            throw BusinessException(ErrorCode.EMAIL_DUPLICATED)
+        }
+
+        val verifiedKey = "email:verified:$email"
+        val isVerified = redisTemplate.opsForValue().get(verifiedKey)
+        if (isVerified != "true") {
+            throw BusinessException(ErrorCode.EMAIL_NOT_VERIFIED)
+        }
+
+        var user = Users.createNewUser(
+            role = Role.USER,
+            accountStatus = AccountStatus.ACTIVE
+        )
+        user = userRepository.save(user)
+
+        val userSetting = UserSettings.createNewUser(
+            user,
+            allowAutoLogin = false
+        )
+        userSettingsRepository.save(userSetting)
+
+        val password = dto.password
+        validatePassword(password)
+        val encodedPassword = passwordEncoder.encode(password)
+
+        val userAuthAccount = UserAuthAccounts.createNormalUser(
+            user = user,
+            identifier = identifier,
+            password = encodedPassword,
+            email = dto.email
+        )
+
+        userAuthAccountRepository.save(userAuthAccount)
+
+        redisTemplate.delete(verifiedKey)
+
+        return SignUpResponse(
+            userId = user.userId!!,
+            identifier = userAuthAccount.identifier!!,
+            email = userAuthAccount.email,
+            createdAt = user.createdAt,
+        )
+    }
+
+    @Transactional
+    fun login(loginRequest: LoginRequest) : Triple<String, String, LoginResponse> {
+        val userAuthAccount = userAuthAccountRepository.findByIdentifier(loginRequest.identifier)
+            ?: throw BusinessException(ErrorCode.IDENTIFIER_NOT_FOUND)
+
+        if (!passwordEncoder.matches(loginRequest.password, userAuthAccount.password)) {
+            throw BusinessException(ErrorCode.INVALID_PASSWORD)
+        }
+
+        val user = userAuthAccount.user
+        restoreIfWithdrawn(user, loginRequest.isRestore)
+        val isCreatedProfile = userProfilesRepository.existsByUser_UserId(user.userId)
+
+        val rememberMe = loginRequest.rememberMe
+        val accessToken = jwtTokenProvider.createAccessToken(
+            userId = user.userId.toString(),
+            role = user.role,
+            rememberMe = rememberMe,
+            deviceId = loginRequest.deviceId
+        )
+
+        val refreshToken = jwtTokenProvider.createRefreshToken(
+            userId = user.userId.toString(),
+            rememberMe = rememberMe,
+            deviceId = loginRequest.deviceId
+        )
+        refreshTokenService.saveRefreshToken(
+            userId = user.userId.toString(),
+            refreshToken = refreshToken,
+            expirationMs = jwtTokenProvider.getRefreshTokenValidity(rememberMe)
+        )
+
+        user.userId?.let { uid ->
+            val userSetting = userSettingsRepository.findByUsers_UserId(uid)
+            if (userSetting != null && userSetting.allowAutoLogin != rememberMe) {
+                userSetting.allowAutoLogin = rememberMe
+                userSettingsRepository.save(userSetting)
+            }
+            registerPushTokenIfPresent(uid, loginRequest.deviceId, loginRequest.platformType, loginRequest.pushToken, loginRequest.appVersion)
+        }
+
+        return Triple(
+            accessToken,
+            refreshToken,
+            LoginResponse(
+                userId = user.userId,
+                role = user.role,
+                isCreatedProfile = isCreatedProfile,
+                socialProvider = userAuthAccount.socialProvider
+            )
+        )
+    }
+
+    fun checkDuplicateIdentifier(identifier: String): Boolean {
+        if (userAuthAccountRepository.findByIdentifier(identifier) != null) {
+            throw BusinessException(ErrorCode.IDENTIFIER_DUPLICATED)
+        } else {
+            return true
+        }
+    }
+
+    @Transactional
+    fun googleLogin(dto: GoogleLoginRequest): Triple<String, String, LoginResponse> {
+        val googlePayload = googleAuthService.verifyToken(dto.idToken)
+
+        var userAuthAccount = userAuthAccountRepository.findByGoogleId(googlePayload.googleId)
+
+        if (userAuthAccount == null) {
+            var user = Users.createNewUser(
+                role = Role.USER,
+                accountStatus = AccountStatus.ACTIVE
+            )
+            user = userRepository.save(user)
+
+            val userSetting = UserSettings.createNewUser(
+                user,
+                allowAutoLogin = false
+            )
+            userSettingsRepository.save(userSetting)
+
+            userAuthAccount = UserAuthAccounts.createSocialUser(
+                user = user,
+                email = googlePayload.email,
+                socialId = googlePayload.googleId,
+                provider = SocialProvider.GOOGLE
+            )
+            userAuthAccountRepository.save(userAuthAccount)
+        }
+
+        val user = userAuthAccount.user
+        restoreIfWithdrawn(user, dto.isRestore)
+        val isCreatedProfile = userProfilesRepository.existsByUser_UserId(user.userId)
+
+        val accessToken = jwtTokenProvider.createAccessToken(
+            userId = user.userId.toString(),
+            role = user.role,
+            deviceId = dto.deviceId
+        )
+
+        val refreshToken = jwtTokenProvider.createRefreshToken(
+            userId = user.userId.toString(),
+            rememberMe = true,
+            deviceId = dto.deviceId
+        )
+        refreshTokenService.saveRefreshToken(
+            userId = user.userId.toString(),
+            refreshToken = refreshToken,
+            expirationMs = jwtTokenProvider.getRefreshTokenValidity(true)
+        )
+
+        user.userId?.let { uid ->
+            registerPushTokenIfPresent(uid, dto.deviceId, dto.platformType, dto.pushToken, dto.appVersion)
+        }
+
+        return Triple(
+            accessToken,
+            refreshToken,
+            LoginResponse(
+                userId = user.userId,
+                role = user.role,
+                isCreatedProfile = isCreatedProfile,
+                socialProvider = SocialProvider.GOOGLE
+            )
+        )
+    }
+
+    @Transactional
+    fun kakaoLogin(dto: KakaoLoginRequest): Triple<String, String, LoginResponse> {
+        val kakaoPayload = kakaoAuthService.verifyToken(dto.accessToken)
+
+        var userAuthAccount = userAuthAccountRepository.findByKakaoId(kakaoPayload.kakaoId)
+
+        if (userAuthAccount == null) {
+            var user = Users.createNewUser(
+                role = Role.USER,
+                accountStatus = AccountStatus.ACTIVE
+            )
+            user = userRepository.save(user)
+
+            val userSetting = UserSettings.createNewUser(
+                user,
+                allowAutoLogin = false
+            )
+            userSettingsRepository.save(userSetting)
+
+            userAuthAccount = UserAuthAccounts.createSocialUser(
+                user = user,
+                email = kakaoPayload.email,
+                socialId = kakaoPayload.kakaoId,
+                provider = SocialProvider.KAKAO
+            )
+            userAuthAccountRepository.save(userAuthAccount)
+        }
+
+        val user = userAuthAccount.user
+        restoreIfWithdrawn(user, dto.isRestore)
+        val isCreatedProfile = userProfilesRepository.existsByUser_UserId(user.userId)
+
+        val accessToken = jwtTokenProvider.createAccessToken(
+            userId = user.userId.toString(),
+            role = user.role,
+            deviceId = dto.deviceId
+        )
+
+        val refreshToken = jwtTokenProvider.createRefreshToken(
+            userId = user.userId.toString(),
+            deviceId = dto.deviceId
+        )
+        refreshTokenService.saveRefreshToken(
+            userId = user.userId.toString(),
+            refreshToken = refreshToken,
+            expirationMs = jwtTokenProvider.refreshTokenValidity
+        )
+
+        user.userId?.let { uid ->
+            registerPushTokenIfPresent(uid, dto.deviceId, dto.platformType, dto.pushToken, dto.appVersion)
+        }
+
+        return Triple(
+            accessToken,
+            refreshToken,
+            LoginResponse(
+                userId = user.userId,
+                role = user.role,
+                isCreatedProfile = isCreatedProfile,
+                socialProvider = SocialProvider.KAKAO
+            )
+        )
+    }
+
+    @Transactional
+    fun naverLogin(dto: NaverLoginRequest): Triple<String, String, LoginResponse> {
+        val naverPayload = naverAuthService.verifyToken(dto.accessToken)
+
+        var userAuthAccount = userAuthAccountRepository.findByNaverId(naverPayload.naverId)
+
+        if (userAuthAccount == null) {
+            var user = Users.createNewUser(
+                role = Role.USER,
+                accountStatus = AccountStatus.ACTIVE
+            )
+            user = userRepository.save(user)
+
+            val userSetting = UserSettings.createNewUser(
+                user,
+                allowAutoLogin = false
+            )
+            userSettingsRepository.save(userSetting)
+
+            userAuthAccount = UserAuthAccounts.createSocialUser(
+                user = user,
+                email = naverPayload.email,
+                socialId = naverPayload.naverId,
+                provider = SocialProvider.NAVER
+            )
+            userAuthAccountRepository.save(userAuthAccount)
+        }
+
+        val user = userAuthAccount.user
+        restoreIfWithdrawn(user, dto.isRestore)
+        val isCreatedProfile = userProfilesRepository.existsByUser_UserId(user.userId)
+
+        val accessToken = jwtTokenProvider.createAccessToken(
+            userId = user.userId.toString(),
+            role = user.role,
+            deviceId = dto.deviceId
+        )
+
+        val refreshToken = jwtTokenProvider.createRefreshToken(
+            userId = user.userId.toString(),
+            deviceId = dto.deviceId
+        )
+        refreshTokenService.saveRefreshToken(
+            userId = user.userId.toString(),
+            refreshToken = refreshToken,
+            expirationMs = jwtTokenProvider.refreshTokenValidity
+        )
+
+        user.userId?.let { uid ->
+            registerPushTokenIfPresent(uid, dto.deviceId, dto.platformType, dto.pushToken, dto.appVersion)
+        }
+
+        return Triple(
+            accessToken,
+            refreshToken,
+            LoginResponse(
+                userId = user.userId,
+                role = user.role,
+                isCreatedProfile = isCreatedProfile,
+                socialProvider = SocialProvider.NAVER
+            )
+        )
+    }
+
+    @Transactional
+    fun appleLogin(dto: AppleLoginRequest): Triple<String, String, LoginResponse> {
+        val applePayload = appleAuthService.verifyToken(dto.identityToken)
+
+        var userAuthAccount = userAuthAccountRepository.findByAppleId(applePayload.appleId)
+
+        if (userAuthAccount == null) {
+            var user = Users.createNewUser(
+                role = Role.USER,
+                accountStatus = AccountStatus.ACTIVE
+            )
+            user = userRepository.save(user)
+
+            val userSetting = UserSettings.createNewUser(
+                user,
+                allowAutoLogin = false
+            )
+            userSettingsRepository.save(userSetting)
+
+            val resolvedEmail = dto.email ?: applePayload.email ?: "${applePayload.appleId}@apple.user"
+
+            userAuthAccount = UserAuthAccounts.createSocialUser(
+                user = user,
+                email = resolvedEmail,
+                socialId = applePayload.appleId,
+                provider = SocialProvider.APPLE
+            )
+            userAuthAccountRepository.save(userAuthAccount)
+        }
+
+        val user = userAuthAccount.user
+        restoreIfWithdrawn(user, dto.isRestore)
+        val isCreatedProfile = userProfilesRepository.existsByUser_UserId(user.userId)
+
+        val accessToken = jwtTokenProvider.createAccessToken(
+            userId = user.userId.toString(),
+            role = user.role,
+            deviceId = dto.deviceId
+        )
+
+        val refreshToken = jwtTokenProvider.createRefreshToken(
+            userId = user.userId.toString(),
+            deviceId = dto.deviceId
+        )
+        refreshTokenService.saveRefreshToken(
+            userId = user.userId.toString(),
+            refreshToken = refreshToken,
+            expirationMs = jwtTokenProvider.refreshTokenValidity
+        )
+
+        user.userId?.let { uid ->
+            registerPushTokenIfPresent(uid, dto.deviceId, dto.platformType, dto.pushToken, dto.appVersion)
+        }
+
+        return Triple(
+            accessToken,
+            refreshToken,
+            LoginResponse(
+                userId = user.userId,
+                role = user.role,
+                isCreatedProfile = isCreatedProfile,
+                socialProvider = SocialProvider.APPLE
+            )
+        )
+    }
+
+    private fun restoreIfWithdrawn(user: Users, isRestore: Boolean) {
+        if (user.accountStatus == AccountStatus.WITHDRAWN) {
+            if (!isRestore) {
+                throw BusinessException(ErrorCode.USER_WITHDRAWN_PENDING)
+            }
+            user.restore()
+            userRepository.save(user)
+        }
+    }
+
+    private fun registerPushTokenIfPresent(
+        userId: Long,
+        deviceId: String?,
+        platformType: PlatformType?,
+        pushToken: String?,
+        appVersion: String?
+    ) {
+        if (!deviceId.isNullOrBlank() && !pushToken.isNullOrBlank()) {
+            pushTokenService.registerOrUpdateToken(
+                userId = userId,
+                request = PushTokenRegisterRequest(
+                    deviceId = deviceId,
+                    platformType = platformType ?: PlatformType.ANDROID,
+                    pushToken = pushToken,
+                    appVersion = appVersion
+                )
+            )
+        }
+    }
+
+    fun reissue(refreshToken: String): Pair<String, String> {
+        if (!jwtTokenProvider.validateToken(refreshToken)) {
+            throw BusinessException(ErrorCode.EXPIRED_REFRESH_TOKEN)
+        }
+
+        val userId = jwtTokenProvider.getUserId(refreshToken)
+        val savedToken = refreshTokenService.getRefreshToken(userId)
+            ?: throw BusinessException(ErrorCode.REFRESH_TOKEN_NOT_FOUND)
+
+        if (savedToken != refreshToken) {
+            throw BusinessException(ErrorCode.INVALID_TOKEN)
+        }
+
+        val user = userRepository.findById(userId.toLongOrNull() ?: throw BusinessException(ErrorCode.USER_NOT_FOUND))
+            .orElseThrow { BusinessException(ErrorCode.USER_NOT_FOUND) }
+
+        val rememberMe = jwtTokenProvider.getRememberMe(refreshToken)
+        val deviceId = jwtTokenProvider.getDeviceId(refreshToken)
+        val newAccessToken = jwtTokenProvider.createAccessToken(userId, user.role, rememberMe, deviceId)
+        val newRefreshToken = jwtTokenProvider.createRefreshToken(userId, rememberMe, deviceId)
+
+        refreshTokenService.saveRefreshToken(
+            userId = userId,
+            refreshToken = newRefreshToken,
+            expirationMs = jwtTokenProvider.getRefreshTokenValidity(rememberMe)
+        )
+
+        return Pair(newAccessToken, newRefreshToken)
+    }
+
+    fun reissueLogin(refreshToken: String): Triple<String, String, LoginResponse> {
+        if (!jwtTokenProvider.validateToken(refreshToken)) {
+            throw BusinessException(ErrorCode.EXPIRED_REFRESH_TOKEN)
+        }
+
+        val userId = jwtTokenProvider.getUserId(refreshToken)
+        val savedToken = refreshTokenService.getRefreshToken(userId)
+            ?: throw BusinessException(ErrorCode.REFRESH_TOKEN_NOT_FOUND)
+
+        if (savedToken != refreshToken) {
+            throw BusinessException(ErrorCode.INVALID_TOKEN)
+        }
+
+        val user = userRepository.findById(userId.toLongOrNull() ?: throw BusinessException(ErrorCode.USER_NOT_FOUND))
+            .orElseThrow { BusinessException(ErrorCode.USER_NOT_FOUND) }
+
+        val isCreatedProfile = userProfilesRepository.existsByUser_UserId(user.userId)
+        val userAuthAccount = userAuthAccountRepository.findByUserUserId(user.userId!!)
+
+        val rememberMe = jwtTokenProvider.getRememberMe(refreshToken)
+        val deviceId = jwtTokenProvider.getDeviceId(refreshToken)
+        val newAccessToken = jwtTokenProvider.createAccessToken(userId, user.role, rememberMe, deviceId)
+        val newRefreshToken = jwtTokenProvider.createRefreshToken(userId, rememberMe, deviceId)
+
+        refreshTokenService.saveRefreshToken(
+            userId = userId,
+            refreshToken = newRefreshToken,
+            expirationMs = jwtTokenProvider.getRefreshTokenValidity(rememberMe)
+        )
+
+        return Triple(
+            newAccessToken,
+            newRefreshToken,
+            LoginResponse(
+                userId = user.userId,
+                role = user.role,
+                isCreatedProfile = isCreatedProfile,
+                socialProvider = userAuthAccount?.socialProvider
+            )
+        )
+    }
+
+    fun sendEmailVerificationCode(email: String): Boolean {
+        if (userAuthAccountRepository.existsByEmail(email)) {
+            throw BusinessException(ErrorCode.EMAIL_DUPLICATED)
+        }
+
+        val verificationCode = generateVerificationCode()
+
+        val codeKey = "email:code:$email"
+        redisTemplate.opsForValue().set(codeKey, verificationCode, java.time.Duration.ofSeconds(180))
+
+        try {
+            emailService.sendVerificationEmail(email, verificationCode)
+        } catch (e: Exception) {
+            log.error("Failed to send email verification code to $email", e)
+            redisTemplate.delete(codeKey)
+            throw BusinessException(ErrorCode.EMAIL_SEND_FAILED)
+        }
+        return true
+    }
+
+    private fun generateVerificationCode(): String {
+        val charPool = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+        return (1..6)
+            .map { charPool.random() }
+            .joinToString("")
+    }
+
+    fun verifyEmailVerificationCode(email: String, code: String): Boolean {
+        val codeKey = "email:code:$email"
+        val storedCode = redisTemplate.opsForValue().get(codeKey)
+            ?: throw BusinessException(ErrorCode.EMAIL_VERIFICATION_EXPIRED)
+
+        if (storedCode == code) {
+            redisTemplate.delete(codeKey)
+            val verifiedKey = "email:verified:$email"
+            redisTemplate.opsForValue().set(verifiedKey, "true", java.time.Duration.ofSeconds(600))
+            return true
+        } else {
+            throw BusinessException(ErrorCode.EMAIL_VERIFICATION_CODE_MISMATCH)
+        }
+    }
+
+    fun sendFindIdentifierCode(email: String): Boolean {
+        userAuthAccountRepository.findByEmail(email)
+            ?: throw BusinessException(ErrorCode.USER_NOT_FOUND)
+
+        val verificationCode = generateVerificationCode()
+        val codeKey = "find-id:code:$email"
+        redisTemplate.opsForValue().set(codeKey, verificationCode, java.time.Duration.ofSeconds(180))
+
+        try {
+            emailService.sendVerificationEmail(
+                email,
+                verificationCode,
+                EmailService.VerificationPurpose.FIND_IDENTIFIER
+            )
+        } catch (e: Exception) {
+            redisTemplate.delete(codeKey)
+            log.error("Failed to send find-id verification email to $email", e)
+            throw BusinessException(ErrorCode.EMAIL_SEND_FAILED)
+        }
+        return true
+    }
+
+    fun verifyFindIdentifierCode(email: String, code: String): FindIdentifierResponse {
+        val codeKey = "find-id:code:$email"
+        val storedCode = redisTemplate.opsForValue().get(codeKey)
+            ?: throw BusinessException(ErrorCode.EMAIL_VERIFICATION_EXPIRED)
+
+        if (storedCode == code) {
+            redisTemplate.delete(codeKey)
+            val account = userAuthAccountRepository.findByEmail(email)
+                ?: throw BusinessException(ErrorCode.USER_NOT_FOUND)
+            return FindIdentifierResponse(account.identifier ?: "")
+        } else {
+            throw BusinessException(ErrorCode.EMAIL_VERIFICATION_CODE_MISMATCH)
+        }
+    }
+
+    fun sendResetPasswordCode(identifier: String, email: String): Boolean {
+        userAuthAccountRepository.findByIdentifierAndEmail(identifier, email)
+            ?: throw BusinessException(ErrorCode.USER_NOT_FOUND)
+
+        val verificationCode = generateVerificationCode()
+        val codeKey = "reset-pw:code:$email"
+        redisTemplate.opsForValue().set(codeKey, verificationCode, java.time.Duration.ofSeconds(180))
+
+        try {
+            emailService.sendVerificationEmail(
+                email,
+                verificationCode,
+                EmailService.VerificationPurpose.RESET_PASSWORD
+            )
+        } catch (e: Exception) {
+            redisTemplate.delete(codeKey)
+            log.error("Failed to send reset-pw verification email to $email", e)
+            throw BusinessException(ErrorCode.EMAIL_SEND_FAILED)
+        }
+        return true
+    }
+
+    fun verifyResetPasswordCode(email: String, code: String): Boolean {
+        val codeKey = "reset-pw:code:$email"
+        val storedCode = redisTemplate.opsForValue().get(codeKey)
+            ?: throw BusinessException(ErrorCode.EMAIL_VERIFICATION_EXPIRED)
+
+        if (storedCode == code) {
+            redisTemplate.delete(codeKey)
+            val verifiedKey = "reset-pw:verified:$email"
+            redisTemplate.opsForValue().set(verifiedKey, "true", java.time.Duration.ofSeconds(600))
+            return true
+        } else {
+            throw BusinessException(ErrorCode.EMAIL_VERIFICATION_CODE_MISMATCH)
+        }
+    }
+
+    @Transactional
+    fun resetPassword(request: ResetPasswordRequest): ResetPasswordResponse {
+        val verifiedKey = "reset-pw:verified:${request.email}"
+        val isVerified = redisTemplate.opsForValue().get(verifiedKey)
+        if (isVerified != "true") {
+            throw BusinessException(ErrorCode.EMAIL_NOT_VERIFIED)
+        }
+
+        val account = userAuthAccountRepository.findByIdentifierAndEmail(request.identifier, request.email)
+            ?: throw BusinessException(ErrorCode.USER_NOT_FOUND)
+
+        validatePassword(request.newPassword)
+
+        if (account.password != null && passwordEncoder.matches(request.newPassword, account.password)) {
+            throw BusinessException(ErrorCode.SAME_AS_OLD_PASSWORD)
+        }
+        val encodedPassword = passwordEncoder.encode(request.newPassword)
+        account.updatePassword(encodedPassword)
+        userAuthAccountRepository.save(account)
+
+        redisTemplate.delete(verifiedKey)
+
+        return ResetPasswordResponse(request.newPassword)
+    }
+
+    @Transactional
+    fun withdraw(userId: Long, request: WithdrawalRequest): WithdrawalResponse {
+        val user = userRepository.findById(userId)
+            .orElseThrow { BusinessException(ErrorCode.USER_NOT_FOUND) }
+
+        if (teamService.isLeaderOfAnyActiveTeam(userId)) {
+            throw BusinessException(ErrorCode.TEAM_LEADER_CANNOT_WITHDRAW)
+        }
+
+        user.withdraw()
+        refreshTokenService.deleteRefreshToken(userId.toString())
+        pushTokenService.deactivateAllUserTokens(userId)
+
+        userWithdrawalReasonRepository.save(
+            UserWithdrawalReason.of(
+                userId = userId,
+                withdrawalReason = request.withdrawalReason,
+                detailReason = request.detailReason
+            )
+        )
+
+        return WithdrawalResponse(
+            userId = userId,
+            requestedAt = user.withdrawnAt!!,
+            scheduledDeletionDate = user.withdrawnAt!!.plusDays(7)
+        )
+    }
+
+    fun logout(userId: Long, deviceId: String? = null) {
+        refreshTokenService.deleteRefreshToken(userId.toString())
+        if (!deviceId.isNullOrBlank()) {
+            pushTokenService.deactivateToken(userId, deviceId)
+        }
+    }
+
+    @Transactional(readOnly = true)
+    fun getWithdrawalInfo(userId: Long): UserWithdrawalInfoResponse {
+        userRepository.findById(userId)
+            .orElseThrow { BusinessException(ErrorCode.USER_NOT_FOUND) }
+
+        val teamCount = teamService.countActiveTeamsByUserId(userId)
+        val fileCount = teamCloudService.countUploadedFilesByUserId(userId) +
+                scheduleService.countScheduleFilesByUserId(userId)
+        val sharedMusicCount = teamCloudService.countScoresAndMusicsByUserId(userId)
+        val scheduleCount = scheduleService.countSchedulesByUserId(userId)
+
+        return UserWithdrawalInfoResponse(
+            teamCount = teamCount,
+            fileCount = fileCount,
+            sharedMusicCount = sharedMusicCount,
+            scheduleCount = scheduleCount
+        )
+    }
+}

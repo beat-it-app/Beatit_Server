@@ -1,0 +1,548 @@
+package com.beat_it.chat.service
+
+import com.beat_it.auth.service.UserService
+import com.beat_it.chat.dto.ChatMessageDetailResponse
+import com.beat_it.chat.dto.ChatMessageReadUserResponse
+import com.beat_it.chat.dto.ChatMessageRequest
+import com.beat_it.chat.dto.ChatRoomCreateRequest
+import com.beat_it.chat.dto.ChatRoomCreateResponse
+import com.beat_it.chat.dto.ChatRoomDetailResponse
+import com.beat_it.chat.dto.ChatRoomListResponse
+import com.beat_it.chat.dto.ChatRoomSummaryDto
+import com.beat_it.chat.dto.ChatRoomUpdateRequest
+import com.beat_it.chat.dto.ChatRoomUpdateResponse
+import com.beat_it.chat.dto.GetChatMessageQueryResponse
+import com.beat_it.chat.entity.ChatFiles
+import com.beat_it.chat.entity.ChatMember
+import com.beat_it.chat.entity.ChatMessage
+import com.beat_it.chat.entity.ChatMessageFiles
+import com.beat_it.chat.entity.ChatMessageType
+import com.beat_it.chat.entity.ChatRoom
+import com.beat_it.chat.entity.enum.ChatRoomType
+import com.beat_it.chat.entity.MediaCategory
+import com.beat_it.chat.event.ChatMessageReadEvent
+import com.beat_it.chat.event.ChatRoomCreatedEvent
+import com.beat_it.chat.repository.ChatFilesRepository
+import com.beat_it.chat.repository.ChatMemberRepository
+import com.beat_it.chat.repository.ChatMessageFilesRepository
+import com.beat_it.chat.repository.ChatMessageRepository
+import com.beat_it.chat.repository.ChatRepository
+import com.beat_it.global.error.BusinessException
+import com.beat_it.global.error.ErrorCode
+import com.beat_it.global.service.FileService
+import com.beat_it.global.util.formatBytes
+import com.beat_it.notification.event.NotificationEvent
+import com.beat_it.notification.template.NotificationTemplate
+import com.beat_it.team.service.TeamService
+import com.fasterxml.jackson.databind.ObjectMapper
+import org.slf4j.LoggerFactory
+import org.springframework.context.ApplicationEventPublisher
+import org.springframework.data.domain.PageRequest
+import org.springframework.kafka.core.KafkaTemplate
+import org.springframework.stereotype.Service
+import org.springframework.transaction.annotation.Transactional
+import org.springframework.web.multipart.MultipartFile
+import java.time.OffsetDateTime
+
+@Service
+class ChatService(
+    private val chatRepository: ChatRepository,
+    private val chatMemberRepository: ChatMemberRepository,
+    private val chatMessageRepository: ChatMessageRepository,
+    private val chatFilesRepository: ChatFilesRepository,
+    private val chatMessageFilesRepository: ChatMessageFilesRepository,
+    private val teamService: TeamService,
+    private val fileService: FileService,
+    private val applicationEventPublisher: ApplicationEventPublisher,
+    private val kafkaTemplate: KafkaTemplate<String, String>,
+    private val objectMapper: ObjectMapper,
+    private val userService: UserService
+) {
+    private val log = LoggerFactory.getLogger(javaClass)
+
+    @Transactional
+    fun createChatRoom(request: ChatRoomCreateRequest, currentUserId: Long): ChatRoomCreateResponse {
+
+        val teamId = userService.getCurrentTeamId(currentUserId)
+
+        val allParticipantIds = request.participantIds.toMutableList().apply {
+            if (!contains(currentUserId)) add(currentUserId)
+        }
+
+        val isValidTeamMembers = teamService.validateMembersInTeam(teamId, allParticipantIds)
+        if (!isValidTeamMembers) {
+            throw BusinessException(ErrorCode.INVALID_TEAM_PARTICIPANTS)
+        }
+
+        val roomType = if (request.participantIds.size == 1) ChatRoomType.DIRECT else ChatRoomType.GROUP
+
+        val chatRoom = ChatRoom(
+            teamId = teamId,
+            title = request.roomName?.takeIf { it.isNotBlank() },
+            type = roomType
+        )
+
+        val chatMembers = allParticipantIds.map { userId ->
+            ChatMember(chatRoom = chatRoom, userId = userId)
+        }
+        chatRoom.members.addAll(chatMembers)
+
+        val savedChatRoom = chatRepository.saveAndFlush(chatRoom)
+
+        val firstMessage = ChatMessage(
+            chatRoom = savedChatRoom,
+            senderId = currentUserId,
+            content = request.firstMessageContent,
+            type = ChatMessageType.TEXT
+        )
+        val savedMessage = chatMessageRepository.saveAndFlush(firstMessage)
+
+        val messageDetail = ChatMessageDetailResponse(
+            messageId = savedMessage.chatMessageId!!,
+            chatId = savedChatRoom.chatId!!,
+            senderId = currentUserId,
+            content = savedMessage.content,
+            messageType = savedMessage.type.name,
+            createdAt = savedMessage.createdAt
+        )
+
+        val payload = objectMapper.writeValueAsString(messageDetail)
+        kafkaTemplate.send("chat-topic", payload)
+
+        applicationEventPublisher.publishEvent(
+            ChatRoomCreatedEvent(
+                chatId = savedChatRoom.chatId!!,
+                roomName = savedChatRoom.title,
+                participantIds = allParticipantIds
+            )
+        )
+
+        sendChatNotification(
+            chatRoom = savedChatRoom,
+            senderId = currentUserId,
+            messageType = ChatMessageType.TEXT,
+            content = request.firstMessageContent
+        )
+
+        return ChatRoomCreateResponse(
+            chatId = savedChatRoom.chatId!!,
+            roomName = savedChatRoom.title,
+            createdAt = savedChatRoom.createdAt
+        )
+    }
+
+    @Transactional
+    fun sendMessage(chatId: Long, senderId: Long, request: ChatMessageRequest, file: MultipartFile?): ChatMessageDetailResponse {
+        val chatRoom = chatRepository.findById(chatId)
+            .orElseThrow { BusinessException(ErrorCode.CHAT_ROOM_NOT_FOUND) }
+
+        val type = try {
+            ChatMessageType.valueOf(request.messageType.uppercase())
+        } catch (e: IllegalArgumentException) {
+            throw BusinessException(ErrorCode.INVALID_MESSAGE_TYPE)
+        }
+
+        var savedChatFile: ChatFiles? = null
+
+        val hasFile = (file != null && !file.isEmpty) || !request.storageKey.isNullOrBlank()
+
+        val finalContent = if (hasFile) {
+            val uploadedResult = fileService.resolveFile(
+                file = file,
+                storageKey = request.storageKey,
+                directory = com.beat_it.global.service.FileDirectory.CHAT
+            ) ?: throw BusinessException(ErrorCode.EMPTY_FILE)
+
+            val chatFile = ChatFiles(
+                userId = senderId,
+                originalFileName = uploadedResult.originalFileName,
+                storageKey = uploadedResult.storageKey,
+                cdnUrl = uploadedResult.cdnUrl,
+                mediaCategory = when (type) {
+                    ChatMessageType.IMAGE -> MediaCategory.IMAGE
+                    ChatMessageType.VIDEO -> MediaCategory.VIDEO
+                    ChatMessageType.FILE -> MediaCategory.DOCUMENT
+                    else -> MediaCategory.AUDIO
+                },
+                fileSizeBytes = file?.size,
+                isPublic = true
+            )
+            savedChatFile = chatFilesRepository.save(chatFile)
+
+            uploadedResult.cdnUrl
+        } else {
+            if (type != ChatMessageType.TEXT) {
+                throw BusinessException(ErrorCode.FILE_REQUIRED)
+            }
+            request.content ?: throw BusinessException(ErrorCode.CHAT_MESSAGE_REQUIRED)
+        }
+
+        val chatMessage = ChatMessage(
+            chatRoom = chatRoom,
+            senderId = senderId,
+            content = finalContent,
+            type = type
+        )
+        val savedMessage = chatMessageRepository.saveAndFlush(chatMessage)
+        val savedMessageId = savedMessage.chatMessageId!!
+
+        val currentMember = chatMemberRepository.findByChatRoomChatIdAndUserId(chatId, senderId)
+        if (currentMember != null) {
+            if (currentMember.lastChatMessageId == null || currentMember.lastChatMessageId!! < savedMessageId) {
+                currentMember.lastChatMessageId = savedMessageId
+            }
+        }
+
+        if (savedChatFile != null) {
+            val chatMessageFile = ChatMessageFiles(
+                userId = senderId,
+                chatMessage = savedMessage,
+                chatFile = savedChatFile
+            )
+            chatMessageFilesRepository.save(chatMessageFile)
+        }
+
+        val messageDetail = ChatMessageDetailResponse(
+            messageId = savedMessage.chatMessageId!!,
+            chatId = chatId,
+            senderId = senderId,
+            content = savedMessage.content,
+            messageType = savedMessage.type.name,
+            createdAt = savedMessage.createdAt
+        )
+
+        val payload = objectMapper.writeValueAsString(messageDetail)
+        kafkaTemplate.send("chat-topic", payload)
+
+        sendChatNotification(
+            chatRoom = chatRoom,
+            senderId = senderId,
+            messageType = type,
+            content = if (type == ChatMessageType.TEXT) finalContent else null
+        )
+
+        return messageDetail
+    }
+
+    @Transactional
+    fun updateChatRoomName(chatId: Long, userId: Long, request: ChatRoomUpdateRequest): ChatRoomUpdateResponse {
+        val chatRoom = chatRepository.findById(chatId)
+            .orElseThrow { BusinessException(ErrorCode.CHAT_ROOM_NOT_FOUND) }
+
+        validateChatRoomMember(chatRoom, userId)
+
+        validateChatRoomNameNotBlank(request.roomName)
+
+        chatRoom.title = request.roomName
+        val updatedChatRoom = chatRepository.saveAndFlush(chatRoom)
+
+        return ChatRoomUpdateResponse(
+            chatId = updatedChatRoom.chatId!!,
+            roomName = updatedChatRoom.title,
+            updatedAt = updatedChatRoom.updatedAt
+        )
+    }
+
+    @Transactional
+    fun getChatRoomDetails(chatId: Long, currentUserId: Long, page: Int, size: Int): ChatRoomDetailResponse {
+        val chatRoom = chatRepository.findById(chatId)
+            .orElseThrow { BusinessException(ErrorCode.CHAT_ROOM_NOT_FOUND) }
+
+        validateChatRoomMember(chatRoom, currentUserId)
+
+        val currentMember = chatMemberRepository.findByChatRoomChatIdAndUserId(chatId, currentUserId)
+            ?: throw BusinessException(ErrorCode.FORBIDDEN)
+
+        val pageable = PageRequest.of(page, size)
+
+        val messageSlice = if (currentMember.leftAt != null) {
+            chatMessageRepository.findByChatRoomChatIdAndCreatedAtAfterOrderByChatMessageIdDesc(
+                chatId = chatId,
+                leftAt = currentMember.leftAt!!,
+                pageable = pageable
+            )
+        } else {
+            chatMessageRepository.findByChatRoomChatIdOrderByChatMessageIdDesc(chatId, pageable)
+        }
+
+        if (messageSlice.hasContent()) {
+            val latestMessageId = messageSlice.content.first().chatMessageId!!
+            if (currentMember.lastChatMessageId == null || currentMember.lastChatMessageId!! < latestMessageId) {
+                currentMember.lastChatMessageId = latestMessageId
+            }
+        }
+
+        val senderIds = messageSlice.content.map { it.senderId }.filter { it != currentUserId }.distinct()
+        val otherMembers = chatRoom.members.filter { it.userId != currentUserId && it.isParticipating }
+        val otherMemberUserIds = otherMembers.map { it.userId }
+
+        val targetUserIds = (senderIds + otherMemberUserIds).distinct()
+        val userProfileMap = if (targetUserIds.isNotEmpty()) {
+            userService.getUserProfiles(senderIds).associateBy { it.userId }
+        } else {
+            emptyMap()
+        }
+
+        val messageIds = messageSlice.content.mapNotNull { it.chatMessageId }
+        val messageFileMap = if (messageIds.isNotEmpty()) {
+            chatMessageFilesRepository.findAllByChatMessageChatMessageIdIn(messageIds)
+                .associate { it.chatMessage.chatMessageId!! to it.chatFile.fileSizeBytes }
+        } else {
+            emptyMap()
+        }
+
+        val readUsersByMessageId = otherMembers
+            .mapNotNull { member ->
+                val lastId = member.lastChatMessageId ?: return@mapNotNull null
+                val profile = userProfileMap[member.userId] ?: return@mapNotNull null
+                lastId to ChatMessageReadUserResponse(
+                    userId = member.userId,
+                    name = profile.name,
+                    profileImageUrl = profile.profileImageUrl
+                )
+            }
+            .groupBy({ it.first }, { it.second })
+
+        val messageResponses = messageSlice.content.map { message ->
+            val msgId = message.chatMessageId!!
+            val profileResponse = if (message.senderId == currentUserId) {
+                null
+            } else {
+                userProfileMap[message.senderId]
+            }
+
+            val readersAtThisMessage = readUsersByMessageId[msgId] ?: emptyList()
+
+            val fileSizeBytes = messageFileMap[msgId]
+            val fileSizeDisplay = fileSizeBytes?.let { formatBytes(it) }
+
+            GetChatMessageQueryResponse.of(
+                message = message,
+                profile = profileResponse,
+                currentUserId = currentUserId,
+                fileSizeBytes = fileSizeBytes,
+                fileSizeDisplay = fileSizeDisplay,
+                readByUsers = readersAtThisMessage
+            )
+        }.reversed()
+
+        return ChatRoomDetailResponse.of(
+            chatroomName = chatRoom.title,
+            participantCount = chatRoom.members.size,
+            messages = messageResponses,
+            hasNext = messageSlice.hasNext()
+        )
+    }
+
+    @Transactional(readOnly = true)
+    fun getChatRooms(currentUserId: Long): ChatRoomListResponse {
+
+        val currentTeamId = userService.getCurrentTeamId(currentUserId)
+        teamService.validateTeamMember(currentTeamId, currentUserId)
+
+        val chatRooms = chatRepository.findByTeamIdAndMembersUserIdAndIsParticipatingTrue(
+            teamId = currentTeamId,
+            userId = currentUserId
+        )
+
+        if (chatRooms.isEmpty()) {
+            return ChatRoomListResponse(emptyList())
+        }
+        val chatIds = chatRooms.map { chatRoom -> chatRoom.chatId!! }
+
+        val latestMessagesMap = chatMessageRepository.findTopMessagesByChatRoomChatIds(chatIds)
+            .associateBy { message -> message.chatRoom.chatId }
+
+        val allOtherMemberUserIds = chatRooms.flatMap { chatRoom ->
+            chatRoom.members
+                .filter { member -> member.userId != currentUserId }
+                .map { member -> member.userId }
+        }.distinct()
+
+        val userProfileMap = if (allOtherMemberUserIds.isNotEmpty()) {
+            userService.getUserProfiles(allOtherMemberUserIds).associateBy { profile -> profile.userId }
+        } else {
+            emptyMap()
+        }
+
+        val roomSummaries = chatRooms.map { chatRoom ->
+            val chatId = chatRoom.chatId!!
+            val currentMember = chatRoom.members.find { member -> member.userId == currentUserId }
+            val latestMessage = latestMessagesMap[chatId]
+
+            val unreadCount = if (latestMessage == null) {
+                0L
+            } else {
+                val lastReadId = currentMember?.lastChatMessageId
+                if (lastReadId == null) {
+                    chatMessageRepository.countAllUnreadMessages(chatId, currentUserId)
+                } else {
+                    chatMessageRepository.countUnreadMessages(chatId, lastReadId, currentUserId)
+                }
+            }
+
+            val otherMembers = chatRoom.members.filter { it.userId != currentUserId }
+            val profileImages: List<String> = if (chatRoom.type == ChatRoomType.DIRECT) {
+                val otherMember = otherMembers.firstOrNull()
+                otherMember?.let { member ->
+                    listOfNotNull(userProfileMap[member.userId]?.profileImageUrl)
+                } ?: emptyList()
+            } else {
+                chatRoom.members.mapNotNull { member ->
+                    userProfileMap[member.userId]?.profileImageUrl
+                }.take(4)
+            }
+
+            ChatRoomSummaryDto(
+                chatId = chatId,
+                roomName = chatRoom.title,
+                lastMessage = latestMessage?.content,
+                lastMessageTime = latestMessage?.createdAt,
+                unreadCount = unreadCount.toInt(),
+                profileImage = profileImages,
+                participantCount = chatRoom.members.size
+            )
+        }
+
+        return ChatRoomListResponse(chatroomList = roomSummaries)
+    }
+
+    @Transactional
+    fun updateLastReadMessage(chatId: Long, userId: Long, messageId: Long) {
+        val member = chatMemberRepository.findByChatRoomChatIdAndUserId(chatId, userId)
+            ?: throw BusinessException(ErrorCode.FORBIDDEN)
+
+        if (member.lastChatMessageId == null || member.lastChatMessageId!! < messageId) {
+            member.lastChatMessageId = messageId
+
+            val readEvent = ChatMessageReadEvent(
+                chatId = chatId,
+                userId = userId,
+                lastReadMessageId = messageId
+            )
+            val payload = objectMapper.writeValueAsString(readEvent)
+            kafkaTemplate.send("chat-topic", payload)
+        }
+    }
+
+    @Transactional
+    fun leaveChatRoom(chatId: Long, userId: Long) {
+        val member = findChatMemberWithChatRoomOrThrow(chatId, userId)
+        val chatRoom = member.chatRoom
+
+        if (chatRoom.type == ChatRoomType.DIRECT) {
+            member.leftAt = OffsetDateTime.now()
+            member.isParticipating = false
+        } else {
+
+            val remainingCount = chatMemberRepository.countByChatRoomChatId(chatId)
+
+            if (remainingCount <= 1L) {
+                chatMemberRepository.delete(member)
+                chatRepository.delete(chatRoom)
+                return
+            }
+
+            chatMemberRepository.delete(member)
+
+            val userProfile = userService.getUserProfiles(listOf(userId)).firstOrNull()
+            val userName = userProfile?.name ?: "알 수 없음"
+
+            val systemMessage = ChatMessage(
+                chatRoom = chatRoom,
+                senderId = userId,
+                content = "${userName}님이 채팅방을 나갔습니다.",
+                type = ChatMessageType.SYSTEM
+            )
+
+            val savedMessage = chatMessageRepository.saveAndFlush(systemMessage)
+
+            val messageDetail = ChatMessageDetailResponse(
+                messageId = savedMessage.chatMessageId!!,
+                chatId = chatId,
+                senderId = userId,
+                content = savedMessage.content,
+                messageType = savedMessage.type.name,
+                createdAt = savedMessage.createdAt
+            )
+            val payload = objectMapper.writeValueAsString(messageDetail)
+            kafkaTemplate.send("chat-topic", payload)
+        }
+    }
+
+    private fun validateChatRoomMember(chatRoom: ChatRoom, userId: Long) {
+        val chatId = chatRoom.chatId ?: throw BusinessException(ErrorCode.CHAT_ROOM_NOT_FOUND)
+        val isMember = chatMemberRepository.existsByChatRoomChatIdAndUserId(chatId, userId)
+        if (!isMember) {
+            throw BusinessException(ErrorCode.FORBIDDEN)
+        }
+    }
+
+    private fun validateChatRoomNameNotBlank(roomName: String?) {
+        if (roomName.isNullOrBlank()) {
+            throw BusinessException(ErrorCode.CHAT_ROOM_NAME_REQUIRED)
+        }
+    }
+
+    private fun findChatMemberWithChatRoomOrThrow(chatId: Long, userId: Long): ChatMember {
+        return chatMemberRepository.findByChatRoomChatIdAndUserIdWithChatRoom(chatId, userId)
+            ?: throw BusinessException(ErrorCode.CHAT_MEMBER_NOT_FOUND)
+    }
+
+    private fun sendChatNotification(
+        chatRoom: ChatRoom,
+        senderId: Long,
+        messageType: ChatMessageType,
+        content: String?
+    ) {
+        try {
+            val chatId = chatRoom.chatId ?: return
+            val members = chatMemberRepository.findByChatRoomChatIdAndIsParticipatingTrue(chatId)
+            val targetUserIds = members
+                .filter { it.userId != senderId && !it.isMuted }
+                .map { it.userId }
+
+            if (targetUserIds.isEmpty()) return
+
+            val teamName = try {
+                teamService.getTeamName(chatRoom.teamId)
+            } catch (e: Exception) {
+                log.warn("Failed to get teamName for teamId {}: {}", chatRoom.teamId, e.message)
+                "팀"
+            }
+
+            val senderName = try {
+                userService.getUserProfiles(listOf(senderId)).firstOrNull()?.name ?: "알 수 없음"
+            } catch (e: Exception) {
+                log.warn("Failed to get senderName for userId {}: {}", senderId, e.message)
+                "알 수 없음"
+            }
+
+            val displayContent = when (messageType) {
+                ChatMessageType.TEXT -> content ?: "새로운 메시지가 도착했습니다."
+                ChatMessageType.IMAGE -> "[사진]"
+                ChatMessageType.VIDEO -> "[동영상]"
+                ChatMessageType.FILE -> "[파일]"
+                ChatMessageType.SYSTEM -> content ?: ""
+            }
+
+            val notificationMessage = NotificationTemplate.chatMessage(
+                teamName = teamName,
+                chatRoomName = chatRoom.title,
+                senderName = senderName,
+                message = displayContent,
+                chatRoomId = chatId
+            )
+
+            applicationEventPublisher.publishEvent(
+                NotificationEvent(
+                    targetUserIds = targetUserIds,
+                    teamId = chatRoom.teamId,
+                    message = notificationMessage
+                )
+            )
+        } catch (e: Exception) {
+            log.error("Failed to publish chat notification event for chatId {}: {}", chatRoom.chatId, e.message, e)
+        }
+    }
+}

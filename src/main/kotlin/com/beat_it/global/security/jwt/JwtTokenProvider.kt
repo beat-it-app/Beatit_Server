@@ -1,0 +1,113 @@
+package com.beat_it.global.security.jwt
+
+import com.beat_it.auth.entity.enum.Role
+import com.beat_it.auth.service.UserDetailsService
+import io.jsonwebtoken.Claims
+import io.jsonwebtoken.ExpiredJwtException
+import io.jsonwebtoken.Jwts
+import io.jsonwebtoken.security.Keys
+import org.springframework.beans.factory.annotation.Value
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken
+import org.springframework.security.core.Authentication
+import org.springframework.stereotype.Component
+import java.util.Date
+import javax.crypto.SecretKey
+
+@Component
+class JwtTokenProvider(
+    @Value("\${jwt.secret}") private val secretKey: String,
+    @Value("\${jwt.expiration}") val accessTokenValidity: Long,
+    @Value("\${jwt.expiration-short:3600000}") val accessTokenShortValidity: Long,
+    @Value("\${jwt.refresh-expiration}") val refreshTokenValidity: Long,
+    @Value("\${jwt.refresh-expiration-short:86400000}") val refreshTokenShortValidity: Long,
+    private val userDetailsService: UserDetailsService
+) {
+    private val key: SecretKey = Keys.hmacShaKeyFor(secretKey.toByteArray())
+
+    fun createAccessToken(userId: String, role: Role, rememberMe: Boolean = true, deviceId: String? = null): String {
+        val now = Date()
+        val validityDuration = getAccessTokenValidity(rememberMe)
+        val validity = Date(now.time + validityDuration)
+
+        val builder = Jwts.builder()
+            .subject(userId)
+            .claim("role", role)
+            .claim("rememberMe", rememberMe)
+            .issuedAt(now)
+            .expiration(validity)
+
+        if (!deviceId.isNullOrBlank()) {
+            builder.claim("deviceId", deviceId)
+        }
+
+        return builder.signWith(key).compact()
+    }
+
+    fun createRefreshToken(userId: String, rememberMe: Boolean = true, deviceId: String? = null): String {
+        val now = Date()
+        val validityDuration = getRefreshTokenValidity(rememberMe)
+        val validity = Date(now.time + validityDuration)
+
+        val builder = Jwts.builder()
+            .subject(userId)
+            .claim("rememberMe", rememberMe)
+            .issuedAt(now)
+            .expiration(validity)
+
+        if (!deviceId.isNullOrBlank()) {
+            builder.claim("deviceId", deviceId)
+        }
+
+        return builder.signWith(key).compact()
+    }
+
+    fun getAccessTokenValidity(rememberMe: Boolean = true): Long {
+        return if (rememberMe) accessTokenValidity else accessTokenShortValidity
+    }
+
+    fun getRefreshTokenValidity(rememberMe: Boolean = true): Long {
+        return if (rememberMe) refreshTokenValidity else refreshTokenShortValidity
+    }
+
+    fun getRememberMe(token: String): Boolean {
+        return parseClaims(token)["rememberMe"] as? Boolean ?: true
+    }
+
+    fun getDeviceId(token: String): String? {
+        return parseClaims(token)["deviceId"] as? String
+    }
+
+    fun getAuthentication(token: String): Authentication {
+        val userDetails = userDetailsService.loadUserByUsername(getUserId(token))
+        val auth = UsernamePasswordAuthenticationToken(userDetails, "", userDetails.authorities)
+        getDeviceId(token)?.let { deviceId ->
+            auth.details = deviceId
+        }
+        return auth
+    }
+
+    fun getUserId(token: String): String {
+        return parseClaims(token).subject
+    }
+
+    fun validateToken(token: String): Boolean {
+        return try {
+            val claims = parseClaims(token)
+            !claims.expiration.before(Date())
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    private fun parseClaims(token: String): Claims {
+        return try {
+            Jwts.parser()
+                .verifyWith(key)
+                .build()
+                .parseSignedClaims(token)
+                .payload
+        } catch (e: ExpiredJwtException) {
+            e.claims
+        }
+    }
+}

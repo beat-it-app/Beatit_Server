@@ -1,0 +1,539 @@
+package com.beat_it.cal.service
+
+import com.beat_it.auth.service.UserService
+import com.beat_it.cal.dto.CalendarSchedule
+import com.beat_it.cal.dto.CalendarSchedulesResponse
+import com.beat_it.cal.dto.DateSchedule
+import com.beat_it.cal.dto.DateSchedulesResponse
+import com.beat_it.cal.dto.ParticipantResponse
+import com.beat_it.cal.dto.ScheduleCreateRequest
+import com.beat_it.cal.dto.ScheduleCreateResponse
+import com.beat_it.cal.dto.ScheduleDetailResponse
+import com.beat_it.cal.dto.ScheduleFileResponse
+import com.beat_it.cal.dto.ScheduleMusicResponse
+import com.beat_it.cal.dto.ScheduleParticipantProfileResponse
+import com.beat_it.cal.dto.ScheduleUpdateRequest
+import com.beat_it.cal.dto.UpcomingTeamScheduleResponse
+import com.beat_it.cal.entity.Schedule
+import com.beat_it.cal.repository.ScheduleFileRepository
+import com.beat_it.cal.repository.ScheduleParticipantRepository
+import com.beat_it.cal.repository.ScheduleRepository
+import com.beat_it.global.error.BusinessException
+import com.beat_it.global.error.ErrorCode
+import com.beat_it.global.service.FileService
+import com.beat_it.location.service.LocationsService
+import com.beat_it.team.service.TeamService
+import org.springframework.stereotype.Service
+import org.springframework.transaction.annotation.Transactional
+import org.springframework.web.multipart.MultipartFile
+import com.beat_it.notification.event.NotificationEvent
+import com.beat_it.notification.template.NotificationTemplate
+import org.springframework.context.ApplicationEventPublisher
+import java.time.LocalDate
+import java.time.LocalTime
+import java.time.OffsetDateTime
+import java.time.ZoneOffset
+
+@Service
+class ScheduleService(
+    private val scheduleRepository: ScheduleRepository,
+    private val scheduleParticipantRepository: ScheduleParticipantRepository,
+    private val scheduleFileRepository: ScheduleFileRepository,
+    private val teamService: TeamService,
+    private val userService: UserService,
+    private val fileService: FileService,
+    private val locationService: LocationsService,
+    private val eventPublisher: ApplicationEventPublisher
+) {
+
+    @Transactional
+    fun createSchedule(userId: Long, request: ScheduleCreateRequest, files: List<MultipartFile>?): ScheduleCreateResponse {
+
+        validateScheduleCommon(request.title, request.startsAt, request.endsAt)
+
+        val currentTeamId = userService.getCurrentTeamId(userId)
+        request.locationId?.let { locationService.validateLocationExists(it) }
+
+        teamService.validateTeamMember(currentTeamId, userId)
+
+        val schedule = Schedule(
+            teamId = currentTeamId,
+            userId = userId,
+            title = request.title!!,
+            content = request.content,
+            locationId = request.locationId,
+            startsAt = request.startsAt,
+            endsAt = request.endsAt
+        )
+
+        request.musics.forEach { music ->
+            schedule.addMusic(
+                musicTitle = music.musicTitle,
+                musicArtist = music.musicArtist,
+                musicPreviewUrl = music.musicPreviewUrl
+            )
+        }
+
+        uploadAndAttachFiles(schedule, files)
+
+        if (request.participantUserIds.isNotEmpty()) {
+            val isValidTeamMembers = teamService.validateMembersInTeam(currentTeamId, request.participantUserIds)
+            if (!isValidTeamMembers) {
+                throw BusinessException(ErrorCode.INVALID_TEAM_PARTICIPANTS)
+            }
+
+            request.participantUserIds.forEach { participantUserId ->
+                schedule.addParticipant(participantUserId)
+            }
+        }
+
+        val savedSchedule = scheduleRepository.save(schedule)
+
+        val targets = request.participantUserIds.filter { it != userId }
+        if (targets.isNotEmpty()) {
+            val teamName = teamService.getTeamName(currentTeamId)
+            eventPublisher.publishEvent(
+                NotificationEvent(
+                    targetUserIds = targets,
+                    teamId = currentTeamId,
+                    message = NotificationTemplate.scheduleRegistered(
+                        teamName = teamName,
+                        scheduleTitle = savedSchedule.title,
+                        scheduleId = savedSchedule.scheduleId
+                    )
+                )
+            )
+        }
+
+        return ScheduleCreateResponse(
+            scheduleId = savedSchedule.scheduleId!!,
+            title = savedSchedule.title,
+            startsAt = savedSchedule.startsAt,
+            endsAt = savedSchedule.endsAt,
+            locationId = savedSchedule.locationId,
+            createdAt = savedSchedule.createdAt
+        )
+    }
+
+    @Transactional
+    fun updateSchedule(scheduleId: Long, userId: Long, request: ScheduleUpdateRequest, files: List<MultipartFile>?): ScheduleCreateResponse {
+
+        validateScheduleCommon(request.title, request.startsAt, request.endsAt)
+        request.locationId?.let { locationService.validateLocationExists(it) }
+        val schedule = findScheduleOrThrow(scheduleId)
+
+        validateScheduleOwner(schedule.userId, userId)
+
+        if (isNotChanged(schedule, request, files)) {
+            throw BusinessException(ErrorCode.CALENDAR_NO_CONTENT_TO_UPDATE)
+        }
+
+        val existingParticipantIds = schedule.participants.map { it.userId }.toSet()
+
+        val addedParticipantIds = request.participantUserIds?.let { newIds ->
+            if (newIds.isNotEmpty()) {
+                val isValidTeamMembers = teamService.validateMembersInTeam(schedule.teamId, newIds)
+                if (!isValidTeamMembers) {
+                    throw BusinessException(ErrorCode.INVALID_TEAM_PARTICIPANTS)
+                }
+            }
+
+            schedule.participants.clear()
+            newIds.forEach { participantId ->
+                schedule.addParticipant(participantId)
+            }
+
+            newIds.filter { it !in existingParticipantIds && it != userId }
+        } ?: emptyList()
+
+        val retainMusicIds = request.retainMusicIds ?: emptyList()
+        schedule.musics.removeIf { it.id !in retainMusicIds }
+
+        request.musics?.forEach { musicRequest ->
+            schedule.addMusic(
+                musicTitle = musicRequest.musicTitle,
+                musicArtist = musicRequest.musicArtist,
+                musicPreviewUrl = musicRequest.musicPreviewUrl
+            )
+        }
+
+        val retainFileIds = request.retainFileIds ?: emptyList()
+
+        val filesToRemove = schedule.files.filter { it.id !in retainFileIds }
+        if (filesToRemove.isNotEmpty()) {
+            fileService.deleteFiles(filesToRemove.map { it.storageKey })
+        }
+        schedule.files.removeIf { it.id !in retainFileIds }
+
+        uploadAndAttachFiles(schedule, files)
+
+        schedule.update(
+            title = request.title!!,
+            content = request.content,
+            locationId = request.locationId,
+            startsAt = request.startsAt,
+            endsAt = request.endsAt
+        )
+
+        if (addedParticipantIds.isNotEmpty()) {
+            val teamName = teamService.getTeamName(schedule.teamId)
+            eventPublisher.publishEvent(
+                NotificationEvent(
+                    targetUserIds = addedParticipantIds,
+                    teamId = schedule.teamId,
+                    message = NotificationTemplate.scheduleMemberAdded(
+                        teamName = teamName,
+                        scheduleTitle = schedule.title,
+                        scheduleId = schedule.scheduleId
+                    )
+                )
+            )
+        }
+
+        return ScheduleCreateResponse(
+            scheduleId = schedule.scheduleId!!,
+            title = schedule.title,
+            startsAt = schedule.startsAt,
+            endsAt = schedule.endsAt,
+            locationId = request.locationId,
+            createdAt = schedule.createdAt
+        )
+    }
+
+    @Transactional
+    fun deleteSchedule(scheduleId: Long, userId: Long) {
+        val schedule = findScheduleOrThrow(scheduleId)
+
+        validateScheduleOwner(schedule.userId, userId)
+
+        if (schedule.files.isNotEmpty()) {
+            fileService.deleteFiles(schedule.files.map { it.storageKey })
+        }
+        scheduleRepository.delete(schedule)
+    }
+
+    @Transactional(readOnly = true)
+    fun getScheduleDetail(scheduleId: Long, userId: Long): ScheduleDetailResponse {
+        val schedule = findScheduleOrThrow(scheduleId)
+
+        val currentTeamId = userService.getCurrentTeamId(userId)
+        validateScheduleTeam(schedule.teamId, currentTeamId)
+
+        val fileResponses = schedule.files.map { file ->
+            ScheduleFileResponse(
+                fileId = file.id!!,
+                originalFileName = file.originalFileName,
+                cdnUrl = file.cdnUrl
+            )
+        }
+
+        val musicResponses = schedule.musics.map { music ->
+            ScheduleMusicResponse(
+                scheduleMusicId = music.id!!,
+                musicTitle = music.musicTitle,
+                musicArtist = music.musicArtist,
+                musicPreviewUrl = music.musicPreviewUrl
+            )
+        }
+
+        return ScheduleDetailResponse(
+            scheduleId = schedule.scheduleId!!,
+            teamId = schedule.teamId,
+            userId = schedule.userId,
+            locationId = schedule.locationId,
+            title = schedule.title,
+            content = schedule.content,
+            startsAt = schedule.startsAt,
+            endsAt = schedule.endsAt,
+            createdAt = schedule.createdAt,
+            updatedAt = schedule.updatedAt,
+            participants = schedule.participants.map { participant ->
+                ParticipantResponse(
+                    scheduleParticipantId = participant.scheduleParticipantId!!,
+                    userId = participant.userId
+                )
+            },
+            files = fileResponses,
+            musics = musicResponses
+        )
+    }
+
+    @Transactional(readOnly = true)
+    fun getUpcomingTeamSchedules(userId: Long): List<UpcomingTeamScheduleResponse> {
+        userService.validateUserExists(userId)
+
+        val teamId = userService.getCurrentTeamId(userId)
+        teamService.validateTeamMember(teamId, userId)
+
+        val startAt = OffsetDateTime.now()
+        val endAt = startAt.plusDays(7)
+        val schedules = scheduleRepository.findUpcomingByTeamIdAndRange(teamId, startAt, endAt)
+
+        val locationNamesById = locationService.getLocationNamesByIds(
+            schedules.mapNotNull { it.locationId }.distinct()
+        )
+
+        return schedules.map { schedule ->
+            UpcomingTeamScheduleResponse(
+                scheduleId = schedule.scheduleId ?: throw BusinessException(ErrorCode.CALENDAR_NOT_FOUND),
+                title = schedule.title,
+                startsAt = schedule.startsAt,
+                endsAt = schedule.endsAt,
+                locationName = schedule.locationId?.let(locationNamesById::get),
+            )
+        }
+    }
+
+    @Transactional(readOnly = true)
+    fun getCalendarSchedules(userId: Long, year: Int, month: Int): CalendarSchedulesResponse {
+        validateYearAndMonth(year, month)
+
+        val currentTeamId = userService.getCurrentTeamId(userId)
+        teamService.validateTeamMember(currentTeamId, userId)
+
+        val firstDayOfMonth = LocalDate.of(year, month, 1)
+        val lastDayOfMonth = firstDayOfMonth.withDayOfMonth(firstDayOfMonth.lengthOfMonth())
+
+        val startLocalDate = firstDayOfMonth.minusDays(6)
+        val endLocalDate = lastDayOfMonth.plusDays(6)
+
+        val zoneOffset = ZoneOffset.ofHours(9)
+        val startDateTime = OffsetDateTime.of(startLocalDate, LocalTime.MIN, zoneOffset)
+        val endDateTime = OffsetDateTime.of(endLocalDate, LocalTime.MAX, zoneOffset)
+
+        val schedules = scheduleRepository.findByTeamIdAndMonthRange(currentTeamId, startDateTime, endDateTime)
+
+        val calendarSchedules = schedules.map { schedule ->
+            CalendarSchedule(
+                scheduleId = schedule.scheduleId ?: throw BusinessException(ErrorCode.CALENDAR_NOT_FOUND),
+                title = schedule.title,
+                startsAt = schedule.startsAt,
+                endsAt = schedule.endsAt
+            )
+        }
+
+        return CalendarSchedulesResponse(items = calendarSchedules)
+    }
+
+    @Transactional(readOnly = true)
+    fun getDateSchedules(userId: Long, year: Int, month: Int, date: Int): DateSchedulesResponse {
+        validateYearMonthAndDate(year, month, date)
+
+        val currentTeamId = userService.getCurrentTeamId(userId)
+        teamService.validateTeamMember(currentTeamId, userId)
+
+        val targetLocalDate = LocalDate.of(year, month, date)
+
+        val zoneOffset = ZoneOffset.ofHours(9)
+        val startDateTime = OffsetDateTime.of(targetLocalDate, LocalTime.MIN, zoneOffset)
+        val endDateTime = OffsetDateTime.of(targetLocalDate, LocalTime.MAX, zoneOffset)
+
+        val schedules = scheduleRepository.findByTeamIdAndDailyRange(currentTeamId, startDateTime, endDateTime)
+
+        if (schedules.isEmpty()) {
+            return DateSchedulesResponse(items = emptyList())
+        }
+
+        val scheduleIds = schedules.mapNotNull { it.scheduleId }
+
+        val participants = scheduleParticipantRepository.findAllByScheduleScheduleIdIn(scheduleIds)
+
+        val participantUserIds = participants.map { it.userId }.distinct()
+        val userProfileMap = if (participantUserIds.isNotEmpty()) {
+            userService.getUserProfiles(participantUserIds).associateBy { it.userId }
+        } else {
+            emptyMap()
+        }
+
+        val participantsByScheduleId = participants.groupBy(
+            keySelector = { it.schedule.scheduleId!! },
+            valueTransform = { participant ->
+                val profile = userProfileMap[participant.userId]
+                ScheduleParticipantProfileResponse(
+                    userId = participant.userId,
+                    name = profile?.name ?: "알 수 없음",
+                    profileImageUrl = profile?.profileImageUrl
+                )
+            }
+        )
+
+        val dateSchedules = schedules.map { schedule ->
+            val scheduleId = schedule.scheduleId ?: throw BusinessException(ErrorCode.CALENDAR_NOT_FOUND)
+
+            DateSchedule(
+                scheduleId = scheduleId,
+                title = schedule.title,
+                content = schedule.content ?: "",
+                startsAt = schedule.startsAt,
+                endsAt = schedule.endsAt,
+                locationId = schedule.locationId,
+                participants = participantsByScheduleId[scheduleId] ?: emptyList()
+            )
+        }
+
+        return DateSchedulesResponse(items = dateSchedules)
+    }
+
+    private fun validateScheduleCommon(title: String?, startsAt: OffsetDateTime, endsAt: OffsetDateTime) {
+        if (title.isNullOrBlank()) {
+            throw BusinessException(ErrorCode.CALENDAR_TITLE_REQUIRED)
+        }
+
+        if (endsAt.isBefore(startsAt)) {
+            throw BusinessException(ErrorCode.CALENDAR_INVALID_TIME_RANGE)
+        }
+    }
+
+    private fun isNotChanged(schedule: Schedule, request: ScheduleUpdateRequest, files: List<MultipartFile>?): Boolean {
+        val isAnyFieldChanged =
+            (request.title != null && request.title != schedule.title) ||
+                    (request.content != null && request.content != schedule.content) ||
+                    (request.locationId != null && request.locationId != schedule.locationId) ||
+                    (request.startsAt != schedule.startsAt) ||
+                    (request.endsAt != schedule.endsAt)
+
+        val isParticipantsChanged = request.participantUserIds != null &&
+                !schedule.isParticipantsSame(request.participantUserIds)
+
+        val retainMusicIds = request.retainMusicIds ?: emptyList()
+        val isMusicsChanged = (schedule.musics.size != retainMusicIds.size) || !request.musics.isNullOrEmpty()
+
+        val retainFileIds = request.retainFileIds ?: emptyList()
+        val isFilesChanged = (schedule.files.size != retainFileIds.size) || !files.isNullOrEmpty()
+
+        return !(isAnyFieldChanged || isParticipantsChanged || isMusicsChanged || isFilesChanged)
+    }
+
+    private fun findScheduleOrThrow(scheduleId: Long): Schedule {
+        return scheduleRepository.findById(scheduleId)
+            .orElseThrow { BusinessException(ErrorCode.CALENDAR_NOT_FOUND) }
+    }
+
+    private fun validateScheduleOwner(ownerId: Long, requesterId: Long) {
+        if (ownerId != requesterId) {
+            throw BusinessException(ErrorCode.CALENDAR_NO_PERMISSION)
+        }
+    }
+
+    private fun validateScheduleTeam(scheduleTeamId: Long, currentTeamId: Long) {
+        if (scheduleTeamId != currentTeamId) {
+            throw BusinessException(ErrorCode.CALENDAR_TEAM_MISMATCH)
+        }
+    }
+
+    private fun validateYearAndMonth(year: Int, month: Int) {
+        if (year !in 1000..9999) {
+            throw BusinessException(ErrorCode.CALENDAR_INVALID_YEAR)
+        }
+        if (month !in 1..12) {
+            throw BusinessException(ErrorCode.CALENDAR_INVALID_MONTH)
+        }
+    }
+
+    private fun validateYearMonthAndDate(year: Int, month: Int, date: Int) {
+        if (year !in 1000..9999) {
+            throw BusinessException(ErrorCode.CALENDAR_INVALID_YEAR)
+        }
+
+        if (month !in 1..12) {
+            throw BusinessException(ErrorCode.CALENDAR_INVALID_MONTH)
+        }
+
+        try {
+            java.time.YearMonth.of(year, month).atDay(date)
+        } catch (e: java.time.DateTimeException) {
+            throw BusinessException(ErrorCode.CALENDAR_NON_EXISTENT_DATE)
+        }
+    }
+
+    @Transactional(readOnly = true)
+    fun sendUpcomingScheduleReminders(
+        now: OffsetDateTime = OffsetDateTime.now(),
+        windowMinutes: Long = 1L
+    ) {
+        val startDateTime = now.plusHours(24)
+        val endDateTime = startDateTime.plusMinutes(windowMinutes)
+
+        val upcomingSchedules = scheduleRepository.findByStartsAtBetween(startDateTime, endDateTime)
+
+        upcomingSchedules.forEach { schedule ->
+            val participantIds = (schedule.participants.map { it.userId } + schedule.userId).distinct()
+            if (participantIds.isNotEmpty()) {
+                val teamName = teamService.getTeamName(schedule.teamId)
+                eventPublisher.publishEvent(
+                    NotificationEvent(
+                        targetUserIds = participantIds,
+                        teamId = schedule.teamId,
+                        message = NotificationTemplate.scheduleReminderD1(
+                            teamName = teamName,
+                            scheduleTitle = schedule.title,
+                            scheduleId = schedule.scheduleId
+                        )
+                    )
+                )
+            }
+        }
+    }
+
+    private fun uploadAndAttachFiles(schedule: Schedule, files: List<MultipartFile>?) {
+        if (files.isNullOrEmpty()) return
+
+        val validFiles = files.filter { !it.isEmpty }
+        if (validFiles.isNotEmpty()) {
+            val uploadedFiles = fileService.uploadFiles(validFiles, com.beat_it.global.service.FileDirectory.SCHEDULE)
+            uploadedFiles.forEach { fileResult ->
+                schedule.addFile(
+                    originalFileName = fileResult.originalFileName,
+                    storageKey = fileResult.storageKey,
+                    cdnUrl = fileResult.cdnUrl
+                )
+            }
+        }
+    }
+
+    @Transactional(readOnly = true)
+    fun countSchedulesByUserId(userId: Long): Long {
+        return scheduleRepository.countSchedulesByUserId(userId)
+    }
+
+    @Transactional(readOnly = true)
+    fun countSchedulesByTeamIdAndUserId(teamId: Long, userId: Long): Long {
+        return scheduleRepository.countSchedulesByTeamIdAndUserId(teamId, userId)
+    }
+
+    @Transactional(readOnly = true)
+    fun countSchedulesByTeamId(teamId: Long): Long {
+        return scheduleRepository.countSchedulesByTeamId(teamId)
+    }
+
+    @Transactional(readOnly = true)
+    fun countScheduleFilesByUserId(userId: Long): Long {
+        return scheduleFileRepository.countByUserId(userId)
+    }
+
+    @Transactional(readOnly = true)
+    fun countScheduleFilesByTeamIdAndUserId(teamId: Long, userId: Long): Long {
+        return scheduleFileRepository.countByTeamIdAndUserId(teamId, userId)
+    }
+
+    @Transactional(readOnly = true)
+    fun countScheduleFilesByTeamId(teamId: Long): Long {
+        return scheduleFileRepository.countByTeamId(teamId)
+    }
+
+    @Transactional
+    fun deleteAllByTeamId(teamId: Long) {
+        val schedules = scheduleRepository.findAllByTeamId(teamId)
+        if (schedules.isEmpty()) return
+
+        val storageKeys = schedules.flatMap { schedule ->
+            schedule.files.map { it.storageKey }
+        }
+
+        scheduleRepository.deleteAll(schedules)
+
+        if (storageKeys.isNotEmpty()) {
+            fileService.deleteFiles(storageKeys)
+        }
+    }
+}

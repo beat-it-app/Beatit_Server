@@ -1,0 +1,868 @@
+package com.beat_it.team.service
+
+import com.beat_it.auth.entity.enum.MediaCategory
+import com.beat_it.auth.service.UserService
+import com.beat_it.global.error.BusinessException
+import com.beat_it.global.error.ErrorCode
+import com.beat_it.global.service.FileService
+import com.beat_it.location.service.LocationsService
+import com.beat_it.team.dto.*
+import com.beat_it.team.entity.ArchiveCommentMentions
+import com.beat_it.team.entity.ArchiveComments
+import com.beat_it.team.entity.ArchiveRatings
+import com.beat_it.team.entity.Archives
+import com.beat_it.team.entity.ArchivesFiles
+import com.beat_it.team.entity.Teams
+import com.beat_it.team.entity.enum.ArchiveSortType
+import com.beat_it.team.repository.ArchiveCommentMentionRepository
+import com.beat_it.team.repository.ArchiveCommentsRepository
+import com.beat_it.team.repository.ArchiveRatingsRepository
+import com.beat_it.team.repository.ArchiveRepository
+import com.beat_it.team.repository.ArchivesFilesRepository
+import com.beat_it.team.repository.TeamMembershipRepository
+import com.beat_it.notification.event.NotificationEvent
+import com.beat_it.notification.template.NotificationTemplate
+import org.springframework.context.ApplicationEventPublisher
+import org.springframework.data.domain.PageRequest
+import org.springframework.data.domain.Sort
+import org.springframework.stereotype.Service
+import org.springframework.transaction.annotation.Transactional
+import org.springframework.web.multipart.MultipartFile
+
+@Service
+class ArchiveService(
+    private val archiveRepository: ArchiveRepository,
+    private val archiveCommentsRepository: ArchiveCommentsRepository,
+    private val archiveCommentMentionRepository: ArchiveCommentMentionRepository,
+    private val archiveRatingsRepository: ArchiveRatingsRepository,
+    private val userService: UserService,
+    private val teamService: TeamService,
+    private val locationsService: LocationsService,
+    private val archivesFilesRepository: ArchivesFilesRepository,
+    private val teamMembershipRepository: TeamMembershipRepository,
+    private val fileService: FileService,
+    private val teamImageUploadService: TeamImageUploadService,
+    private val eventPublisher: ApplicationEventPublisher
+) {
+
+    private val mentionRegex = Regex("""@\{([^}]+)\}|@([a-zA-Z0-9가-힣_]+)""")
+
+    @Transactional
+    fun createArchive(
+        userId: Long,
+        request: ArchiveCreateRequest,
+        archiveImages: List<MultipartFile>?,
+    ): ArchiveCreateResponse {
+        validateTitle(request.title)
+        validateDescription(request.description)
+
+        val validImages = archiveImages.orEmpty().filterNot { it.isEmpty }
+        if (validImages.size > 10) {
+            throw BusinessException(ErrorCode.ARCHIVE_IMAGE_EXCEEDED)
+        }
+
+        val team = findCurrentTeamForArchiveOrThrow(userId)
+        val locationId = request.locationId
+            ?: throw BusinessException(ErrorCode.ARCHIVE_LOCATION_REQUIRED)
+        val location = locationsService.getLocation(locationId)
+
+        val archive = Archives(
+            writerId = userId,
+            team = team,
+            title = request.title,
+            roadAddress = location.roadAddress,
+            locationId = location.locationId,
+            description = request.description,
+            archiveImageUrl = null,
+            averageRating = 0.0,
+            ratingCount = 0,
+            commentCount = 0,
+            topArchive = false,
+        )
+
+        val savedArchive = archiveRepository.save(archive)
+
+        val savedArchiveFiles = saveArchiveImages(
+            archive = savedArchive,
+            userId = userId,
+            archiveImages = archiveImages,
+        )
+
+        savedArchive.updateArchiveImageUrl(savedArchiveFiles.firstOrNull()?.cdnUrl)
+
+        val teamMembers = teamService.getTeamMemberUserIds(team.teamId!!)
+        val targetUserIds = teamMembers.filter { it != userId }
+        if (targetUserIds.isNotEmpty()) {
+            eventPublisher.publishEvent(
+                NotificationEvent(
+                    targetUserIds = targetUserIds,
+                    teamId = team.teamId!!,
+                    message = NotificationTemplate.archiveRegistered(
+                        teamName = team.teamName,
+                        archiveTitle = savedArchive.title,
+                        archiveId = savedArchive.archiveId
+                    )
+                )
+            )
+        }
+
+        return ArchiveCreateResponse(
+            archiveId = savedArchive.archiveId!!,
+            teamId = team.teamId!!,
+            writerId = savedArchive.writerId,
+            title = savedArchive.title,
+            roadAddress = savedArchive.roadAddress,
+            locationId = savedArchive.locationId,
+            archiveImageUrls = savedArchiveFiles.map { archiveFile -> archiveFile.cdnUrl },
+            createdAt = savedArchive.createdAt,
+        )
+    }
+
+    @Transactional(readOnly = true)
+    fun getTeamArchives(
+        userId: Long,
+        sort: ArchiveSortType = ArchiveSortType.LATEST,
+        page: Int = 0,
+        size: Int = 10,
+    ): ArchiveListResponse {
+        val team = findCurrentTeamForArchiveOrThrow(userId)
+        val teamId = team.teamId!!
+
+        val archivesPage = when (sort) {
+            ArchiveSortType.LATEST -> {
+                val pageRequest = PageRequest.of(
+                    page,
+                    size,
+                    Sort.by(Sort.Direction.DESC, "createdAt")
+                        .and(Sort.by(Sort.Direction.DESC, "archiveId")),
+                )
+                archiveRepository.findAllByTeamTeamId(teamId, pageRequest)
+            }
+
+            ArchiveSortType.RATING_DESC -> {
+                archiveRepository.findAllByTeamTeamIdOrderByRatingDesc(
+                    teamId = teamId,
+                    pageable = PageRequest.of(page, size),
+                )
+            }
+        }
+
+        val pageArchives = archivesPage.content
+        val commentCounts = if (pageArchives.isEmpty()) {
+            emptyMap()
+        } else {
+            archiveCommentsRepository.countCommentsByArchiveIds(pageArchives.map { it.archiveId!! })
+                .associate { it.archiveId to it.commentCount.toInt() }
+        }
+        val archives = pageArchives.map { archive ->
+            archive.toListItemResponse(teamId, commentCounts[archive.archiveId] ?: 0)
+        }
+
+        return ArchiveListResponse(
+            archives = archives,
+            totalCount = archivesPage.totalElements.toInt(),
+            hasNext = archivesPage.hasNext(),
+        )
+    }
+
+    private fun Archives.toListItemResponse(teamId: Long, actualCommentCount: Int): ArchiveListItemResponse {
+        return ArchiveListItemResponse(
+            archiveId = archiveId!!,
+            teamId = teamId,
+            writerId = writerId,
+            title = title,
+            roadAddress = roadAddress,
+            archiveImageUrl = archiveImageUrl,
+            averageRating = roundedAverageRating(),
+            commentCount = actualCommentCount,
+        )
+    }
+
+    @Transactional(readOnly = true)
+    fun getArchiveDetail(userId: Long, archiveId: Long): ArchiveDetailResponse {
+        val archive = findAccessibleArchiveOrThrow(userId, archiveId)
+        val writerProfile = userService.getUserProfileResponse(archive.writerId)
+        val archiveImageUrls = archivesFilesRepository
+            .findAllByArchiveArchiveIdOrderByDisplayOrderAsc(archiveId)
+            .map { archiveFile -> archiveFile.cdnUrl }
+
+        val myRating = archiveRatingsRepository
+            .findByArchiveArchiveIdAndUserId(archiveId, userId)
+
+        val comments = archiveCommentsRepository
+            .findAllByArchiveArchiveIdOrderByCreatedAtAsc(archiveId)
+
+        val commentResponses = toCommentResponses(
+            comments = comments,
+            archiveWriterId = archive.writerId,
+            currentUserId = userId,
+        )
+
+        return ArchiveDetailResponse(
+            archiveId = archive.archiveId!!,
+            teamId = archive.team.teamId!!,
+            writerId = archive.writerId,
+            title = archive.title,
+            roadAddress = archive.roadAddress,
+            locationId = archive.locationId,
+            description = archive.description,
+            archiveImageUrls = archiveImageUrls,
+            writerName = writerProfile?.name ?: "알 수 없음",
+            writerProfileImageUrl = writerProfile?.profileImageUrl,
+            isWriter = archive.writerId == userId,
+            topArchive = archive.topArchive,
+            rating = ArchiveRatingResponse(
+                averageRating = archive.roundedAverageRating(),
+                ratingCount = archive.ratingCount,
+                myRating = myRating?.score,
+            ),
+            commentCount = commentResponses.sumOf { 1 + it.replies.size },
+            commentList = commentResponses,
+            createdAt = archive.createdAt,
+            updatedAt = archive.updatedAt,
+        )
+    }
+
+    @Transactional
+    fun updateArchive(
+        userId: Long,
+        archiveId: Long,
+        request: ArchiveUpdateRequest,
+        archiveImages: List<MultipartFile>?,
+    ): ArchiveUpdateResponse {
+        request.title?.let { validateTitle(it) }
+        validateDescription(request.description)
+
+        val archive = findAccessibleArchiveOrThrow(userId, archiveId)
+        validateArchiveUpdatePermission(userId, archive)
+        val existingFiles = archivesFilesRepository.findAllByArchiveArchiveIdOrderByDisplayOrderAsc(archiveId)
+        val retainList = request.retainArchiveImageUrls
+        val retainUrls = retainList?.toSet()
+        if (retainList != null &&
+            (retainList.distinct().size != retainList.size ||
+                !existingFiles.map { it.cdnUrl }.toSet().containsAll(retainList))) {
+            throw BusinessException(ErrorCode.INVALID_INPUT_VALUE)
+        }
+
+        val validImages = archiveImages.orEmpty().filterNot { it.isEmpty }
+        val retainedCount = if (retainUrls != null) {
+            existingFiles.count { it.cdnUrl in retainUrls }
+        } else {
+            if (validImages.isNotEmpty()) 0 else existingFiles.size
+        }
+        if (retainedCount + validImages.size > 10) {
+            throw BusinessException(ErrorCode.ARCHIVE_IMAGE_EXCEEDED)
+        }
+
+        validateArchiveChanged(
+            archive = archive,
+            request = request,
+            archiveImages = archiveImages,
+            existingFiles = existingFiles,
+        )
+
+        val location = request.locationId?.let { locationId ->
+            locationsService.getLocation(locationId)
+        }
+
+        archive.updateArchive(
+            title = request.title,
+            description = request.description,
+            roadAddress = location?.roadAddress,
+            locationId = location?.locationId,
+        )
+
+        updateArchiveImagesIfExists(
+            archive = archive,
+            userId = userId,
+            archiveImages = archiveImages,
+            existingFiles = existingFiles,
+            retainUrls = retainUrls,
+        )
+
+        val archiveImageUrls = archivesFilesRepository
+            .findAllByArchiveArchiveIdOrderByDisplayOrderAsc(archiveId)
+            .map { archiveFile -> archiveFile.cdnUrl }
+
+        return ArchiveUpdateResponse(
+            archiveId = archive.archiveId!!,
+            title = archive.title,
+            description = archive.description,
+            roadAddress = archive.roadAddress,
+            locationId = archive.locationId,
+            archiveImageUrls = archiveImageUrls,
+            updatedAt = archive.updatedAt,
+        )
+    }
+
+    @Transactional
+    fun deleteArchive(userId: Long, archiveId: Long) {
+        val archive = findAccessibleArchiveOrThrow(userId, archiveId)
+        validateArchiveDeletePermission(userId, archive)
+        val teamId = archive.team.teamId!!
+
+        deleteCommentsByArchive(archiveId)
+        archiveRatingsRepository.deleteByArchiveArchiveId(archiveId)
+        val imageKeys = archivesFilesRepository.findAllByArchiveArchiveId(archiveId).map { it.storageKey }
+        archivesFilesRepository.deleteAllByArchiveArchiveId(archiveId)
+
+        archiveRepository.delete(archive)
+        archiveRepository.flush()
+        deleteFilesAfterCommit(imageKeys)
+        refreshTopArchives(teamId)
+    }
+
+    @Transactional
+    fun saveRating(
+        userId: Long,
+        archiveId: Long,
+        rating: Int,
+    ): ArchiveRatingResponse {
+        validateRating(rating)
+
+        val archive = findAccessibleArchiveOrThrow(userId, archiveId)
+        val existingRating = archiveRatingsRepository
+            .findByArchiveArchiveIdAndUserId(archiveId, userId)
+
+        if (existingRating == null) {
+            archiveRatingsRepository.saveAndFlush(
+                ArchiveRatings(
+                    archive = archive,
+                    userId = userId,
+                    score = rating,
+                )
+            )
+            archive.increaseRatingCount()
+        } else {
+            existingRating.updateScore(rating)
+            archiveRatingsRepository.saveAndFlush(existingRating)
+        }
+
+        val averageRating = archiveRatingsRepository
+            .findAverageScoreByArchiveId(archiveId)
+            ?: 0.0
+
+        archive.updateAverageRating(averageRating)
+        refreshTopArchives(archive.team.teamId!!)
+
+        return ArchiveRatingResponse(
+            averageRating = archive.roundedAverageRating(),
+            ratingCount = archive.ratingCount,
+            myRating = rating,
+        )
+    }
+
+    @Transactional
+    fun deleteRating(userId: Long, archiveId: Long): ArchiveRatingResponse {
+        val archive = findAccessibleArchiveOrThrow(userId, archiveId)
+        val existingRating = archiveRatingsRepository
+            .findByArchiveArchiveIdAndUserId(archiveId, userId)
+
+        if (existingRating != null) {
+            archiveRatingsRepository.delete(existingRating)
+            archiveRatingsRepository.flush()
+
+            archive.decreaseRatingCount()
+            val averageRating = archiveRatingsRepository
+                .findAverageScoreByArchiveId(archiveId)
+                ?: 0.0
+            archive.updateAverageRating(averageRating)
+            refreshTopArchives(archive.team.teamId!!)
+        }
+
+        return ArchiveRatingResponse(
+            averageRating = archive.roundedAverageRating(),
+            ratingCount = archive.ratingCount,
+            myRating = null,
+        )
+    }
+
+    @Transactional
+    fun createComment(
+        userId: Long,
+        archiveId: Long,
+        comment: String,
+        parentCommentId: Long? = null,
+        mentionedUserIds: List<Long>? = null,
+    ) {
+        val archive = findAccessibleArchiveOrThrow(userId, archiveId)
+        validateComment(comment)
+
+        var effectiveParentId: Long? = null
+        var parentCommentWriterId: Long? = null
+
+        parentCommentId?.let { requestedParentId ->
+            val parentComment = archiveCommentsRepository
+                .findByArchiveCommentIdAndArchiveArchiveId(requestedParentId, archiveId)
+                ?: throw BusinessException(ErrorCode.ARCHIVE_COMMENT_NOT_FOUND)
+
+            effectiveParentId = parentComment.parentCommentId ?: parentComment.archiveCommentId
+            parentCommentWriterId = parentComment.userId
+        }
+
+        val archiveComment = ArchiveComments.create(
+            archive = archive,
+            userId = userId,
+            content = comment,
+            parentCommentId = effectiveParentId,
+        )
+
+        val savedComment = archiveCommentsRepository.save(archiveComment)
+        val directToPath = "/archives/$archiveId"
+        saveMentions(
+            comment = savedComment,
+            teamId = archive.team.teamId!!,
+            content = comment,
+            explicitMentionedUserIds = mentionedUserIds,
+            directTo = directToPath
+        )
+        archive.increaseComment()
+
+        val teamName = archive.team.teamName
+
+        if (parentCommentWriterId != null) {
+            if (parentCommentWriterId != userId) {
+                eventPublisher.publishEvent(
+                    NotificationEvent(
+                        targetUserId = parentCommentWriterId!!,
+                        teamId = archive.team.teamId!!,
+                        message = NotificationTemplate.replyCreated(
+                            teamName = teamName,
+                            postTitle = archive.title,
+                            postId = archiveId,
+                            directTo = directToPath
+                        )
+                    )
+                )
+            }
+            if (archive.writerId != userId && archive.writerId != parentCommentWriterId) {
+                eventPublisher.publishEvent(
+                    NotificationEvent(
+                        targetUserId = archive.writerId,
+                        teamId = archive.team.teamId!!,
+                        message = NotificationTemplate.commentCreated(
+                            teamName = teamName,
+                            postTitle = archive.title,
+                            postId = archiveId,
+                            directTo = directToPath
+                        )
+                    )
+                )
+            }
+        } else {
+            if (archive.writerId != userId) {
+                eventPublisher.publishEvent(
+                    NotificationEvent(
+                        targetUserId = archive.writerId,
+                        teamId = archive.team.teamId!!,
+                        message = NotificationTemplate.commentCreated(
+                            teamName = teamName,
+                            postTitle = archive.title,
+                            postId = archiveId,
+                            directTo = directToPath
+                        )
+                    )
+                )
+            }
+        }
+    }
+
+    @Transactional
+    fun deleteComment(
+        userId: Long,
+        archiveId: Long,
+        commentId: Long,
+    ) {
+        val archive = findAccessibleArchiveOrThrow(userId, archiveId)
+        val comment = archiveCommentsRepository
+            .findByArchiveCommentIdAndArchiveArchiveId(commentId, archiveId)
+            ?: throw BusinessException(ErrorCode.ARCHIVE_COMMENT_NOT_FOUND)
+
+        validateCommentDeletePermission(
+            comment = comment,
+            userId = userId,
+            archiveWriterId = archive.writerId,
+        )
+
+        var totalDeletedCount = 1
+
+        if (comment.parentCommentId == null) {
+            val childReplies = archiveCommentsRepository.findByParentCommentId(commentId)
+            if (childReplies.isNotEmpty()) {
+                val childReplyIds = childReplies.mapNotNull { reply -> reply.archiveCommentId }
+                if (childReplyIds.isNotEmpty()) {
+                    archiveCommentMentionRepository.deleteByCommentArchiveCommentIdIn(childReplyIds)
+                }
+                archiveCommentsRepository.deleteAll(childReplies)
+                totalDeletedCount += childReplies.size
+            }
+        }
+
+        archiveCommentMentionRepository.deleteByComment(comment)
+        archiveCommentsRepository.delete(comment)
+        archive.decreaseComment(totalDeletedCount)
+    }
+
+    private fun saveArchiveImages(
+        archive: Archives,
+        userId: Long,
+        archiveImages: List<MultipartFile>?,
+        startOrder: Int = 0,
+    ): List<ArchivesFiles> {
+        val validImages = archiveImages
+            .orEmpty()
+            .filterNot { archiveImage -> archiveImage.isEmpty }
+
+        if (validImages.isEmpty()) return emptyList()
+        val uploads = teamImageUploadService.uploadImages(validImages)
+        val archiveFiles = uploads.mapIndexed { index, result ->
+            ArchivesFiles(
+                archive = archive,
+                userId = userId,
+                originalFileName = result.originalFileName,
+                storageKey = result.storageKey,
+                cdnUrl = result.cdnUrl,
+                mimeType = validImages[index].contentType,
+                mediaCategory = MediaCategory.IMAGE,
+                fileSizeBytes = validImages[index].size,
+                displayOrder = startOrder + index,
+                isPublic = true,
+            )
+        }
+
+        deleteFilesOnRollback(uploads.map { it.storageKey })
+
+        return archivesFilesRepository.saveAll(archiveFiles)
+    }
+
+    private fun updateArchiveImagesIfExists(
+        archive: Archives,
+        userId: Long,
+        archiveImages: List<MultipartFile>?,
+        existingFiles: List<ArchivesFiles>,
+        retainUrls: Set<String>?,
+    ) {
+        val validImages = archiveImages.orEmpty().filterNot { it.isEmpty }
+        if (validImages.isEmpty() && retainUrls == null) return
+
+        val urlsToRetain = retainUrls ?: emptySet()
+        val retainedFiles = existingFiles.filter { it.cdnUrl in urlsToRetain }
+        val filesToRemove = existingFiles.filterNot { it.cdnUrl in urlsToRetain }
+
+        if (filesToRemove.isNotEmpty()) {
+            archivesFilesRepository.deleteAll(filesToRemove)
+        }
+
+        retainedFiles.forEachIndexed { index, file ->
+            if (file.displayOrder != index) {
+                file.displayOrder = index
+                archivesFilesRepository.save(file)
+            }
+        }
+
+        val addedFiles = saveArchiveImages(
+            archive = archive,
+            userId = userId,
+            archiveImages = validImages,
+            startOrder = retainedFiles.size,
+        )
+
+        archive.updateArchiveImageUrl((retainedFiles + addedFiles).firstOrNull()?.cdnUrl)
+        deleteFilesAfterCommit(filesToRemove.map { it.storageKey })
+    }
+
+    private fun deleteFilesAfterCommit(keys: List<String>) {
+        if (keys.isEmpty()) return
+        org.springframework.transaction.support.TransactionSynchronizationManager.registerSynchronization(
+            object : org.springframework.transaction.support.TransactionSynchronization {
+                override fun afterCommit() {
+                    runCatching { fileService.deleteFiles(keys) }
+                }
+            }
+        )
+    }
+
+    private fun deleteFilesOnRollback(keys: List<String>) {
+        if (keys.isEmpty()) return
+        org.springframework.transaction.support.TransactionSynchronizationManager.registerSynchronization(
+            object : org.springframework.transaction.support.TransactionSynchronization {
+                override fun afterCompletion(status: Int) {
+                    if (status != org.springframework.transaction.support.TransactionSynchronization.STATUS_COMMITTED) {
+                        runCatching { fileService.deleteFiles(keys) }
+                    }
+                }
+            }
+        )
+    }
+
+    private fun toCommentResponses(
+        comments: List<ArchiveComments>,
+        archiveWriterId: Long,
+        currentUserId: Long,
+    ): List<ArchiveCommentResponse> {
+        if (comments.isEmpty()) {
+            return emptyList()
+        }
+
+        val commentUserIds = comments.map { comment -> comment.userId }
+        val mentions = archiveCommentMentionRepository.findByCommentIn(comments)
+        val mentionsByCommentId = mentions.groupBy { mention -> mention.comment.archiveCommentId }
+        val mentionedUserIds = mentions.map { mention -> mention.mentionedUserId }
+
+        val allUserIds = (commentUserIds + mentionedUserIds).distinct()
+        val userProfilesMap = userService.getUserProfiles(allUserIds)
+            .associateBy { profile -> profile.userId }
+
+        val allCommentResponses = comments.map { comment ->
+            val writerProfile = userProfilesMap[comment.userId]
+            val commentMentions = mentionsByCommentId[comment.archiveCommentId] ?: emptyList()
+            val mentionedUserResponses = commentMentions.map { mention ->
+                val mentionedProfile = userProfilesMap[mention.mentionedUserId]
+                ArchiveMentionUserResponse(
+                    userId = mention.mentionedUserId,
+                    name = mentionedProfile?.name ?: mention.mentionedName,
+                    profileImageUrl = mentionedProfile?.profileImageUrl,
+                )
+            }
+
+            ArchiveCommentResponse(
+                commentId = comment.archiveCommentId!!,
+                parentCommentId = comment.parentCommentId,
+                writerName = writerProfile?.name ?: "알 수 없음",
+                content = comment.content,
+                createdAt = comment.createdAt,
+                profileImageUrl = writerProfile?.profileImageUrl,
+                isWriter = comment.userId == archiveWriterId,
+                isMine = comment.userId == currentUserId,
+                mentionedUsers = mentionedUserResponses,
+                replies = emptyList(),
+            )
+        }
+
+        val (rootComments, replyComments) = allCommentResponses.partition { response ->
+            response.parentCommentId == null
+        }
+        val repliesByParentId = replyComments.groupBy { response -> response.parentCommentId }
+
+        return rootComments.map { root ->
+            root.copy(replies = repliesByParentId[root.commentId] ?: emptyList())
+        }
+    }
+
+    private fun saveMentions(
+        comment: ArchiveComments,
+        teamId: Long,
+        content: String,
+        explicitMentionedUserIds: List<Long>?,
+        directTo: String? = null
+    ) {
+        val activeMembers = teamMembershipRepository.findAllByTeamTeamId(teamId)
+        if (activeMembers.isEmpty()) {
+            return
+        }
+
+        val activeMemberUserIds = activeMembers.map { membership -> membership.userId }.toSet()
+        val memberProfiles = userService.getUserProfiles(activeMemberUserIds.toList())
+        val profileByName = memberProfiles.associateBy { profile -> profile.name }
+        val profileById = memberProfiles.associateBy { profile -> profile.userId }
+
+        val mentionsToSave = mutableListOf<ArchiveCommentMentions>()
+        val alreadyMentionedUserIds = mutableSetOf<Long>()
+
+        explicitMentionedUserIds?.distinct()?.forEach { mentionedUserId ->
+            if (mentionedUserId in activeMemberUserIds) {
+                profileById[mentionedUserId]?.let { profile ->
+                    mentionsToSave.add(
+                        ArchiveCommentMentions.create(
+                            comment = comment,
+                            mentionedUserId = profile.userId,
+                            mentionedName = profile.name,
+                        )
+                    )
+                    alreadyMentionedUserIds.add(profile.userId)
+                }
+            }
+        }
+
+        extractMentionNames(content).forEach { name ->
+            profileByName[name]?.let { profile ->
+                if (profile.userId !in alreadyMentionedUserIds) {
+                    mentionsToSave.add(
+                        ArchiveCommentMentions.create(
+                            comment = comment,
+                            mentionedUserId = profile.userId,
+                            mentionedName = profile.name,
+                        )
+                    )
+                    alreadyMentionedUserIds.add(profile.userId)
+                }
+            }
+        }
+
+        if (mentionsToSave.isNotEmpty()) {
+            archiveCommentMentionRepository.saveAll(mentionsToSave)
+
+            val targetMentionedUserIds = alreadyMentionedUserIds.filter { it != comment.userId }
+            if (targetMentionedUserIds.isNotEmpty()) {
+                val teamName = teamService.getTeamName(teamId)
+                val mentionerName = userService.getUserProfile(comment.userId)?.name ?: "누군가"
+                eventPublisher.publishEvent(
+                    NotificationEvent(
+                        targetUserIds = targetMentionedUserIds,
+                        teamId = teamId,
+                        message = NotificationTemplate.commentMentioned(
+                            teamName = teamName,
+                            mentionerName = mentionerName,
+                            postId = comment.archive.archiveId,
+                            directTo = directTo
+                        )
+                    )
+                )
+            }
+        }
+    }
+
+    private fun extractMentionNames(content: String): List<String> {
+        return mentionRegex.findAll(content)
+            .mapNotNull { match ->
+                (match.groups[1]?.value ?: match.groups[2]?.value)
+                    ?.trim()
+                    ?.takeIf { name -> name.isNotBlank() }
+            }
+            .distinct()
+            .toList()
+    }
+
+    private fun deleteCommentsByArchive(archiveId: Long) {
+        val comments = archiveCommentsRepository.findAllByArchiveArchiveIdOrderByCreatedAtAsc(archiveId)
+        if (comments.isEmpty()) {
+            return
+        }
+
+        val commentIds = comments.mapNotNull { comment -> comment.archiveCommentId }
+        if (commentIds.isNotEmpty()) {
+            archiveCommentMentionRepository.deleteByCommentArchiveCommentIdIn(commentIds)
+        }
+        archiveCommentsRepository.deleteByArchiveArchiveId(archiveId)
+    }
+
+    private fun refreshTopArchives(teamId: Long) {
+        val archives = archiveRepository.findAllByTeamTeamId(teamId)
+        val maxAverageRating = archives
+            .filter { archive -> archive.ratingCount > 0 }
+            .maxOfOrNull { archive -> archive.averageRating }
+
+        archives.forEach { archive ->
+            archive.updateTopArchive(
+                topArchive = maxAverageRating != null &&
+                        archive.ratingCount > 0 &&
+                        archive.averageRating == maxAverageRating,
+            )
+        }
+    }
+
+    private fun findAccessibleArchiveOrThrow(
+        userId: Long,
+        archiveId: Long,
+    ): Archives {
+        val team = findCurrentTeamForArchiveOrThrow(userId)
+        val archive = findArchiveOrThrow(archiveId)
+
+        validateArchiveBelongsToCurrentTeam(team, archive)
+        return archive
+    }
+
+    private fun findArchiveOrThrow(archiveId: Long): Archives {
+        return archiveRepository.findByArchiveId(archiveId)
+            ?: throw BusinessException(ErrorCode.ARCHIVE_NOT_FOUND)
+    }
+
+    private fun findCurrentTeamForArchiveOrThrow(userId: Long): Teams {
+        userService.validateUserExists(userId)
+
+        val teamId = userService.getCurrentTeamId(userId)
+        val team = teamService.findTeamForCommandOrThrow(teamId)
+
+        teamService.validateTeamMember(teamId, userId)
+
+        return team
+    }
+
+    private fun validateArchiveBelongsToCurrentTeam(team: Teams, archive: Archives) {
+        if (archive.team.teamId != team.teamId) {
+            throw BusinessException(ErrorCode.ARCHIVE_NO_PERMISSION)
+        }
+    }
+
+    private fun validateArchiveUpdatePermission(userId: Long, archive: Archives) {
+        if (archive.writerId != userId) {
+            throw BusinessException(ErrorCode.ARCHIVE_NO_UPDATE_PERMISSION)
+        }
+    }
+
+    private fun validateArchiveDeletePermission(userId: Long, archive: Archives) {
+        if (archive.writerId != userId) {
+            throw BusinessException(ErrorCode.ARCHIVE_NO_DELETE_PERMISSION)
+        }
+    }
+
+    private fun validateTitle(title: String) {
+        if (title.isBlank()) {
+            throw BusinessException(ErrorCode.ARCHIVE_TITLE_REQUIRED)
+        }
+
+        if (title.length > 100) {
+            throw BusinessException(ErrorCode.ARCHIVE_TITLE_TOO_LONG)
+        }
+    }
+
+    private fun validateDescription(description: String?) {
+        if ((description?.length ?: 0) > 500) {
+            throw BusinessException(ErrorCode.ARCHIVE_DESCRIPTION_TOO_LONG)
+        }
+    }
+
+    private fun validateComment(content: String) {
+        if (content.isBlank() || content.length > 1000) {
+            throw BusinessException(ErrorCode.ARCHIVE_INVALID_COMMENT_CONTENT)
+        }
+    }
+
+    private fun validateRating(score: Int) {
+        if (score !in 1..5) {
+            throw BusinessException(ErrorCode.ARCHIVE_INVALID_RATING)
+        }
+    }
+
+    private fun validateCommentDeletePermission(
+        comment: ArchiveComments,
+        userId: Long,
+        archiveWriterId: Long,
+    ) {
+        if (comment.userId != userId && archiveWriterId != userId) {
+            throw BusinessException(ErrorCode.ARCHIVE_COMMENT_NO_DELETE_PERMISSION)
+        }
+    }
+
+    private fun validateArchiveChanged(
+        archive: Archives,
+        request: ArchiveUpdateRequest,
+        archiveImages: List<MultipartFile>?,
+        existingFiles: List<ArchivesFiles>,
+    ) {
+        val hasNewImages = archiveImages.orEmpty().any { !it.isEmpty }
+        val retainedUrls = request.retainArchiveImageUrls?.toSet()
+        val isImageChanged = hasNewImages ||
+            (retainedUrls != null && retainedUrls != existingFiles.map { it.cdnUrl }.toSet())
+
+        val isAnyFieldChanged =
+            (request.title != null && request.title != archive.title) ||
+                    (request.description != null && request.description != archive.description) ||
+                    (request.locationId != null && request.locationId != archive.locationId) ||
+                    isImageChanged
+
+        if (!isAnyFieldChanged) {
+            throw BusinessException(ErrorCode.ARCHIVE_NO_CONTENT_TO_UPDATE)
+        }
+    }
+}

@@ -1,0 +1,30 @@
+package com.beat_it.post.dto.poll
+
+import com.beat_it.post.entity.enum.PollType
+import com.fasterxml.jackson.annotation.JsonProperty
+import java.time.OffsetDateTime
+
+data class PollRequest(
+    val title: String,
+    val content: String?,
+    val pollType: PollType,
+    val pollList: List<PollItemRequest>,
+    val allowMultipleChoice: Boolean?,
+    @JsonProperty("isAnonymous")
+    val isAnonymous: Boolean?,
+    val remindBeforeClose: Boolean?,
+    val closeAt: OffsetDateTime?
+)
+
+data class PollItemRequest(
+    val content: String? = null,
+    val music: PollMusicRequest? = null,
+    val location: String? = null,
+    val locationId: Long? = null
+)
+
+data class PollMusicRequest(
+    val title: String,
+    val artist: String,
+    val previewUrl: String?
+)
