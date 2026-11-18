@@ -43,7 +43,7 @@ enum class NotificationType(
     COMMENT_MENTIONED(NotificationCategory.POST, "댓글 멘션", true, true),
 
     // 7. 채팅
-    CHAT_MESSAGE(NotificationCategory.CHAT, "채팅", true, false)
+    CHAT_MESSAGE(NotificationCategory.CHAT, "채팅", true, true)
 }
 
 data class NotificationMessage(
@@ -400,7 +400,7 @@ object NotificationTemplate {
         )
     }
 
-    // 7-1. 채팅 (수신: 채팅방 참여자 / direct to: 해당 채팅방 / toast: false)
+    // 7-1. 채팅 (수신: 채팅방 참여자 / direct to: 해당 채팅방 / toast: true)
     fun chatMessage(
         teamName: String,
         chatRoomName: String?,
@@ -423,7 +423,7 @@ object NotificationTemplate {
             directTo = chatRoomId?.let { "/chats/$it" } ?: "/chats",
             targetId = chatRoomId,
             isPush = true,
-            isToast = false
+            isToast = true
         )
     }
 }
