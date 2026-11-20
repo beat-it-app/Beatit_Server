@@ -656,7 +656,7 @@ class ArchiveService(
         explicitMentionedUserIds: List<Long>?,
         directTo: String? = null
     ) {
-        val activeMembers = teamMembershipRepository.findAllByTeamTeamId(teamId)
+        val activeMembers = teamMembershipRepository.findAllActiveByTeamId(teamId)
         if (activeMembers.isEmpty()) {
             return
         }

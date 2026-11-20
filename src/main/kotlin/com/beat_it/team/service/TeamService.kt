@@ -19,6 +19,7 @@ import com.beat_it.notification.service.NotificationService
 import com.beat_it.notification.template.NotificationTemplate
 import org.springframework.context.ApplicationEventPublisher
 import org.springframework.context.annotation.Lazy
+import org.springframework.data.domain.PageRequest
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import org.springframework.web.multipart.MultipartFile
@@ -198,7 +199,7 @@ class TeamService(
             }
 
         val members = toTeamMemberInfos(
-            teamMembershipRepository.findTop10ByTeamTeamIdOrderByJoinedAtAsc(teamId)
+            teamMembershipRepository.findTop10ActiveByTeamId(teamId, PageRequest.of(0, 10))
         ).map { member ->
             TeamDetailMemberResponse(
                 userName = member.userName,
@@ -244,7 +245,7 @@ class TeamService(
 
         val savedMembership = teamMembershipRepository.save(teamMembership)
 
-        val managerUserIds = teamMembershipRepository.findAllByTeamTeamId(team.teamId!!)
+        val managerUserIds = teamMembershipRepository.findAllActiveByTeamId(team.teamId!!)
             .filter { it.teamRole == TeamRole.LEADER || it.teamRole == TeamRole.MANAGER }
             .map { it.userId }
             .filter { it != userId }
@@ -347,8 +348,7 @@ class TeamService(
         val teamId = userService.getCurrentTeamId(userId)
         val requesterMembership = findActiveMembershipOrThrow(teamId, userId)
 
-        val memberships = teamMembershipRepository.findAllByTeamTeamId(teamId)
-
+        val memberships = teamMembershipRepository.findAllActiveByTeamId(teamId)
 
         val allMemberItems = toTeamMemberInfos(memberships)
 
@@ -387,7 +387,7 @@ class TeamService(
         val teamId = userService.getCurrentTeamId(userId)
         validateTeamMember(teamId, userId)
 
-        val memberships = teamMembershipRepository.findAllByTeamTeamId(teamId)
+        val memberships = teamMembershipRepository.findAllActiveByTeamId(teamId)
         val memberItems = toTeamMemberInfos(memberships)
         val sortedMembers = memberItems.sortedBy { it.userName }.map {
             MemberPositionItem(
@@ -434,7 +434,7 @@ class TeamService(
             }
         }
 
-        val memberships = teamMembershipRepository.findAllByTeamTeamId(teamId)
+        val memberships = teamMembershipRepository.findAllActiveByTeamId(teamId)
         val memberItems = toTeamMemberInfos(memberships)
         val sortedMembers = memberItems.sortedBy { it.userName }.map {
             MemberPositionItem(
@@ -463,7 +463,7 @@ class TeamService(
         val withdrawnAt = OffsetDateTime.now()
         teamMembershipRepository.delete(membership)
 
-        val managerUserIds = teamMembershipRepository.findAllByTeamTeamId(teamId)
+        val managerUserIds = teamMembershipRepository.findAllActiveByTeamId(teamId)
             .filter { it.teamRole == TeamRole.LEADER || it.teamRole == TeamRole.MANAGER }
             .map { it.userId }
             .filter { it != userId }
@@ -672,7 +672,7 @@ class TeamService(
 
     @Transactional(readOnly = true)
     fun getTeamMemberUserIds(teamId: Long): List<Long> {
-        return teamMembershipRepository.findAllByTeamTeamId(teamId).map { it.userId }
+        return teamMembershipRepository.findAllActiveByTeamId(teamId).map { it.userId }
     }
 
     private fun changeToLeader(
@@ -857,7 +857,7 @@ class TeamService(
 
     fun validateMembersInTeam(teamId: Long, userIds: List<Long>): Boolean {
         if (userIds.isEmpty()) return false
-        val activeMembers = teamMembershipRepository.findAllByTeamTeamIdAndUserIdIn(teamId, userIds)
+        val activeMembers = teamMembershipRepository.findAllActiveByTeamIdAndUserIdIn(teamId, userIds)
         val uniqueUserIdsCount = userIds.distinct().size
         return activeMembers.size == uniqueUserIdsCount
     }
@@ -866,7 +866,7 @@ class TeamService(
     fun getMemberPositions(teamId: Long, userIds: List<Long>): Map<Long, String?> {
         if (userIds.isEmpty()) return emptyMap()
         return teamMembershipRepository
-            .findAllByTeamTeamIdAndUserIdIn(teamId, userIds)
+            .findAllActiveByTeamIdAndUserIdIn(teamId, userIds)
             .associate { it.userId to it.position }
     }
 }
