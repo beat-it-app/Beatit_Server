@@ -6,6 +6,7 @@ import com.beat_it.global.error.ErrorCode
 import com.beat_it.notification.dto.*
 import com.beat_it.notification.entity.Notifications
 import com.beat_it.notification.repository.NotificationRepository
+import com.beat_it.notification.template.NotificationCategory
 import com.beat_it.notification.template.NotificationMessage
 import com.beat_it.notification.template.NotificationTemplate
 import com.beat_it.team.service.TeamService
@@ -34,8 +35,17 @@ class NotificationService(
         val teamName = teamService.getTeamName(currentTeamId)
 
         val pageRequest = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"))
-        val notificationPage = notificationRepository.findByUserIdAndTeamId(userId, currentTeamId, pageRequest)
-        val unreadCount = notificationRepository.countByUserIdAndTeamIdAndIsReadFalse(userId, currentTeamId)
+        val notificationPage = notificationRepository.findByUserIdAndTeamIdAndCategoryNot(
+            userId = userId,
+            teamId = currentTeamId,
+            category = NotificationCategory.CHAT,
+            pageable = pageRequest
+        )
+        val unreadCount = notificationRepository.countByUserIdAndTeamIdAndCategoryNotAndIsReadFalse(
+            userId = userId,
+            teamId = currentTeamId,
+            category = NotificationCategory.CHAT
+        )
 
         return NotificationPageResponse(
             teamId = currentTeamId,
@@ -95,13 +105,21 @@ class NotificationService(
     @Transactional
     fun markAllAsRead(userId: Long) {
         val currentTeamId = userService.getCurrentTeamId(userId)
-        notificationRepository.markAllAsReadByUserIdAndTeamId(userId, currentTeamId)
+        notificationRepository.markAllAsReadByUserIdAndTeamIdAndCategoryNot(
+            userId = userId,
+            teamId = currentTeamId,
+            category = NotificationCategory.CHAT
+        )
     }
 
     @Transactional(readOnly = true)
     fun getUnreadStatus(userId: Long): NotificationUnreadStatusResponse {
         val currentTeamId = userService.getCurrentTeamId(userId)
-        val unreadCount = notificationRepository.countByUserIdAndTeamIdAndIsReadFalse(userId, currentTeamId)
+        val unreadCount = notificationRepository.countByUserIdAndTeamIdAndCategoryNotAndIsReadFalse(
+            userId = userId,
+            teamId = currentTeamId,
+            category = NotificationCategory.CHAT
+        )
 
         return NotificationUnreadStatusResponse(
             teamId = currentTeamId,
