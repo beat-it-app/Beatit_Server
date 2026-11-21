@@ -73,6 +73,7 @@ class CommentService(
         saveMentions(savedComment, teamId, dto.content, dto.mentionedUserIds, directToPath)
 
         val teamName = teamService.getTeamName(teamId)
+        val writerName = userService.getUserProfile(userId)?.name
 
         if (parentCommentWriterId != null) {
             if (parentCommentWriterId != userId) {
@@ -83,6 +84,8 @@ class CommentService(
                         message = NotificationTemplate.replyCreated(
                             teamName = teamName,
                             postTitle = postTitle,
+                            writerName = writerName,
+                            replyContent = dto.content,
                             postId = postId,
                             directTo = directToPath
                         )
@@ -97,6 +100,8 @@ class CommentService(
                         message = NotificationTemplate.commentCreated(
                             teamName = teamName,
                             postTitle = postTitle ?: "게시글",
+                            writerName = writerName,
+                            commentContent = dto.content,
                             postId = postId,
                             directTo = directToPath
                         )
@@ -112,6 +117,8 @@ class CommentService(
                         message = NotificationTemplate.commentCreated(
                             teamName = teamName,
                             postTitle = postTitle ?: "게시글",
+                            writerName = writerName,
+                            commentContent = dto.content,
                             postId = postId,
                             directTo = directToPath
                         )
@@ -286,6 +293,7 @@ class CommentService(
                         message = NotificationTemplate.commentMentioned(
                             teamName = teamName,
                             mentionerName = mentionerName,
+                            commentContent = comment.content,
                             postId = comment.postId,
                             directTo = directTo
                         )

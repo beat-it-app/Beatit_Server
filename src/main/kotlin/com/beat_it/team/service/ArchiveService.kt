@@ -93,6 +93,7 @@ class ArchiveService(
         val teamMembers = teamService.getTeamMemberUserIds(team.teamId!!)
         val targetUserIds = teamMembers.filter { it != userId }
         if (targetUserIds.isNotEmpty()) {
+            val authorName = userService.getUserProfile(userId)?.name
             eventPublisher.publishEvent(
                 NotificationEvent(
                     targetUserIds = targetUserIds,
@@ -100,6 +101,7 @@ class ArchiveService(
                     message = NotificationTemplate.archiveRegistered(
                         teamName = team.teamName,
                         archiveTitle = savedArchive.title,
+                        authorName = authorName,
                         archiveId = savedArchive.archiveId
                     )
                 )
@@ -419,6 +421,7 @@ class ArchiveService(
         archive.increaseComment()
 
         val teamName = archive.team.teamName
+        val commentWriterName = userService.getUserProfile(userId)?.name
 
         if (parentCommentWriterId != null) {
             if (parentCommentWriterId != userId) {
@@ -429,6 +432,8 @@ class ArchiveService(
                         message = NotificationTemplate.replyCreated(
                             teamName = teamName,
                             postTitle = archive.title,
+                            writerName = commentWriterName,
+                            replyContent = comment,
                             postId = archiveId,
                             directTo = directToPath
                         )
@@ -443,6 +448,8 @@ class ArchiveService(
                         message = NotificationTemplate.commentCreated(
                             teamName = teamName,
                             postTitle = archive.title,
+                            writerName = commentWriterName,
+                            commentContent = comment,
                             postId = archiveId,
                             directTo = directToPath
                         )
@@ -458,6 +465,8 @@ class ArchiveService(
                         message = NotificationTemplate.commentCreated(
                             teamName = teamName,
                             postTitle = archive.title,
+                            writerName = commentWriterName,
+                            commentContent = comment,
                             postId = archiveId,
                             directTo = directToPath
                         )
@@ -713,6 +722,8 @@ class ArchiveService(
                         message = NotificationTemplate.commentMentioned(
                             teamName = teamName,
                             mentionerName = mentionerName,
+                            commentContent = comment.content,
+                            postTitle = comment.archive.title,
                             postId = comment.archive.archiveId,
                             directTo = directTo
                         )

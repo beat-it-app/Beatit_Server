@@ -43,7 +43,7 @@ enum class NotificationType(
     COMMENT_MENTIONED(NotificationCategory.POST, "댓글 멘션", true, true),
 
     // 7. 채팅
-    CHAT_MESSAGE(NotificationCategory.CHAT, "채팅", true, false)
+    CHAT_MESSAGE(NotificationCategory.CHAT, "채팅", true, true)
 }
 
 data class NotificationMessage(
@@ -63,8 +63,8 @@ object NotificationTemplate {
 
     // 2-1. 멤버 가입 (수신: 운영진 / direct to: 멤버 목록 페이지)
     fun memberJoin(teamName: String, name: String): NotificationMessage {
-        val title = "$teamName 멤버 가입"
-        val content = "[$teamName] ${name}님이 새로 합류했습니다."
+        val title = "[$teamName] $name"
+        val content = "팀에 새로 합류했습니다. 환영해 주세요!"
         return NotificationMessage(
             type = NotificationType.MEMBER_JOIN,
             category = NotificationCategory.TEAM,
@@ -77,8 +77,8 @@ object NotificationTemplate {
 
     // 2-2. 멤버 탈퇴 (수신: 운영진 / direct to: 멤버 목록 페이지)
     fun memberLeave(teamName: String, name: String): NotificationMessage {
-        val title = "$teamName 멤버 탈퇴"
-        val content = "[$teamName] ${name}님이 팀을 나갔습니다."
+        val title = "[$teamName] $name"
+        val content = "팀을 탈퇴했습니다."
         return NotificationMessage(
             type = NotificationType.MEMBER_LEAVE,
             category = NotificationCategory.TEAM,
@@ -91,8 +91,8 @@ object NotificationTemplate {
 
     // 3-1. 파트 배정받았을 때 (수신: 파트 배정 대상자 / direct to: 멤버 목록 페이지)
     fun partAssigned(teamName: String, part: String): NotificationMessage {
-        val title = "$teamName 파트 배정"
-        val content = "[$teamName] $part 파트로 배정되었습니다. 내 파트를 확인해 보세요!"
+        val title = "[$teamName]"
+        val content = "$part 파트로 배정되었습니다. 내 파트를 확인해 보세요!"
         return NotificationMessage(
             type = NotificationType.PART_ASSIGNED,
             category = NotificationCategory.TEAM,
@@ -105,9 +105,9 @@ object NotificationTemplate {
 
     // 3-1-1. 운영진/대표 권한 변경되었을 때 (수신: 대상자 / direct to: 멤버 목록 페이지)
     fun roleChanged(teamName: String, roleName: String): NotificationMessage {
-        val title = "$teamName 권한 변경"
+        val title = "[$teamName]"
         val josa = if (roleName.endsWith("대표")) "로" else "으로"
-        val content = "[$teamName] ${roleName}${josa} 권한이 변경되었습니다."
+        val content = "${roleName}${josa} 권한이 변경되었습니다."
         return NotificationMessage(
             type = NotificationType.PART_ASSIGNED,
             category = NotificationCategory.TEAM,
@@ -124,8 +124,8 @@ object NotificationTemplate {
 
     // 3-2. 새로운 합주실/연습실 등록됐을 때 (수신: 팀원 전원 / direct to: 해당 합주실/연습실 글)
     fun studioRegistered(teamName: String, studioName: String, studioId: Long? = null): NotificationMessage {
-        val title = "$teamName 합주실/연습실 등록"
-        val content = "[$teamName] 새로운 연습실(${studioName})이 등록되었습니다. 사용 후기를 남겨보세요!"
+        val title = "[$teamName]"
+        val content = "새로운 연습실이 등록되었습니다: $studioName"
         return NotificationMessage(
             type = NotificationType.STUDIO_REGISTERED,
             category = NotificationCategory.TEAM,
@@ -138,9 +138,14 @@ object NotificationTemplate {
     }
 
     // 3-2-1. 새로운 아카이브 등록됐을 때 (수신: 팀원 전원 / direct to: 해당 아카이브 글)
-    fun archiveRegistered(teamName: String, archiveTitle: String, archiveId: Long? = null): NotificationMessage {
-        val title = "$teamName 아카이브 등록"
-        val content = "[$teamName] 새로운 아카이브(${archiveTitle})가 등록되었습니다."
+    fun archiveRegistered(
+        teamName: String,
+        archiveTitle: String,
+        authorName: String? = null,
+        archiveId: Long? = null
+    ): NotificationMessage {
+        val title = authorName?.takeIf { it.isNotBlank() }?.let { "[$teamName] $it" } ?: "[$teamName]"
+        val content = "새로운 아카이브가 등록되었습니다: $archiveTitle"
         return NotificationMessage(
             type = NotificationType.STUDIO_REGISTERED,
             category = NotificationCategory.TEAM,
@@ -154,8 +159,8 @@ object NotificationTemplate {
 
     // 5-1. 일정 등록 (수신: 해당 일정 참여자 (작성자 제외) / direct to: 해당 일정)
     fun scheduleRegistered(teamName: String, scheduleTitle: String, scheduleId: Long? = null): NotificationMessage {
-        val title = "$teamName 일정 등록"
-        val content = "[$teamName] '$scheduleTitle' 일정이 등록되었습니다."
+        val title = "[$teamName]"
+        val content = "새로운 일정이 등록되었습니다: $scheduleTitle"
         return NotificationMessage(
             type = NotificationType.SCHEDULE_REGISTERED,
             category = NotificationCategory.CALENDAR,
@@ -169,8 +174,8 @@ object NotificationTemplate {
 
     // 5-1-1. 일정 멤버 추가 (일정 수정 시 새로 추가된 멤버 수신 / direct to: 해당 일정)
     fun scheduleMemberAdded(teamName: String, scheduleTitle: String, scheduleId: Long? = null): NotificationMessage {
-        val title = "$teamName 일정 멤버 추가"
-        val content = "[$teamName] '$scheduleTitle' 일정에 멤버로 추가되었습니다."
+        val title = "[$teamName]"
+        val content = "'$scheduleTitle' 일정에 참여 멤버로 추가되었습니다."
         return NotificationMessage(
             type = NotificationType.SCHEDULE_REGISTERED,
             category = NotificationCategory.CALENDAR,
@@ -184,8 +189,8 @@ object NotificationTemplate {
 
     // 5-2. 일정 d-1 (수신: 해당 일정 참여자 / direct to: 해당 일정)
     fun scheduleReminderD1(teamName: String, scheduleTitle: String, scheduleId: Long? = null): NotificationMessage {
-        val title = "$teamName 일정 알림"
-        val content = "[$teamName] 내일은 '$scheduleTitle'이 있는 날입니다!"
+        val title = "[$teamName]"
+        val content = "내일은 '$scheduleTitle' 일정이 있는 날입니다!"
         return NotificationMessage(
             type = NotificationType.SCHEDULE_REMINDER,
             category = NotificationCategory.CALENDAR,
@@ -198,32 +203,34 @@ object NotificationTemplate {
     }
 
     // 6-1-1. 공지사항 등록 (수신: 팀원 전원 (작성자 제외) / direct to: 해당 공지사항)
-    // 인앱 알림 UI 예시: title: "{teamName} 공지사항 등록", content: "{name}님이 공지사항을 등록했습니다."
     fun noticeRegistered(
         teamName: String,
         noticeTitle: String,
         authorName: String? = null,
         noticeId: Long? = null
     ): NotificationMessage {
-        val title = "$teamName 공지사항 등록"
-        val inAppContent = authorName?.let { "${it}님이 공지사항을 등록했습니다." }
-            ?: "[$teamName] 새 공지사항이 등록되었습니다: $noticeTitle"
-        val pushContent = "[$teamName] 새 공지사항이 등록되었습니다: $noticeTitle"
+        val title = authorName?.takeIf { it.isNotBlank() }?.let { "[$teamName] $it" } ?: "[$teamName]"
+        val content = "새로운 공지사항이 등록되었습니다: $noticeTitle"
         return NotificationMessage(
             type = NotificationType.NOTICE_REGISTERED,
             category = NotificationCategory.NOTICE,
             title = title,
-            content = inAppContent,
-            pushText = pushContent,
+            content = content,
+            pushText = content,
             directTo = noticeId?.let { "/posts/notices/$it" } ?: "/posts/notices",
             targetId = noticeId
         )
     }
 
     // 6-2-1. 투표 생성 (수신: 투표 대상자 (작성자 제외) / direct to: 해당 투표)
-    fun pollCreated(teamName: String, pollTitle: String, pollId: Long? = null): NotificationMessage {
-        val title = "$teamName 투표 생성"
-        val content = "[$teamName] 새로운 투표(${pollTitle})가 생성되었습니다. 투표에 참여해 보세요!"
+    fun pollCreated(
+        teamName: String,
+        pollTitle: String,
+        creatorName: String? = null,
+        pollId: Long? = null
+    ): NotificationMessage {
+        val title = creatorName?.takeIf { it.isNotBlank() }?.let { "[$teamName] $it" } ?: "[$teamName]"
+        val content = "새로운 투표가 등록되었습니다: $pollTitle"
         return NotificationMessage(
             type = NotificationType.POLL_CREATED,
             category = NotificationCategory.POLL,
@@ -236,15 +243,16 @@ object NotificationTemplate {
     }
 
     // 6-2-2. 투표 마감 전 알림 (수신: 투표 미참여자 / direct to: 해당 투표)
-    // remainingText: "하루 전" 또는 "1시간 전"
+    // remainingText: "24시간 전" 또는 "1시간 전"
     fun pollDeadlineApproaching(
         teamName: String,
         pollTitle: String,
         remainingText: String,
         pollId: Long? = null
     ): NotificationMessage {
-        val title = "$teamName 투표 마감 알림"
-        val content = "[$teamName] '$pollTitle' 투표 마감 [${remainingText}]입니다. 투표에 참여해 보세요!"
+        val title = "[$teamName]"
+        val suffix = if (remainingText.endsWith("전")) "" else " 전"
+        val content = "'$pollTitle' 투표 마감 $remainingText${suffix}입니다. 투표에 참여해 보세요!"
         return NotificationMessage(
             type = NotificationType.POLL_DEADLINE_APPROACHING,
             category = NotificationCategory.POLL,
@@ -258,8 +266,8 @@ object NotificationTemplate {
 
     // 6-2-3. 투표 미참여 리마인드 (수신: 투표 대상자 중 미참여자 / direct to: 해당 투표)
     fun pollReminder(teamName: String, pollTitle: String, pollId: Long? = null): NotificationMessage {
-        val title = "$teamName 투표 미참여 알림"
-        val content = "[$teamName] 아직 참여하지 않은 투표(${pollTitle})가 있습니다. 지금 투표에 참여해 보세요!"
+        val title = "[$teamName]"
+        val content = "아직 참여하지 않은 투표가 있습니다: $pollTitle"
         return NotificationMessage(
             type = NotificationType.POLL_REMINDER,
             category = NotificationCategory.POLL,
@@ -273,8 +281,8 @@ object NotificationTemplate {
 
     // 6-2-4. 전원 투표 완료 때 (수신: 투표 생성자 / direct to: 해당 투표)
     fun pollCompleted(teamName: String, pollTitle: String, pollId: Long? = null): NotificationMessage {
-        val title = "$teamName 투표 완료"
-        val content = "[$teamName] '$pollTitle' 투표의 모든 참여자가 투표를 완료했습니다. 결과를 확인해 보세요!"
+        val title = "[$teamName]"
+        val content = "'$pollTitle' 투표의 모든 참여자가 투표를 완료했습니다. 결과를 확인해 보세요!"
         return NotificationMessage(
             type = NotificationType.POLL_COMPLETED,
             category = NotificationCategory.POLL,
@@ -289,12 +297,20 @@ object NotificationTemplate {
     // 6-3-1. [공지/투표/아카이브] 댓글 작성할 때 (수신: 글 작성자 (본인 댓글 제외) / direct to: 해당 글)
     fun commentCreated(
         teamName: String,
-        postTitle: String,
+        postTitle: String? = null,
+        writerName: String? = null,
+        commentContent: String? = null,
         postId: Long? = null,
         directTo: String? = null
     ): NotificationMessage {
-        val title = "$teamName 새 댓글"
-        val content = "[$teamName] 내 글(${postTitle})에 새로운 댓글이 달렸습니다."
+        val title = writerName?.takeIf { it.isNotBlank() }?.let { "[$teamName] $it" } ?: "[$teamName]"
+        val content = if (!commentContent.isNullOrBlank()) {
+            "댓글을 남겼습니다: $commentContent"
+        } else if (!postTitle.isNullOrBlank()) {
+            "'$postTitle' 글에 새로운 댓글이 달렸습니다."
+        } else {
+            "내 글에 새로운 댓글이 달렸습니다."
+        }
         return NotificationMessage(
             type = NotificationType.COMMENT_CREATED,
             category = NotificationCategory.POST,
@@ -310,14 +326,18 @@ object NotificationTemplate {
     fun replyCreated(
         teamName: String,
         postTitle: String? = null,
+        writerName: String? = null,
+        replyContent: String? = null,
         postId: Long? = null,
         directTo: String? = null
     ): NotificationMessage {
-        val title = "$teamName 새 답글"
-        val content = if (!postTitle.isNullOrBlank()) {
-            "[$teamName] '$postTitle'의 내 댓글에 새로운 답글이 달렸습니다."
+        val title = writerName?.takeIf { it.isNotBlank() }?.let { "[$teamName] $it" } ?: "[$teamName]"
+        val content = if (!replyContent.isNullOrBlank()) {
+            "답글을 남겼습니다: $replyContent"
+        } else if (!postTitle.isNullOrBlank()) {
+            "'$postTitle'의 내 댓글에 새로운 답글이 달렸습니다."
         } else {
-            "[$teamName] 내 댓글에 새로운 답글이 달렸습니다."
+            "내 댓글에 새로운 답글이 달렸습니다."
         }
         return NotificationMessage(
             type = NotificationType.COMMENT_CREATED,
@@ -334,12 +354,17 @@ object NotificationTemplate {
     fun commentMentioned(
         teamName: String,
         mentionerName: String,
+        commentContent: String? = null,
         postTitle: String? = null,
         postId: Long? = null,
         directTo: String? = null
     ): NotificationMessage {
-        val title = "$teamName 댓글 언급"
-        val content = "[$teamName] ${mentionerName}님이 댓글에서 회원님을 언급했습니다."
+        val title = "[$teamName] $mentionerName"
+        val content = if (!commentContent.isNullOrBlank()) {
+            "댓글에서 회원님을 언급했습니다: $commentContent"
+        } else {
+            "댓글에서 회원님을 언급했습니다."
+        }
         return NotificationMessage(
             type = NotificationType.COMMENT_MENTIONED,
             category = NotificationCategory.POST,
@@ -352,9 +377,14 @@ object NotificationTemplate {
     }
 
     // 6-4-1. 밋잇 생성 (수신: 밋잇 참여 대상자 (작성자 제외) / direct to: 해당 밋잇)
-    fun meetitCreated(teamName: String, meetitTitle: String, meetitId: Long? = null): NotificationMessage {
-        val title = "$teamName 새로운 밋잇 생성"
-        val content = "[$teamName] 새로운 밋잇(${meetitTitle})이 열렸습니다. 가능한 일정을 등록해 보세요!"
+    fun meetitCreated(
+        teamName: String,
+        meetitTitle: String,
+        creatorName: String? = null,
+        meetitId: Long? = null
+    ): NotificationMessage {
+        val title = creatorName?.takeIf { it.isNotBlank() }?.let { "[$teamName] $it" } ?: "[$teamName]"
+        val content = "새로운 밋잇이 등록되었습니다: $meetitTitle"
         return NotificationMessage(
             type = NotificationType.MEETIT_CREATED,
             category = NotificationCategory.MEETIT,
@@ -368,8 +398,8 @@ object NotificationTemplate {
 
     // 6-4-2. 밋잇 미참여 리마인드 (수신: 밋잇 참여 대상자 중 미참여자 / direct to: 해당 밋잇)
     fun meetitReminder(teamName: String, meetitTitle: String, meetitId: Long? = null): NotificationMessage {
-        val title = "$teamName 밋잇 미참여 알림"
-        val content = "[$teamName] 아직 작성하지 않은 밋잇(${meetitTitle})이 있습니다. 가능한 일정을 등록해 보세요!"
+        val title = "[$teamName]"
+        val content = "아직 참여하지 않은 밋잇이 있습니다: $meetitTitle"
         return NotificationMessage(
             type = NotificationType.MEETIT_REMINDER,
             category = NotificationCategory.MEETIT,
@@ -383,11 +413,11 @@ object NotificationTemplate {
 
     // 6-4-3. 전원 참여 완료했을 때 (수신: 밋잇 생성자 / direct to: 해당 밋잇)
     fun meetitCompleted(teamName: String, meetitTitle: String? = null, meetitId: Long? = null): NotificationMessage {
-        val title = "$teamName 밋잇 작성 완료"
+        val title = "[$teamName]"
         val content = if (!meetitTitle.isNullOrBlank()) {
-            "[$teamName] '$meetitTitle' 밋잇의 모든 참여자가 작성을 완료했습니다. 모임 가능 시간을 확인해 보세요!"
+            "'$meetitTitle' 밋잇의 모든 참여자가 일정을 등록했습니다. 모임 시간을 확인해 보세요!"
         } else {
-            "[$teamName] 모든 참여자가 밋잇 작성을 완료했습니다. 모임 가능 시간을 확인해 보세요!"
+            "모든 멤버가 일정을 등록했습니다. 모임 시간을 확인해 보세요!"
         }
         return NotificationMessage(
             type = NotificationType.MEETIT_COMPLETED,
@@ -400,7 +430,7 @@ object NotificationTemplate {
         )
     }
 
-    // 7-1. 채팅 (수신: 채팅방 참여자 / direct to: 해당 채팅방 / toast: false)
+    // 7-1. 채팅 (수신: 채팅방 참여자 / direct to: 해당 채팅방 / toast: true)
     fun chatMessage(
         teamName: String,
         chatRoomName: String?,
@@ -408,11 +438,11 @@ object NotificationTemplate {
         message: String,
         chatRoomId: Long? = null
     ): NotificationMessage {
-        val title = chatRoomName?.takeIf { it.isNotBlank() } ?: senderName
+        val title = "[$teamName] $senderName"
         val content = if (!chatRoomName.isNullOrBlank() && chatRoomName != senderName) {
-            "[$teamName / $chatRoomName] $senderName: $message"
+            "[$chatRoomName] $message"
         } else {
-            "[$teamName] $senderName: $message"
+            message
         }
         return NotificationMessage(
             type = NotificationType.CHAT_MESSAGE,
@@ -423,7 +453,7 @@ object NotificationTemplate {
             directTo = chatRoomId?.let { "/chats/$it" } ?: "/chats",
             targetId = chatRoomId,
             isPush = true,
-            isToast = false
+            isToast = true
         )
     }
 }
