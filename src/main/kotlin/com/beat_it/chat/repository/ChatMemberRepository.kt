@@ -19,6 +19,10 @@ interface ChatMemberRepository : JpaRepository<ChatMember, Long> {
 
     fun findByChatRoomChatIdAndIsParticipatingTrue(chatId: Long): List<ChatMember>
 
+    fun findAllByUserIdAndChatRoomTeamIdAndIsParticipatingTrue(userId: Long, teamId: Long): List<ChatMember>
+
+    fun findAllByUserIdAndIsParticipatingTrue(userId: Long): List<ChatMember>
+
     @Query("SELECT COUNT(cm) FROM ChatMember cm WHERE cm.chatRoom.chatId = :chatId AND cm.isParticipating = true")
     fun countByChatRoomChatId(@Param("chatId") chatId: Long): Long
 

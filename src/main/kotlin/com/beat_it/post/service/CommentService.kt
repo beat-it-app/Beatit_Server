@@ -157,7 +157,7 @@ class CommentService(
                 val mentionedProfile = userProfilesMap[mention.mentionedUserId]
                 MentionUserResponse(
                     userId = mention.mentionedUserId,
-                    name = mentionedProfile?.name ?: mention.mentionedName,
+                    name = mentionedProfile?.name ?: "알 수 없음",
                     profileImageUrl = mentionedProfile?.profileImageUrl
                 )
             }
@@ -237,7 +237,7 @@ class CommentService(
         explicitMentionedUserIds: List<Long>?,
         directTo: String? = null
     ) {
-        val activeMembers = teamMembershipRepository.findAllByTeamTeamId(teamId)
+        val activeMembers = teamMembershipRepository.findAllActiveByTeamId(teamId)
         if (activeMembers.isEmpty()) return
 
         val activeMemberUserIds = activeMembers.map { it.userId }.toSet()

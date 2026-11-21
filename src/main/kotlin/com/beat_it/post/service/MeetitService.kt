@@ -60,7 +60,7 @@ class MeetitService(
 
         val teamId = userService.getCurrentTeamId(userId)
 
-        val activeMemberships = teamMembershipRepository.findAllByTeamTeamIdAndUserIdIn(
+        val activeMemberships = teamMembershipRepository.findAllActiveByTeamIdAndUserIdIn(
             teamId = teamId,
             userIds = request.participantUserIds
         )

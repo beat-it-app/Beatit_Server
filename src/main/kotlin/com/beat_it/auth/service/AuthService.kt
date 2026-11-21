@@ -38,6 +38,8 @@ import com.beat_it.notification.dto.PushTokenRegisterRequest
 import com.beat_it.notification.entity.enum.PlatformType
 import com.beat_it.notification.service.PushTokenService
 import com.beat_it.team.service.TeamCloudService
+import com.beat_it.chat.service.ChatService
+import org.springframework.context.annotation.Lazy
 import com.beat_it.team.service.TeamService
 import org.slf4j.LoggerFactory
 
@@ -60,7 +62,8 @@ class AuthService (
     private val pushTokenService: PushTokenService,
     private val teamService: TeamService,
     private val teamCloudService: TeamCloudService,
-    private val scheduleService: ScheduleService
+    private val scheduleService: ScheduleService,
+    @Lazy private val chatService: ChatService
 ){
     private val log = LoggerFactory.getLogger(AuthService::class.java)
 
@@ -696,6 +699,8 @@ class AuthService (
         if (teamService.isLeaderOfAnyActiveTeam(userId)) {
             throw BusinessException(ErrorCode.TEAM_LEADER_CANNOT_WITHDRAW)
         }
+
+        chatService.leaveAllChatRooms(userId)
 
         user.withdraw()
         refreshTokenService.deleteRefreshToken(userId.toString())

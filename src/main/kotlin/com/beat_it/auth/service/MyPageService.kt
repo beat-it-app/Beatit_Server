@@ -45,7 +45,7 @@ class MyPageService (
             teamMembershipRepository.findByTeamTeamIdAndUserId(teamId, userId)?.let { membership ->
                 val team = membership.team
                 val memberCount = teamMembershipRepository.countByTeamTeamId(teamId)
-                val leaderMembership = teamMembershipRepository.findAllByTeamTeamId(teamId)
+                val leaderMembership = teamMembershipRepository.findAllActiveByTeamId(teamId)
                     .find { it.teamRole.name == "LEADER" }
 
                 val leaderName = leaderMembership?.let {

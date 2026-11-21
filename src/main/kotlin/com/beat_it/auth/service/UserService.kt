@@ -189,6 +189,15 @@ class UserService (
         }
     }
 
+    @Transactional(readOnly = true)
+    fun filterActiveUserIds(userIds: List<Long>): Set<Long> {
+        if (userIds.isEmpty()) return emptySet()
+        return userRepository.findByUserIdIn(userIds)
+            .filter { it.accountStatus == AccountStatus.ACTIVE }
+            .mapNotNull { it.userId }
+            .toSet()
+    }
+
     private fun validateName(name: String) {
         if (name.isBlank() || name.length > 10) {
             throw BusinessException(ErrorCode.INVALID_NAME_FORMAT)

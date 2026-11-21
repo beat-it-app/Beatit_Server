@@ -326,9 +326,14 @@ class ChatService(
             )
         }.reversed()
 
+        val participatingUserIds = chatRoom.members
+            .filter { it.isParticipating }
+            .map { it.userId }
+        val activeParticipantCount = userService.filterActiveUserIds(participatingUserIds).size
+
         return ChatRoomDetailResponse.of(
             chatroomName = chatRoom.title,
-            participantCount = chatRoom.members.size,
+            participantCount = activeParticipantCount,
             messages = messageResponses,
             hasNext = messageSlice.hasNext()
         )
@@ -355,7 +360,7 @@ class ChatService(
 
         val allOtherMemberUserIds = chatRooms.flatMap { chatRoom ->
             chatRoom.members
-                .filter { member -> member.userId != currentUserId }
+                .filter { member -> member.userId != currentUserId && member.isParticipating }
                 .map { member -> member.userId }
         }.distinct()
 
@@ -364,6 +369,13 @@ class ChatService(
         } else {
             emptyMap()
         }
+
+        val allParticipatingMemberUserIds = chatRooms.flatMap { chatRoom ->
+            chatRoom.members
+                .filter { it.isParticipating }
+                .map { it.userId }
+        }.distinct()
+        val activeUserIdSet = userService.filterActiveUserIds(allParticipatingMemberUserIds)
 
         val roomSummaries = chatRooms.map { chatRoom ->
             val chatId = chatRoom.chatId!!
@@ -381,17 +393,21 @@ class ChatService(
                 }
             }
 
-            val otherMembers = chatRoom.members.filter { it.userId != currentUserId }
+            val otherMembers = chatRoom.members.filter { it.userId != currentUserId && it.isParticipating && it.userId in activeUserIdSet }
             val profileImages: List<String> = if (chatRoom.type == ChatRoomType.DIRECT) {
                 val otherMember = otherMembers.firstOrNull()
                 otherMember?.let { member ->
                     listOfNotNull(userProfileMap[member.userId]?.profileImageUrl)
                 } ?: emptyList()
             } else {
-                chatRoom.members.mapNotNull { member ->
-                    userProfileMap[member.userId]?.profileImageUrl
-                }.take(4)
+                chatRoom.members
+                    .filter { it.isParticipating && it.userId in activeUserIdSet }
+                    .mapNotNull { member ->
+                        userProfileMap[member.userId]?.profileImageUrl
+                    }.take(4)
             }
+
+            val activeParticipantCount = chatRoom.members.count { it.isParticipating && it.userId in activeUserIdSet }
 
             ChatRoomSummaryDto(
                 chatId = chatId,
@@ -400,7 +416,7 @@ class ChatService(
                 lastMessageTime = latestMessage?.createdAt,
                 unreadCount = unreadCount.toInt(),
                 profileImage = profileImages,
-                participantCount = chatRoom.members.size
+                participantCount = activeParticipantCount
             )
         }
 
@@ -467,6 +483,32 @@ class ChatService(
             )
             val payload = objectMapper.writeValueAsString(messageDetail)
             kafkaTemplate.send("chat-topic", payload)
+        }
+    }
+
+    @Transactional
+    fun leaveAllChatRoomsInTeam(userId: Long, teamId: Long) {
+        val participatingMembers = chatMemberRepository.findAllByUserIdAndChatRoomTeamIdAndIsParticipatingTrue(userId, teamId)
+        participatingMembers.forEach { member ->
+            val chatId = member.chatRoom.chatId ?: return@forEach
+            try {
+                leaveChatRoom(chatId, userId)
+            } catch (e: Exception) {
+                log.error("Failed to leave chat room {} for user {} on team withdrawal: {}", chatId, userId, e.message, e)
+            }
+        }
+    }
+
+    @Transactional
+    fun leaveAllChatRooms(userId: Long) {
+        val participatingMembers = chatMemberRepository.findAllByUserIdAndIsParticipatingTrue(userId)
+        participatingMembers.forEach { member ->
+            val chatId = member.chatRoom.chatId ?: return@forEach
+            try {
+                leaveChatRoom(chatId, userId)
+            } catch (e: Exception) {
+                log.error("Failed to leave chat room {} for user {} on account withdrawal: {}", chatId, userId, e.message, e)
+            }
         }
     }
 
