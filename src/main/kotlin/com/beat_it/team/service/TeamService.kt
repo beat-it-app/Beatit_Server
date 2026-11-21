@@ -1,6 +1,7 @@
 package com.beat_it.team.service
 
 import com.beat_it.auth.service.UserService
+import com.beat_it.chat.service.ChatService
 import com.beat_it.global.error.BusinessException
 import com.beat_it.global.error.ErrorCode
 import com.beat_it.global.service.FileService
@@ -37,7 +38,8 @@ class TeamService(
     @Lazy private val notificationService: NotificationService,
     private val eventPublisher: ApplicationEventPublisher,
     private val teamCloudService: TeamCloudService,
-    @Lazy private val scheduleService: ScheduleService
+    @Lazy private val scheduleService: ScheduleService,
+    @Lazy private val chatService: ChatService
 ) {
 
     @Transactional
@@ -459,6 +461,8 @@ class TeamService(
         if (membership.teamRole == TeamRole.LEADER) {
             throw BusinessException(ErrorCode.TEAM_LEADER_CANNOT_WITHDRAW)
         }
+
+        chatService.leaveAllChatRoomsInTeam(userId, teamId)
 
         val withdrawnAt = OffsetDateTime.now()
         teamMembershipRepository.delete(membership)

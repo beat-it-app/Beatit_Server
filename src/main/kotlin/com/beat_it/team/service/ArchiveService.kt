@@ -620,7 +620,7 @@ class ArchiveService(
                 val mentionedProfile = userProfilesMap[mention.mentionedUserId]
                 ArchiveMentionUserResponse(
                     userId = mention.mentionedUserId,
-                    name = mentionedProfile?.name ?: mention.mentionedName,
+                    name = mentionedProfile?.name ?: "알 수 없음",
                     profileImageUrl = mentionedProfile?.profileImageUrl,
                 )
             }
