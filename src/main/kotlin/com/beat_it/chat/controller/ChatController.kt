@@ -4,6 +4,7 @@ import com.beat_it.chat.dto.ChatMessageRequest
 import com.beat_it.chat.dto.ChatRoomCreateRequest
 import com.beat_it.chat.dto.ChatRoomCreateResponse
 import com.beat_it.chat.dto.ChatRoomDetailResponse
+import com.beat_it.chat.dto.ChatRoomDuplicateCheckResponse
 import com.beat_it.chat.dto.ChatRoomListResponse
 import com.beat_it.chat.dto.ChatRoomUpdateRequest
 import com.beat_it.chat.dto.ChatRoomUpdateResponse
@@ -35,6 +36,28 @@ import org.springframework.web.multipart.MultipartFile
 class ChatController(
     private val chatService: ChatService
 ) {
+
+    @GetMapping("/check-duplicate")
+    fun checkDuplicateChatRoom(
+        @AuthenticationPrincipal userDetails: UserDetails,
+        @RequestParam("participantIds") participantIds: List<Long>
+    ): ResponseEntity<BasicResponse<ChatRoomDuplicateCheckResponse>> {
+
+        val currentUserId = userDetails.username.toLongOrNull()
+            ?: throw BusinessException(ErrorCode.UNAUTHORIZED)
+
+        val responseData = chatService.checkDuplicateChatRoom(participantIds, currentUserId)
+
+        return ResponseEntity
+            .status(HttpStatus.OK)
+            .body(
+                BasicResponse.success(
+                    responseData,
+                    HttpStatus.OK,
+                    "채팅방 중복 여부를 조회했습니다."
+                )
+            )
+    }
 
     @PostMapping
     fun createChatRoom(
