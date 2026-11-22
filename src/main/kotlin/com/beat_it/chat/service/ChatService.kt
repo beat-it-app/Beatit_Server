@@ -7,6 +7,7 @@ import com.beat_it.chat.dto.ChatMessageRequest
 import com.beat_it.chat.dto.ChatRoomCreateRequest
 import com.beat_it.chat.dto.ChatRoomCreateResponse
 import com.beat_it.chat.dto.ChatRoomDetailResponse
+import com.beat_it.chat.dto.ChatRoomDuplicateCheckResponse
 import com.beat_it.chat.dto.ChatRoomListResponse
 import com.beat_it.chat.dto.ChatRoomSummaryDto
 import com.beat_it.chat.dto.ChatRoomUpdateRequest
@@ -60,6 +61,55 @@ class ChatService(
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
 
+    @Transactional(readOnly = true)
+    fun checkDuplicateChatRoom(participantIds: List<Long>, currentUserId: Long): ChatRoomDuplicateCheckResponse {
+        val teamId = userService.getCurrentTeamId(currentUserId)
+
+        val allParticipantIds = participantIds.toMutableList().apply {
+            if (!contains(currentUserId)) add(currentUserId)
+        }.distinct()
+
+        val isValidTeamMembers = teamService.validateMembersInTeam(teamId, allParticipantIds)
+        if (!isValidTeamMembers) {
+            throw BusinessException(ErrorCode.INVALID_TEAM_PARTICIPANTS)
+        }
+
+        val roomType = if (allParticipantIds.size == 2) ChatRoomType.DIRECT else ChatRoomType.GROUP
+
+        if (roomType == ChatRoomType.DIRECT) {
+            val targetUserId = allParticipantIds.first { it != currentUserId }
+            val existingRoom = chatRepository.findDirectChatRoom(teamId, currentUserId, targetUserId)
+
+            val isActiveRoom = existingRoom?.members
+                ?.find { it.userId == currentUserId }
+                ?.isParticipating == true
+
+            return ChatRoomDuplicateCheckResponse(
+                exists = isActiveRoom,
+                roomType = ChatRoomType.DIRECT,
+                existingChatIds = if (isActiveRoom && existingRoom?.chatId != null) {
+                    listOf(existingRoom.chatId!!)
+                } else {
+                    emptyList()
+                }
+            )
+        }
+
+        val duplicateGroupRooms = chatRepository.findDuplicateGroupChatRooms(
+            teamId = teamId,
+            userIds = allParticipantIds,
+            memberCount = allParticipantIds.size
+        )
+
+        val chatIds = duplicateGroupRooms.mapNotNull { it.chatId }
+
+        return ChatRoomDuplicateCheckResponse(
+            exists = chatIds.isNotEmpty(),
+            roomType = ChatRoomType.GROUP,
+            existingChatIds = chatIds
+        )
+    }
+
     @Transactional
     fun createChatRoom(request: ChatRoomCreateRequest, currentUserId: Long): ChatRoomCreateResponse {
 
@@ -67,14 +117,63 @@ class ChatService(
 
         val allParticipantIds = request.participantIds.toMutableList().apply {
             if (!contains(currentUserId)) add(currentUserId)
-        }
+        }.distinct()
 
         val isValidTeamMembers = teamService.validateMembersInTeam(teamId, allParticipantIds)
         if (!isValidTeamMembers) {
             throw BusinessException(ErrorCode.INVALID_TEAM_PARTICIPANTS)
         }
 
-        val roomType = if (request.participantIds.size == 1) ChatRoomType.DIRECT else ChatRoomType.GROUP
+        val roomType = if (allParticipantIds.size == 2) ChatRoomType.DIRECT else ChatRoomType.GROUP
+
+        if (roomType == ChatRoomType.DIRECT) {
+            val targetUserId = allParticipantIds.first { it != currentUserId }
+            val existingRoom = chatRepository.findDirectChatRoom(teamId, currentUserId, targetUserId)
+
+            if (existingRoom != null) {
+                val myMember = existingRoom.members.find { it.userId == currentUserId }
+
+                if (myMember != null && myMember.isParticipating) {
+                    throw BusinessException(ErrorCode.CHAT_ROOM_ALREADY_EXISTS)
+                }
+
+                myMember?.isParticipating = true
+
+                val firstMessage = ChatMessage(
+                    chatRoom = existingRoom,
+                    senderId = currentUserId,
+                    content = request.firstMessageContent,
+                    type = ChatMessageType.TEXT
+                )
+                val savedMessage = chatMessageRepository.saveAndFlush(firstMessage)
+
+                myMember?.lastChatMessageId = savedMessage.chatMessageId
+
+                val messageDetail = ChatMessageDetailResponse(
+                    messageId = savedMessage.chatMessageId!!,
+                    chatId = existingRoom.chatId!!,
+                    senderId = currentUserId,
+                    content = savedMessage.content,
+                    messageType = savedMessage.type.name,
+                    createdAt = savedMessage.createdAt
+                )
+                val payload = objectMapper.writeValueAsString(messageDetail)
+                kafkaTemplate.send("chat-topic", payload)
+
+                sendChatNotification(
+                    chatRoom = existingRoom,
+                    senderId = currentUserId,
+                    messageType = ChatMessageType.TEXT,
+                    content = request.firstMessageContent
+                )
+
+                return ChatRoomCreateResponse(
+                    chatId = existingRoom.chatId!!,
+                    roomName = existingRoom.title,
+                    createdAt = existingRoom.createdAt
+                )
+            }
+        }
 
         val chatRoom = ChatRoom(
             teamId = teamId,
@@ -96,6 +195,10 @@ class ChatService(
             type = ChatMessageType.TEXT
         )
         val savedMessage = chatMessageRepository.saveAndFlush(firstMessage)
+
+        savedChatRoom.members.find { it.userId == currentUserId }?.let { creatorMember ->
+            creatorMember.lastChatMessageId = savedMessage.chatMessageId
+        }
 
         val messageDetail = ChatMessageDetailResponse(
             messageId = savedMessage.chatMessageId!!,
@@ -278,7 +381,7 @@ class ChatService(
 
         val targetUserIds = (senderIds + otherMemberUserIds).distinct()
         val userProfileMap = if (targetUserIds.isNotEmpty()) {
-            userService.getUserProfiles(senderIds).associateBy { it.userId }
+            userService.getUserProfiles(targetUserIds).associateBy { it.userId }
         } else {
             emptyMap()
         }
