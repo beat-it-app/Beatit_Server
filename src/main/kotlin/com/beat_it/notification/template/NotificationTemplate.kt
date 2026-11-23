@@ -229,8 +229,8 @@ object NotificationTemplate {
         creatorName: String? = null,
         pollId: Long? = null
     ): NotificationMessage {
-        val title = creatorName?.takeIf { it.isNotBlank() }?.let { "[$teamName] $it" } ?: "[$teamName]"
-        val content = "새로운 투표가 등록되었습니다: $pollTitle"
+        val title = "[$teamName]"
+        val content = "새로운 투표가 생성되었습니다: $pollTitle"
         return NotificationMessage(
             type = NotificationType.POLL_CREATED,
             category = NotificationCategory.POLL,
@@ -383,8 +383,8 @@ object NotificationTemplate {
         creatorName: String? = null,
         meetitId: Long? = null
     ): NotificationMessage {
-        val title = creatorName?.takeIf { it.isNotBlank() }?.let { "[$teamName] $it" } ?: "[$teamName]"
-        val content = "새로운 밋잇이 등록되었습니다: $meetitTitle"
+        val title = "[$teamName]"
+        val content = "새로운 밋잇이 생성되었습니다: $meetitTitle"
         return NotificationMessage(
             type = NotificationType.MEETIT_CREATED,
             category = NotificationCategory.MEETIT,
@@ -439,7 +439,7 @@ object NotificationTemplate {
         chatRoomId: Long? = null
     ): NotificationMessage {
         val title = "[$teamName] $senderName"
-        val content = if (!chatRoomName.isNullOrBlank() && chatRoomName != senderName) {
+        val content = if (!chatRoomName.isNullOrBlank()) {
             "[$chatRoomName] $message"
         } else {
             message

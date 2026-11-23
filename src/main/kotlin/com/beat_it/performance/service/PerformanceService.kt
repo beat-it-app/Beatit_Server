@@ -132,9 +132,8 @@ class PerformanceService(
 
     @Transactional(readOnly = true)
     fun getPerformanceDetail(userId: Long, publicId: UUID): PerformanceResponse {
-        val teamId = userService.getCurrentTeamId(userId)
+        userService.validateUserExists(userId)
         val performance = findPerformanceOrThrow(publicId)
-        validateTeamAccess(teamId, performance)
 
         return toPerformanceResponse(performance, userId)
     }
@@ -155,10 +154,8 @@ class PerformanceService(
     fun getUpcomingTeamPerformances(userId: Long): List<PerformanceListItemResponse> {
         userService.validateUserExists(userId)
 
-        val teamId = userService.getCurrentTeamId(userId)
         val performances = performanceRepository
-            .findTop10ByTeamIdAndPerformanceDateTimeGreaterThanEqualOrderByPerformanceDateTimeAsc(
-                teamId = teamId,
+            .findTop10ByPerformanceDateTimeGreaterThanEqualOrderByPerformanceDateTimeAsc(
                 performanceDateTime = OffsetDateTime.now(),
             )
 

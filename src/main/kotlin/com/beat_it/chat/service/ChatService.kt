@@ -673,7 +673,7 @@ class ChatService(
 
             val notificationMessage = NotificationTemplate.chatMessage(
                 teamName = teamName,
-                chatRoomName = chatRoom.title,
+                chatRoomName = if (chatRoom.type == ChatRoomType.GROUP) chatRoom.title else null,
                 senderName = senderName,
                 message = displayContent,
                 chatRoomId = chatId

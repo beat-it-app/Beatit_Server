@@ -60,7 +60,7 @@ enum class ErrorCode(
     TEAM_NO_CONTENT_TO_UPDATE(HttpStatus.BAD_REQUEST, "TEAM-001", "팀에 대해 변경할 내용이 없습니다."),
     TEAM_UNAVAILABLE(HttpStatus.NOT_FOUND, "TEAM-002", "이미 삭제되었거나 존재하지 않는 팀입니다."),
     TEAM_NAME_REQUIRED(HttpStatus.BAD_REQUEST, "TEAM-003", "팀 이름은 필수입니다."),
-    TEAM_NAME_TOO_LONG(HttpStatus.BAD_REQUEST, "TEAM-004", "팀 이름은 100자 이하여야 합니다."),
+    TEAM_NAME_TOO_LONG(HttpStatus.BAD_REQUEST, "TEAM-004", "팀 이름은 20자 이하여야 합니다."),
     TEAM_DESCRIPTION_TOO_LONG(HttpStatus.BAD_REQUEST, "TEAM-005", "팀 설명은 500자 이하여야 합니다."),
     TEAM_NO_UPDATE_PERMISSION(HttpStatus.FORBIDDEN, "TEAM-006", "팀 수정 권한이 없습니다."),
     TEAM_INVITE_CODE_REQUIRED(HttpStatus.BAD_REQUEST, "TEAM-007", "초대 코드가 입력되지 않았습니다."),
