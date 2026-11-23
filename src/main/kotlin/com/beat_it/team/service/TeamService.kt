@@ -559,7 +559,7 @@ class TeamService(
             throw BusinessException(ErrorCode.TEAM_NAME_REQUIRED)
         }
 
-        if (request.teamName.length > 100) {
+        if (request.teamName.length > 20) {
             throw BusinessException(ErrorCode.TEAM_NAME_TOO_LONG)
         }
 
@@ -573,7 +573,7 @@ class TeamService(
             throw BusinessException(ErrorCode.TEAM_NAME_REQUIRED)
         }
 
-        if ((request.teamName?.length ?: 0) > 100) {
+        if ((request.teamName?.length ?: 0) > 20) {
             throw BusinessException(ErrorCode.TEAM_NAME_TOO_LONG)
         }
 
