@@ -64,13 +64,14 @@ object NotificationTemplate {
     // 2-1. 멤버 가입 (수신: 운영진 / direct to: 멤버 목록 페이지)
     fun memberJoin(teamName: String, name: String): NotificationMessage {
         val title = "[$teamName] $name"
-        val content = "팀에 새로 합류했습니다. 환영해 주세요!"
+        val pushText = "팀에 새로 합류했습니다. 환영해 주세요!"
+        val content = "${name}님이 팀에 새로 합류했습니다. 환영해 주세요!"
         return NotificationMessage(
             type = NotificationType.MEMBER_JOIN,
             category = NotificationCategory.TEAM,
             title = title,
             content = content,
-            pushText = content,
+            pushText = pushText,
             directTo = "/teams/members"
         )
     }
@@ -78,13 +79,14 @@ object NotificationTemplate {
     // 2-2. 멤버 탈퇴 (수신: 운영진 / direct to: 멤버 목록 페이지)
     fun memberLeave(teamName: String, name: String): NotificationMessage {
         val title = "[$teamName] $name"
-        val content = "팀을 탈퇴했습니다."
+        val pushText = "팀을 탈퇴했습니다."
+        val content = "${name}님이 팀을 탈퇴했습니다."
         return NotificationMessage(
             type = NotificationType.MEMBER_LEAVE,
             category = NotificationCategory.TEAM,
             title = title,
             content = content,
-            pushText = content,
+            pushText = pushText,
             directTo = "/teams/members"
         )
     }
@@ -144,14 +146,20 @@ object NotificationTemplate {
         authorName: String? = null,
         archiveId: Long? = null
     ): NotificationMessage {
-        val title = authorName?.takeIf { it.isNotBlank() }?.let { "[$teamName] $it" } ?: "[$teamName]"
-        val content = "새로운 아카이브가 등록되었습니다: $archiveTitle"
+        val validAuthor = authorName?.takeIf { it.isNotBlank() }
+        val title = validAuthor?.let { "[$teamName] $it" } ?: "[$teamName]"
+        val pushText = "새로운 아카이브가 등록되었습니다: $archiveTitle"
+        val content = if (validAuthor != null) {
+            "${validAuthor}님이 새로운 아카이브를 등록했습니다: $archiveTitle"
+        } else {
+            pushText
+        }
         return NotificationMessage(
             type = NotificationType.STUDIO_REGISTERED,
             category = NotificationCategory.TEAM,
             title = title,
             content = content,
-            pushText = content,
+            pushText = pushText,
             directTo = archiveId?.let { "/archives/$it" } ?: "/archives",
             targetId = archiveId
         )
@@ -209,14 +217,20 @@ object NotificationTemplate {
         authorName: String? = null,
         noticeId: Long? = null
     ): NotificationMessage {
-        val title = authorName?.takeIf { it.isNotBlank() }?.let { "[$teamName] $it" } ?: "[$teamName]"
-        val content = "새로운 공지사항이 등록되었습니다: $noticeTitle"
+        val validAuthor = authorName?.takeIf { it.isNotBlank() }
+        val title = validAuthor?.let { "[$teamName] $it" } ?: "[$teamName]"
+        val pushText = "새로운 공지사항이 등록되었습니다: $noticeTitle"
+        val content = if (validAuthor != null) {
+            "${validAuthor}님이 새로운 공지사항을 등록했습니다: $noticeTitle"
+        } else {
+            pushText
+        }
         return NotificationMessage(
             type = NotificationType.NOTICE_REGISTERED,
             category = NotificationCategory.NOTICE,
             title = title,
             content = content,
-            pushText = content,
+            pushText = pushText,
             directTo = noticeId?.let { "/posts/notices/$it" } ?: "/posts/notices",
             targetId = noticeId
         )
@@ -303,20 +317,32 @@ object NotificationTemplate {
         postId: Long? = null,
         directTo: String? = null
     ): NotificationMessage {
-        val title = writerName?.takeIf { it.isNotBlank() }?.let { "[$teamName] $it" } ?: "[$teamName]"
-        val content = if (!commentContent.isNullOrBlank()) {
+        val validWriter = writerName?.takeIf { it.isNotBlank() }
+        val title = validWriter?.let { "[$teamName] $it" } ?: "[$teamName]"
+        val pushText = if (!commentContent.isNullOrBlank()) {
             "댓글을 남겼습니다: $commentContent"
         } else if (!postTitle.isNullOrBlank()) {
             "'$postTitle' 글에 새로운 댓글이 달렸습니다."
         } else {
             "내 글에 새로운 댓글이 달렸습니다."
         }
+        val content = if (validWriter != null) {
+            if (!commentContent.isNullOrBlank()) {
+                "${validWriter}님이 댓글을 남겼습니다: $commentContent"
+            } else if (!postTitle.isNullOrBlank()) {
+                "${validWriter}님이 '$postTitle' 글에 댓글을 남겼습니다."
+            } else {
+                "${validWriter}님이 내 글에 댓글을 남겼습니다."
+            }
+        } else {
+            pushText
+        }
         return NotificationMessage(
             type = NotificationType.COMMENT_CREATED,
             category = NotificationCategory.POST,
             title = title,
             content = content,
-            pushText = content,
+            pushText = pushText,
             directTo = directTo ?: (postId?.let { "/posts/$it" } ?: "/posts"),
             targetId = postId
         )
@@ -331,20 +357,32 @@ object NotificationTemplate {
         postId: Long? = null,
         directTo: String? = null
     ): NotificationMessage {
-        val title = writerName?.takeIf { it.isNotBlank() }?.let { "[$teamName] $it" } ?: "[$teamName]"
-        val content = if (!replyContent.isNullOrBlank()) {
+        val validWriter = writerName?.takeIf { it.isNotBlank() }
+        val title = validWriter?.let { "[$teamName] $it" } ?: "[$teamName]"
+        val pushText = if (!replyContent.isNullOrBlank()) {
             "답글을 남겼습니다: $replyContent"
         } else if (!postTitle.isNullOrBlank()) {
             "'$postTitle'의 내 댓글에 새로운 답글이 달렸습니다."
         } else {
             "내 댓글에 새로운 답글이 달렸습니다."
         }
+        val content = if (validWriter != null) {
+            if (!replyContent.isNullOrBlank()) {
+                "${validWriter}님이 답글을 남겼습니다: $replyContent"
+            } else if (!postTitle.isNullOrBlank()) {
+                "${validWriter}님이 '$postTitle'의 내 댓글에 답글을 남겼습니다."
+            } else {
+                "${validWriter}님이 내 댓글에 답글을 남겼습니다."
+            }
+        } else {
+            pushText
+        }
         return NotificationMessage(
             type = NotificationType.COMMENT_CREATED,
             category = NotificationCategory.POST,
             title = title,
             content = content,
-            pushText = content,
+            pushText = pushText,
             directTo = directTo ?: (postId?.let { "/posts/$it" } ?: "/posts"),
             targetId = postId
         )
@@ -360,17 +398,22 @@ object NotificationTemplate {
         directTo: String? = null
     ): NotificationMessage {
         val title = "[$teamName] $mentionerName"
-        val content = if (!commentContent.isNullOrBlank()) {
+        val pushText = if (!commentContent.isNullOrBlank()) {
             "댓글에서 회원님을 언급했습니다: $commentContent"
         } else {
             "댓글에서 회원님을 언급했습니다."
+        }
+        val content = if (!commentContent.isNullOrBlank()) {
+            "${mentionerName}님이 댓글에서 회원님을 언급했습니다: $commentContent"
+        } else {
+            "${mentionerName}님이 댓글에서 회원님을 언급했습니다."
         }
         return NotificationMessage(
             type = NotificationType.COMMENT_MENTIONED,
             category = NotificationCategory.POST,
             title = title,
             content = content,
-            pushText = content,
+            pushText = pushText,
             directTo = directTo ?: (postId?.let { "/posts/$it" } ?: "/posts"),
             targetId = postId
         )
