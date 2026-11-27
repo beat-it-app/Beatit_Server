@@ -388,6 +388,10 @@ class AuthService (
 
         var userAuthAccount = userAuthAccountRepository.findByAppleId(applePayload.appleId)
 
+        val resolvedEmail = dto.email?.takeIf { it.isNotBlank() }
+            ?: applePayload.email?.takeIf { it.isNotBlank() }
+            ?: "${applePayload.appleId}@apple.user"
+
         if (userAuthAccount == null) {
             var user = Users.createNewUser(
                 role = Role.USER,
@@ -401,8 +405,6 @@ class AuthService (
             )
             userSettingsRepository.save(userSetting)
 
-            val resolvedEmail = dto.email ?: applePayload.email ?: "${applePayload.appleId}@apple.user"
-
             userAuthAccount = UserAuthAccounts.createSocialUser(
                 user = user,
                 email = resolvedEmail,
@@ -410,6 +412,16 @@ class AuthService (
                 provider = SocialProvider.APPLE
             )
             userAuthAccountRepository.save(userAuthAccount)
+        } else if (userAuthAccount.email.isBlank() || userAuthAccount.email.endsWith("@apple.user")) {
+            val validEmail = dto.email?.takeIf { it.isNotBlank() }
+                ?: applePayload.email?.takeIf { it.isNotBlank() }
+            if (validEmail != null) {
+                userAuthAccount.email = validEmail
+                userAuthAccountRepository.save(userAuthAccount)
+            } else if (userAuthAccount.email.isBlank()) {
+                userAuthAccount.email = resolvedEmail
+                userAuthAccountRepository.save(userAuthAccount)
+            }
         }
 
         val user = userAuthAccount.user

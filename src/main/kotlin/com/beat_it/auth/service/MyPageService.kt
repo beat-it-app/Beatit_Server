@@ -70,6 +70,7 @@ class MyPageService (
         if (authAccount.kakaoId != null) socialAccounts.add(SocialProvider.KAKAO)
         if (authAccount.naverId != null) socialAccounts.add(SocialProvider.NAVER)
         if (authAccount.googleId != null) socialAccounts.add(SocialProvider.GOOGLE)
+        if (authAccount.appleId != null) socialAccounts.add(SocialProvider.APPLE)
 
         val unreadNotificationCount = user.currentTeamId?.let {
             notificationService.getUnreadStatus(userId).unreadCount
