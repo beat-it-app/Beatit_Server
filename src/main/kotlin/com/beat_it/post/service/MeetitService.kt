@@ -22,6 +22,7 @@ import com.beat_it.notification.template.NotificationTemplate
 import com.beat_it.team.service.TeamService
 import org.springframework.context.ApplicationEventPublisher
 import java.time.LocalDate
+import java.time.LocalDateTime
 import java.time.LocalTime
 import java.time.OffsetDateTime
 import java.time.ZoneId
@@ -46,6 +47,10 @@ class MeetitService(
         if (request.candidateDates.isEmpty()) {
             throw BusinessException(ErrorCode.INVALID_INPUT_VALUE)
         }
+        request.candidateDates.forEach { dateStr ->
+            runCatching { LocalDate.parse(dateStr) }
+                .getOrElse { throw BusinessException(ErrorCode.INVALID_INPUT_VALUE) }
+        }
         if (!request.dateOnly) {
             if (request.startTime == null || request.endTime == null) {
                 throw BusinessException(ErrorCode.INVALID_INPUT_VALUE)
@@ -60,7 +65,7 @@ class MeetitService(
 
         val teamId = userService.getCurrentTeamId(userId)
 
-        val activeMemberships = teamMembershipRepository.findAllByTeamTeamIdAndUserIdIn(
+        val activeMemberships = teamMembershipRepository.findAllActiveByTeamIdAndUserIdIn(
             teamId = teamId,
             userIds = request.participantUserIds
         )
@@ -178,25 +183,24 @@ class MeetitService(
         }
 
         val candidateDates = objectMapper.readValue<List<String>>(meetit.candidateDates)
+        val validSlotDateTimes = generateValidSlotDateTimes(
+            candidateDates = candidateDates,
+            dateOnly = meetit.dateOnly,
+            startTime = meetit.startTime,
+            endTime = meetit.endTime
+        )
 
         val systemZone = ZoneId.systemDefault()
-        val allSlotStartToUsers = mutableMapOf<OffsetDateTime, MutableList<Long>>()
+        val allSlotStartToUsers = linkedMapOf<OffsetDateTime, MutableList<Long>>()
 
-        for (dateStr in candidateDates) {
-            val date = LocalDate.parse(dateStr)
-            if (meetit.dateOnly) {
-                val offsetTime = date.atTime(LocalTime.MIN).atZone(systemZone).toOffsetDateTime()
-                allSlotStartToUsers[offsetTime] = mutableListOf()
-            } else {
-                var current = date.atTime(meetit.startTime!!)
-                val end = date.atTime(meetit.endTime!!)
-                while (current.isBefore(end)) {
-                    val offsetTime = current.atZone(systemZone).toOffsetDateTime()
-                    allSlotStartToUsers[offsetTime] = mutableListOf()
-                    current = current.plusMinutes(30)
-                }
-            }
+        for (localDateTime in validSlotDateTimes) {
+            val offsetTime = localDateTime.atZone(systemZone).toOffsetDateTime()
+            allSlotStartToUsers[offsetTime] = mutableListOf()
         }
+
+        val responseCandidateDates = validSlotDateTimes
+            .map { it.toLocalDate().toString() }
+            .distinct()
 
         for (resp in responses) {
             val respInstant = resp.slotStartTime.toInstant()
@@ -247,7 +251,7 @@ class MeetitService(
             startTime = meetit.startTime?.let { formatTime(it) },
             endTime = meetit.endTime?.let { formatTime(it) },
             dateOnly = meetit.dateOnly,
-            candidateDates = candidateDates,
+            candidateDates = responseCandidateDates,
             totalInvitedCount = totalCount,
             respondedCount = respondedParticipantIds.size,
             isParticipant = isParticipant,
@@ -265,26 +269,19 @@ class MeetitService(
             ?: throw BusinessException(ErrorCode.MEETIT_NOT_PARTICIPANT)
 
         val meetit = participant.meetit
-        val candidateDates = objectMapper.readValue<List<String>>(meetit.candidateDates).toSet()
+        val candidateDates = objectMapper.readValue<List<String>>(meetit.candidateDates)
+        val validSlots = generateValidSlotDateTimes(
+            candidateDates = candidateDates,
+            dateOnly = meetit.dateOnly,
+            startTime = meetit.startTime,
+            endTime = meetit.endTime
+        ).toSet()
 
         val systemZone = ZoneId.systemDefault()
 
         for (localDateTime in request.slotStartTimes) {
-            val dateStr = localDateTime.toLocalDate().toString()
-            if (!candidateDates.contains(dateStr)) {
+            if (!validSlots.contains(localDateTime)) {
                 throw BusinessException(ErrorCode.INVALID_INPUT_VALUE)
-            }
-
-            val localTime = localDateTime.toLocalTime()
-            if (!meetit.dateOnly) {
-                if (localTime.isBefore(meetit.startTime!!) || !localTime.isBefore(meetit.endTime!!)) {
-                    throw BusinessException(ErrorCode.INVALID_INPUT_VALUE)
-                }
-                validateTime30MinInterval(localTime)
-            } else {
-                if (localTime != LocalTime.MIN) {
-                    throw BusinessException(ErrorCode.INVALID_INPUT_VALUE)
-                }
             }
         }
 
@@ -396,6 +393,41 @@ class MeetitService(
             )
         }
         return result.sortedBy { it.startDateTime }
+    }
+
+    private fun generateValidSlotDateTimes(
+        candidateDates: List<String>,
+        dateOnly: Boolean,
+        startTime: LocalTime?,
+        endTime: LocalTime?
+    ): List<LocalDateTime> {
+        val slots = sortedSetOf<LocalDateTime>()
+
+        for (dateStr in candidateDates) {
+            val date = runCatching { LocalDate.parse(dateStr) }
+                .getOrElse { throw BusinessException(ErrorCode.INVALID_INPUT_VALUE) }
+
+            if (dateOnly) {
+                slots.add(date.atTime(LocalTime.MIN))
+            } else {
+                val start = startTime ?: throw BusinessException(ErrorCode.INVALID_INPUT_VALUE)
+                val end = endTime ?: throw BusinessException(ErrorCode.INVALID_INPUT_VALUE)
+
+                var current = date.atTime(start)
+                val endDateTime = if (end.isAfter(start)) {
+                    date.atTime(end)
+                } else {
+                    date.plusDays(1).atTime(end)
+                }
+
+                while (current.isBefore(endDateTime)) {
+                    slots.add(current)
+                    current = current.plusMinutes(30)
+                }
+            }
+        }
+
+        return slots.toList()
     }
 
     private fun validateTime30MinInterval(time: LocalTime) {

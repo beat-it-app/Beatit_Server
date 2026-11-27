@@ -60,7 +60,7 @@ enum class ErrorCode(
     TEAM_NO_CONTENT_TO_UPDATE(HttpStatus.BAD_REQUEST, "TEAM-001", "팀에 대해 변경할 내용이 없습니다."),
     TEAM_UNAVAILABLE(HttpStatus.NOT_FOUND, "TEAM-002", "이미 삭제되었거나 존재하지 않는 팀입니다."),
     TEAM_NAME_REQUIRED(HttpStatus.BAD_REQUEST, "TEAM-003", "팀 이름은 필수입니다."),
-    TEAM_NAME_TOO_LONG(HttpStatus.BAD_REQUEST, "TEAM-004", "팀 이름은 100자 이하여야 합니다."),
+    TEAM_NAME_TOO_LONG(HttpStatus.BAD_REQUEST, "TEAM-004", "팀 이름은 20자 이하여야 합니다."),
     TEAM_DESCRIPTION_TOO_LONG(HttpStatus.BAD_REQUEST, "TEAM-005", "팀 설명은 500자 이하여야 합니다."),
     TEAM_NO_UPDATE_PERMISSION(HttpStatus.FORBIDDEN, "TEAM-006", "팀 수정 권한이 없습니다."),
     TEAM_INVITE_CODE_REQUIRED(HttpStatus.BAD_REQUEST, "TEAM-007", "초대 코드가 입력되지 않았습니다."),
@@ -97,6 +97,7 @@ enum class ErrorCode(
     INVALID_MESSAGE_TYPE(HttpStatus.BAD_REQUEST, "CHAT-004", "올바르지 않은 채팅 메시지 타입입니다."),
     CHAT_MESSAGE_REQUIRED(HttpStatus.BAD_REQUEST, "CHAT-005", "텍스트 메시지 내용은 필수입니다."),
     CHAT_MEMBER_NOT_FOUND(HttpStatus.NOT_FOUND, "CHAT-006", "채팅방 참여자를 찾을 수 없습니다."),
+    CHAT_ROOM_ALREADY_EXISTS(HttpStatus.CONFLICT, "CHAT-007", "이미 존재하는 1:1 채팅방입니다."),
 
     // --- 5. 공지/투표 관련 에러 (POST) ---
     TITLE_CONTENT_REQUIRED(HttpStatus.BAD_REQUEST, "POST-001", "제목과 내용은 필수 입력 사항입니다."),

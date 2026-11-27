@@ -63,4 +63,8 @@ interface PerformanceRepository : JpaRepository<Performances, Long> {
         teamId: Long,
         performanceDateTime: OffsetDateTime,
     ): List<Performances>
+
+    fun findTop10ByPerformanceDateTimeGreaterThanEqualOrderByPerformanceDateTimeAsc(
+        performanceDateTime: OffsetDateTime,
+    ): List<Performances>
 }
